@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { RankEntry, SortOption, UserProfileResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
@@ -171,18 +170,9 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
           </div>
         </div>
 
-        <img
-          src={user.avatar}
-          alt={user.display_name}
-          className="w-12 h-12 rounded-full mr-4 border-2 border-slate-600"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.onerror = null; 
-            target.src = `https://picsum.photos/seed/${user.id}/48`;
-          }}
-        />
+        {/* Avatar Removed per user request */}
 
-        <div className="flex-grow overflow-hidden">
+        <div className="flex-grow overflow-hidden ml-2">
           <p className="text-lg font-semibold text-white truncate" title={user.display_name}>
             {user.display_name}
           </p>

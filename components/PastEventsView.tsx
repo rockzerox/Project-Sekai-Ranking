@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import LoadingSpinner from './LoadingSpinner';
@@ -28,10 +27,19 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         const sortedData = data.sort((a, b) => b.id - a.id);
         setEvents(sortedData);
         
-        // Set default year to the most recent event's year
+        // Logic to determine default year:
+        // 1. Try to select the current system year (e.g. 2025) if it exists in the data
+        // 2. Fallback to the year of the newest event
         if (sortedData.length > 0) {
-          const newestYear = new Date(sortedData[0].start_at).getFullYear();
-          setSelectedYear(newestYear);
+          const currentSystemYear = new Date().getFullYear();
+          const availableYears = new Set(data.map(e => new Date(e.start_at).getFullYear()));
+          
+          if (availableYears.has(currentSystemYear)) {
+             setSelectedYear(currentSystemYear);
+          } else {
+             const newestYear = new Date(sortedData[0].start_at).getFullYear();
+             setSelectedYear(newestYear);
+          }
         }
       } catch (err) {
         setError('無法載入過往活動。');
@@ -102,7 +110,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   if (error) return <ErrorMessage message={error} />;
 
   return (
-    <div className="container mx-auto px-4 py-6 animate-fadeIn">
+    <div className="w-full animate-fadeIn">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white mb-2">歷代活動 (Past Events)</h2>
         <p className="text-slate-400">Project Sekai 台服活動存檔</p>

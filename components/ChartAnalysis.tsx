@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { RankEntry, SortOption, ChartType } from '../types';
 import BarChart from './BarChart';
@@ -7,21 +6,29 @@ import LineChart from './LineChart';
 interface ChartAnalysisProps {
   rankings: RankEntry[];
   sortOption: SortOption;
+  isHighlights?: boolean;
 }
 
-const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) => {
+const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false }) => {
   const [chartType, setChartType] = useState<ChartType>('bar');
   const [startRankInput, setStartRankInput] = useState('1');
   const [endRankInput, setEndRankInput] = useState('100');
 
   useEffect(() => {
     // When the rankings data is loaded, set the end rank to the max available.
-    if (rankings.length > 0) {
+    // Only if NOT in highlights mode, as highlights mode uses fixed logic
+    if (rankings.length > 0 && !isHighlights) {
       setEndRankInput(String(rankings.length));
     }
-  }, [rankings]);
+  }, [rankings, isHighlights]);
   
   const { filteredRankings, validationError } = useMemo(() => {
+    if (isHighlights) {
+        // In highlights mode, ignore user inputs and return all data sorted by rank (ascending)
+        const sorted = [...rankings].sort((a, b) => a.rank - b.rank);
+        return { filteredRankings: sorted, validationError: null };
+    }
+
     const start = parseInt(startRankInput, 10);
     const end = parseInt(endRankInput, 10);
     let error: string | null = null;
@@ -52,7 +59,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
     }
     
     return { filteredRankings: data, validationError: error };
-  }, [rankings, startRankInput, endRankInput]);
+  }, [rankings, startRankInput, endRankInput, isHighlights]);
 
 
   const { chartData, title, valueFormatter, color } = useMemo(() => {
@@ -63,10 +70,17 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
 
     const sourceData = filteredRankings;
 
+    // For highlights, we might want to show Rank as label instead of name if name is crowded
+    // But stick to name for consistency unless specified. 
+    // Actually, display name is good.
+
     switch(sortOption) {
         case 'score':
-            chartTitle = '總分分佈 (Total Score)';
-            data = sourceData.map(r => ({ label: r.user.display_name, value: r.score }));
+            chartTitle = isHighlights ? '精彩片段分數分佈 (Highlights)' : '總分分佈 (Total Score)';
+            data = sourceData.map(r => ({ 
+                label: isHighlights ? `#${r.rank}` : r.user.display_name, // In highlights, use Rank # as label for clarity on sparse data
+                value: r.score 
+            }));
             chartColor = 'bg-cyan-500';
             break;
         case 'lastPlayedAt':
@@ -131,7 +145,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
 
     return { chartData: data, title: chartTitle, valueFormatter: formatter, color: chartColor };
 
-  }, [filteredRankings, sortOption]);
+  }, [filteredRankings, sortOption, isHighlights]);
 
   const ChartToggleButton: React.FC<{type: ChartType, label: string}> = ({ type, label }) => (
     <button
@@ -156,26 +170,35 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
             </div>
         </div>
 
-        <div className="bg-slate-800/50 p-3 rounded-md flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
-            <label htmlFor="startRank" className="text-slate-300 font-medium">排名範圍:</label>
-            <input 
-                id="startRank"
-                type="number" 
-                value={startRankInput}
-                onChange={(e) => setStartRankInput(e.target.value)}
-                className="w-24 bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-center focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
-                aria-label="Start Rank"
-            />
-            <span className="text-slate-500">至</span>
-            <input 
-                id="endRank"
-                type="number" 
-                value={endRankInput}
-                onChange={(e) => setEndRankInput(e.target.value)}
-                className="w-24 bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-center focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
-                aria-label="End Rank"
-            />
-        </div>
+        {!isHighlights && (
+            <div className="bg-slate-800/50 p-3 rounded-md flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
+                <label htmlFor="startRank" className="text-slate-300 font-medium">排名範圍:</label>
+                <input 
+                    id="startRank"
+                    type="number" 
+                    value={startRankInput}
+                    onChange={(e) => setStartRankInput(e.target.value)}
+                    className="w-24 bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-center focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                    aria-label="Start Rank"
+                />
+                <span className="text-slate-500">至</span>
+                <input 
+                    id="endRank"
+                    type="number" 
+                    value={endRankInput}
+                    onChange={(e) => setEndRankInput(e.target.value)}
+                    className="w-24 bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-center focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                    aria-label="End Rank"
+                />
+            </div>
+        )}
+        
+        {isHighlights && (
+            <div className="bg-slate-800/50 p-3 rounded-md text-center text-sm text-slate-400">
+                排名範圍: 精選名次 (Highlights) - 100 ~ 50000
+            </div>
+        )}
+
         {validationError && (
             <p className="text-red-400 text-xs text-center -mt-2">{validationError}</p>
         )}

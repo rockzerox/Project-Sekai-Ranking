@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
@@ -298,7 +297,7 @@ const EventComparisonView: React.FC = () => {
     if (listError) return <ErrorMessage message={listError} />;
 
     return (
-        <div className="container mx-auto px-4 py-6 animate-fadeIn">
+        <div className="w-full animate-fadeIn">
             <div className="mb-6">
                 <h2 className="text-3xl font-bold text-white mb-2">活動比較分析 (Event Comparison)</h2>
                 <p className="text-slate-400">比較過往任意兩期活動的前百名分數分佈</p>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { RankEntry, HisekaiApiResponse, SortOption, PastEventApiResponse, HisekaiBorderApiResponse, PastEventBorderApiResponse } from './types';
 import SearchBar from './components/SearchBar';
@@ -349,7 +348,11 @@ const App: React.FC = () => {
             isOpen={isChartsOpen}
             onToggle={() => setIsChartsOpen(!isChartsOpen)}
             >
-            <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} />
+            <ChartAnalysis 
+                rankings={sortedAndFilteredRankings} 
+                sortOption={sortOption}
+                isHighlights={isHighlights} 
+            />
             </CollapsibleSection>
             
             <CollapsibleSection
@@ -417,7 +420,7 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            <main className={`p-4 md:p-6 mx-auto ${currentView === 'analysis' ? 'w-full max-w-[98%]' : 'max-w-7xl'}`}>
+            <main className="p-4 md:p-6 mx-auto w-full">
                 {/* View Switcher Logic */}
                 {currentView === 'live' && (
                     <>

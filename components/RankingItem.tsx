@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { RankEntry, SortOption, UserProfileResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
@@ -170,8 +171,8 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
           </div>
         </div>
 
-        {/* Avatar Removed per user request */}
-
+        {/* Avatar Removed per user request - DOM element completely removed */}
+        
         <div className="flex-grow overflow-hidden ml-2">
           <p className="text-lg font-semibold text-white truncate" title={user.display_name}>
             {user.display_name}

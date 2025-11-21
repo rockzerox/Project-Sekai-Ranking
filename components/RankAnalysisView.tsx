@@ -49,7 +49,7 @@ const RankTable: React.FC<RankTableProps> = ({ title, headerAction, data, valueG
                                 {idx + 1}
                             </td>
                             <td className="px-3 py-2">
-                                <div className="font-medium text-slate-200 line-clamp-1" title={stat.eventName}>
+                                <div className="font-medium text-slate-200" title={stat.eventName}>
                                     {stat.eventName}
                                 </div>
                                 <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">

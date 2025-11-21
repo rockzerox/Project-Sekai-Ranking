@@ -3,8 +3,8 @@ import React from 'react';
 import TrophyIcon from './icons/TrophyIcon';
 
 interface SidebarProps {
-  currentView: 'live' | 'past' | 'comparison' | 'analysis';
-  setCurrentView: (view: 'live' | 'past' | 'comparison' | 'analysis') => void;
+  currentView: 'live' | 'past' | 'comparison' | 'analysis' | 'playerAnalysis';
+  setCurrentView: (view: 'live' | 'past' | 'comparison' | 'analysis' | 'playerAnalysis') => void;
   isOpen: boolean;
   toggleSidebar: () => void;
   isCollapsed: boolean;
@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({
            )}
         </div>
 
-        <nav className="p-4 space-y-2 flex-1">
+        <nav className="p-4 space-y-2 flex-1 custom-scrollbar overflow-y-auto">
           <button
             onClick={() => {
               setCurrentView('live');
@@ -122,6 +122,24 @@ const Sidebar: React.FC<SidebarProps> = ({
             </svg>
             {!isCollapsed && <span className="whitespace-nowrap overflow-hidden">排名分析</span>}
           </button>
+
+          <button
+            onClick={() => {
+              setCurrentView('playerAnalysis');
+              if (window.innerWidth < 768) toggleSidebar();
+            }}
+            title="活躍玩家分析"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-left font-medium group ${
+              currentView === 'playerAnalysis'
+                ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/20'
+                : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+            } ${isCollapsed ? 'justify-center px-2' : ''}`}
+          >
+            <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            {!isCollapsed && <span className="whitespace-nowrap overflow-hidden">活躍玩家分析</span>}
+          </button>
         </nav>
 
         {/* Collapse Toggle (Desktop Only) */}
@@ -144,10 +162,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer info (Hidden when collapsed) */}
         {!isCollapsed && (
-            <div className="p-4 border-t border-slate-700 md:border-t-0">
-            <p className="text-xs text-slate-500 text-center whitespace-nowrap overflow-hidden">
-                Unofficial Viewer<br/>Data from Hisekai
-            </p>
+            <div className="p-4 border-t border-slate-700 md:border-t-0 bg-slate-900/30">
+                <div className="text-xs text-slate-500 text-center space-y-1">
+                    <p>Unofficial Viewer</p>
+                    <p>
+                        Data by{' '}
+                        <a 
+                            href="https://docs.hisekai.org/zh/docs" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
+                        >
+                            Hisekai API
+                        </a>
+                    </p>
+                </div>
             </div>
         )}
       </aside>

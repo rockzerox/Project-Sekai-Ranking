@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { RankEntry, HisekaiApiResponse, SortOption, PastEventApiResponse, HisekaiBorderApiResponse, PastEventBorderApiResponse } from './types';
 import SearchBar from './components/SearchBar';
@@ -13,6 +14,7 @@ import Sidebar from './components/Sidebar';
 import PastEventsView from './components/PastEventsView';
 import EventComparisonView from './components/EventComparisonView';
 import RankAnalysisView from './components/RankAnalysisView';
+import PlayerAnalysisView from './components/PlayerAnalysisView';
 
 const API_URL = 'https://api.hisekai.org/event/live/top100';
 const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
@@ -23,9 +25,9 @@ const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 
 const App: React.FC = () => {
   // --- Navigation State ---
-  const [currentView, setCurrentView] = useState<'live' | 'past' | 'comparison' | 'analysis'>('live');
+  const [currentView, setCurrentView] = useState<'live' | 'past' | 'comparison' | 'analysis' | 'playerAnalysis'>('live');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For Mobile (Off-canvas)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // For Desktop (Mini-width)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true); // For Desktop (Mini-width)
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
 
   // --- Rankings Data State ---
@@ -85,7 +87,7 @@ const App: React.FC = () => {
               id: String(item.last_player_info.profile.id),
               username: item.name,
               display_name: item.name,
-              avatar: `https://storage.sekai.best/sekai-assets/thumbnail/chara_card_cutout/card_cutout_${item.last_player_info.card.id}_normal.png`,
+              avatar: '', // Avatar removed per request
               supporter_tier: 0, 
             }
           }));
@@ -129,7 +131,7 @@ const App: React.FC = () => {
                       id: String(item.last_player_info.profile.id),
                       username: item.name,
                       display_name: item.name,
-                      avatar: `https://storage.sekai.best/sekai-assets/thumbnail/chara_card_cutout/card_cutout_${item.last_player_info.card.id}_normal.png`,
+                      avatar: '', // Avatar removed per request
                       supporter_tier: 0,
                   }
               }));
@@ -169,7 +171,7 @@ const App: React.FC = () => {
                     id: String(item.userId),
                     username: item.name,
                     display_name: item.name,
-                    avatar: `https://storage.sekai.best/sekai-assets/thumbnail/chara_card_cutout/card_cutout_${item.userCard.cardId}_normal.png`,
+                    avatar: '', // Avatar removed per request
                     supporter_tier: 0
                 }
             }));
@@ -211,7 +213,7 @@ const App: React.FC = () => {
                     id: String(item.userId),
                     username: item.name,
                     display_name: item.name,
-                    avatar: `https://storage.sekai.best/sekai-assets/thumbnail/chara_card_cutout/card_cutout_${item.userCard.cardId}_normal.png`,
+                    avatar: '', // Avatar removed per request
                     supporter_tier: 0
                 }
             }));
@@ -420,7 +422,8 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            <main className="p-4 md:p-6 mx-auto w-full">
+            {/* Main Content Area - w-full ensures full width usage */}
+            <main className="p-4 w-full">
                 {/* View Switcher Logic */}
                 {currentView === 'live' && (
                     <>
@@ -463,6 +466,10 @@ const App: React.FC = () => {
                 
                 {currentView === 'analysis' && (
                     <RankAnalysisView />
+                )}
+
+                {currentView === 'playerAnalysis' && (
+                    <PlayerAnalysisView />
                 )}
             </main>
         </div>

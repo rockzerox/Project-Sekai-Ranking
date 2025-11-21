@@ -1,11 +1,13 @@
-import React from 'react';
-import { RankEntry, SortOption } from '../types';
+
+import React, { useState } from 'react';
+import { RankEntry, SortOption, UserProfileResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
 import TrophyIcon from './icons/TrophyIcon';
 
 interface RankingItemProps {
   entry: RankEntry;
   sortOption: SortOption;
+  hideStats?: boolean;
 }
 
 const getRankStyles = (rank: number) => {
@@ -37,8 +39,18 @@ const getRankStyles = (rank: number) => {
   }
 };
 
+const difficultyStyles: Record<string, string> = {
+  easy: 'text-lime-400',    
+  normal: 'text-blue-400',  
+  hard: 'text-amber-400',   
+  expert: 'text-rose-500',  
+  master: 'text-purple-400',
+  append: 'text-fuchsia-400'
+};
+
 const formatLastPlayed = (dateString: string) => {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '未知';
     return date.toLocaleString(undefined, {
       month: 'numeric',
       day: 'numeric',
@@ -59,73 +71,227 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption }> = ({ e
         case 'lastPlayedAt':
             return <>
                 <p className="text-base font-bold text-cyan-400">{formatLastPlayed(entry.lastPlayedAt)}</p>
-                <p className="text-xs text-slate-500">Last Online</p>
+                <p className="text-xs text-slate-500">最後上線</p>
             </>;
         // 1 Hour Stats
         case 'last1h_count':
-            return renderStat(entry.stats.last1h.count, '1h Plays');
+            return renderStat(entry.stats.last1h.count, '1H 次數');
         case 'last1h_speed':
-            return renderStat(entry.stats.last1h.speed, '1h Speed');
+            return renderStat(entry.stats.last1h.speed, '1H 時速');
         case 'last1h_average':
-            return renderStat(entry.stats.last1h.average, '1h Avg Score');
+            return renderStat(entry.stats.last1h.average, '1H 平均分');
         // 3 Hour Stats
         case 'last3h_count':
-            return renderStat(entry.stats.last3h.count, '3h Plays');
+            return renderStat(entry.stats.last3h.count, '3H 次數');
         case 'last3h_speed':
-            return renderStat(entry.stats.last3h.speed, '3h Speed');
+            return renderStat(entry.stats.last3h.speed, '3H 時速');
         case 'last3h_average':
-            return renderStat(entry.stats.last3h.average, '3h Avg Score');
+            return renderStat(entry.stats.last3h.average, '3H 平均分');
         // 24 Hour Stats
         case 'last24h_count':
-            return renderStat(entry.stats.last24h.count, '24h Plays');
+            return renderStat(entry.stats.last24h.count, '24H 次數');
         case 'last24h_speed':
-            return renderStat(entry.stats.last24h.speed, '24h Speed');
+            return renderStat(entry.stats.last24h.speed, '24H 時速');
         case 'last24h_average':
-            return renderStat(entry.stats.last24h.average, '24h Avg Score');
+            return renderStat(entry.stats.last24h.average, '24H 平均分');
         // Default
         case 'score':
         default:
-             return renderStat(entry.score, 'Score');
+             return renderStat(entry.score, '總分');
     }
 }
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption }) => {
-  const { rank, user } = entry;
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [profileData, setProfileData] = useState<UserProfileResponse | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  const { rank, user, stats } = entry;
   const styles = getRankStyles(rank);
+
+  const handleFetchProfile = async () => {
+    if (profileData || isLoadingProfile) return;
+    
+    setIsLoadingProfile(true);
+    setProfileError(null);
+    try {
+      const response = await fetch(`https://api.hisekai.org/user/${user.id}/profile`);
+      if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+      }
+      const textData = await response.text();
+      // Robust regex to catch "id", "userId", "cardId" etc that have large integers
+      const sanitizedData = textData.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+      const data: UserProfileResponse = JSON.parse(sanitizedData);
+      
+      setProfileData(data);
+    } catch (err) {
+      console.error(err);
+      setProfileError('載入失敗');
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  const renderStatDetail = (label: string, value: string | number) => (
+    <div className="flex justify-between items-baseline text-sm py-1.5 border-b border-slate-700/50 last:border-b-0">
+      <span className="text-slate-400">{label}</span>
+      <span className="font-semibold text-slate-200">{value}</span>
+    </div>
+  );
+  
+  const DetailStatCard: React.FC<{ title: string, stat: typeof stats.last1h }> = ({ title, stat }) => (
+    <div className="bg-slate-800 p-3 rounded-lg">
+      <h4 className="font-bold text-cyan-400 mb-2 text-center">{title}</h4>
+      <div className="space-y-1">
+        {renderStatDetail('次數 (Plays)', stat.count.toLocaleString())}
+        {renderStatDetail('時速 (Speed)', Math.round(stat.speed).toLocaleString())}
+        {renderStatDetail('平均分 (Avg)', Math.round(stat.average).toLocaleString())}
+      </div>
+    </div>
+  );
 
   return (
     <div
-      className={`flex items-center p-3 border rounded-lg transition-all duration-300 ${styles.container}`}
+      className={`border rounded-lg transition-all duration-300 overflow-hidden ${styles.container}`}
     >
-      <div className="flex items-center w-16 sm:w-20 flex-shrink-0">
-        <span className={`text-xl sm:text-2xl font-bold w-10 text-center ${styles.rankText}`}>
-          {rank}
-        </span>
-        <div className="w-6 h-6 ml-1 flex items-center justify-center">
-            {styles.icon}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center p-3 text-left transition-colors hover:bg-white/5"
+        aria-expanded={isExpanded}
+        aria-controls={`details-${user.id}`}
+      >
+        <div className="flex items-center w-16 sm:w-20 flex-shrink-0">
+          <span className={`text-xl sm:text-2xl font-bold w-10 text-center ${styles.rankText}`}>
+            {rank}
+          </span>
+          <div className="w-6 h-6 ml-1 flex items-center justify-center">
+              {styles.icon}
+          </div>
         </div>
-      </div>
 
-      <img
-        src={user.avatar}
-        alt={user.display_name}
-        className="w-12 h-12 rounded-full mr-4 border-2 border-slate-600"
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          target.onerror = null; 
-          target.src = `https://picsum.photos/seed/${user.id}/48`;
-        }}
-      />
+        <img
+          src={user.avatar}
+          alt={user.display_name}
+          className="w-12 h-12 rounded-full mr-4 border-2 border-slate-600"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.onerror = null; 
+            target.src = `https://picsum.photos/seed/${user.id}/48`;
+          }}
+        />
 
-      <div className="flex-grow overflow-hidden">
-        <p className="text-lg font-semibold text-white truncate" title={user.display_name}>
-          {user.display_name}
-        </p>
-        <p className="text-sm text-slate-400 truncate" title={`@${user.username}`}>@{user.username}</p>
-      </div>
+        <div className="flex-grow overflow-hidden">
+          <p className="text-lg font-semibold text-white truncate" title={user.display_name}>
+            {user.display_name}
+          </p>
+          <p className="text-sm text-slate-400 truncate" title={`@${user.username}`}>@{user.username}</p>
+        </div>
 
-      <div className="ml-4 text-right flex-shrink-0 w-28">
-        <StatDisplay entry={entry} sortOption={sortOption} />
+        <div className="ml-4 text-right flex-shrink-0 w-28">
+          <StatDisplay entry={entry} sortOption={sortOption} />
+        </div>
+
+        <div className="ml-2 sm:ml-4 flex-shrink-0">
+          <svg
+            className={`w-5 h-5 text-slate-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      <div id={`details-${user.id}`} className={`collapsible-content ${isExpanded ? 'open' : ''}`}>
+        <div className="p-4 pt-2 border-t border-slate-700/50 bg-black/20">
+          {!hideStats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <DetailStatCard title="過去 1 小時" stat={stats.last1h} />
+                <DetailStatCard title="過去 3 小時" stat={stats.last3h} />
+                <DetailStatCard title="過去 24 小時" stat={stats.last24h} />
+            </div>
+          )}
+
+          {/* Player Profile Section */}
+          <div className={`${hideStats ? '' : 'pt-3 border-t border-slate-700/50'}`}>
+             <div className="flex flex-wrap items-center gap-2 text-sm mb-3">
+                <span className="text-slate-400">Player ID:</span>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleFetchProfile();
+                    }}
+                    className="font-mono text-cyan-400 hover:text-cyan-300 hover:underline decoration-dotted underline-offset-4 transition-colors"
+                    title="點擊查看詳細資料"
+                    aria-label={`查看玩家 ${user.id} 的詳細資料`}
+                >
+                    {user.id}
+                </button>
+                {!profileData && !isLoadingProfile && (
+                    <span className="text-xs text-slate-500 hidden sm:inline ml-1">
+                        (點擊 ID 載入詳細資料)
+                    </span>
+                )}
+                {isLoadingProfile && (
+                    <span className="text-xs text-cyan-500 ml-2 animate-pulse">載入中...</span>
+                )}
+                {profileError && (
+                     <span className="text-xs text-red-400 ml-2">{profileError}</span>
+                )}
+             </div>
+
+             {/* Profile Data Display */}
+             {profileData && (
+                <div className="space-y-4 animate-fadeIn">
+                     <div className="grid grid-cols-2 gap-3 bg-slate-800/40 rounded-lg p-4 border border-slate-700/50">
+                         <div className="flex flex-col items-center sm:items-start">
+                             <span className="text-xs text-slate-500 uppercase font-bold mb-1">等級 (Rank)</span>
+                             <span className="text-2xl font-bold text-white">{profileData.user.rank}</span>
+                         </div>
+                         <div className="flex flex-col items-center sm:items-start">
+                             <span className="text-xs text-slate-500 uppercase font-bold mb-1">綜合力 (Total Power)</span>
+                             <span className="text-2xl font-bold text-emerald-400">
+                                {profileData.totalPower.totalPower.toLocaleString()}
+                             </span>
+                         </div>
+                     </div>
+                     
+                     {profileData.userMusicDifficultyClearCount && profileData.userMusicDifficultyClearCount.length > 0 && (
+                       <div>
+                         <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">歌曲通關狀態 (Music Clear Status)</h4>
+                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                            {profileData.userMusicDifficultyClearCount.map((stat) => (
+                              <div key={stat.musicDifficultyType} className="bg-slate-800/60 rounded p-2 border border-slate-700/50 flex flex-col items-center">
+                                  <div className={`font-bold uppercase text-xs mb-2 ${difficultyStyles[stat.musicDifficultyType] || 'text-slate-300'}`}>
+                                    {stat.musicDifficultyType}
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-2 w-full text-center">
+                                      <div className="flex flex-col">
+                                          <span className="text-[10px] text-slate-500 leading-none mb-1">Clear</span>
+                                          <span className="text-xs font-mono font-semibold text-white">{stat.liveClear}</span>
+                                      </div>
+                                      <div className="flex flex-col">
+                                          <span className="text-[10px] text-slate-500 leading-none mb-1">FC</span>
+                                          <span className="text-xs font-mono font-semibold text-pink-300">{stat.fullCombo}</span>
+                                      </div>
+                                      <div className="flex flex-col">
+                                          <span className="text-[10px] text-slate-500 leading-none mb-1">AP</span>
+                                          <span className="text-xs font-mono font-semibold text-yellow-300 shadow-yellow-500/20">{stat.allPerfect}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                            ))}
+                         </div>
+                       </div>
+                     )}
+                 </div>
+             )}
+          </div>
+        </div>
       </div>
     </div>
   );

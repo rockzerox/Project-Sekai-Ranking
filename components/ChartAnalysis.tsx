@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { RankEntry, SortOption, ChartType } from '../types';
 import BarChart from './BarChart';
 import LineChart from './LineChart';
@@ -11,6 +11,49 @@ interface ChartAnalysisProps {
 
 const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) => {
   const [chartType, setChartType] = useState<ChartType>('bar');
+  const [startRankInput, setStartRankInput] = useState('1');
+  const [endRankInput, setEndRankInput] = useState('100');
+
+  useEffect(() => {
+    // When the rankings data is loaded, set the end rank to the max available.
+    if (rankings.length > 0) {
+      setEndRankInput(String(rankings.length));
+    }
+  }, [rankings]);
+  
+  const { filteredRankings, validationError } = useMemo(() => {
+    const start = parseInt(startRankInput, 10);
+    const end = parseInt(endRankInput, 10);
+    let error: string | null = null;
+    let data: RankEntry[] = [];
+
+    const maxRank = rankings.length > 0 ? rankings.length : 100;
+
+    if (isNaN(start) || isNaN(end)) {
+        error = "請輸入有效的排名數字。";
+    } else if (start < 1) {
+        error = "起始排名必須至少為 1。";
+    } else if (end > maxRank) {
+        error = `結束排名不能超過 ${maxRank}。`;
+    } else if (start >= end) {
+        error = "起始排名必須小於結束排名。";
+    } else if (end - start < 9) { // e.g. 1 to 10 has a diff of 9 (10 players)
+        error = "範圍必須包含至少 10 名玩家。";
+    }
+
+    if (!error && rankings.length > 0) {
+        data = rankings.slice(start - 1, end);
+    } else if (rankings.length > 0 && error) {
+        // If there's an error, we return an empty array to show no data
+        data = [];
+    } else {
+        // If rankings aren't loaded yet
+        data = [];
+    }
+    
+    return { filteredRankings: data, validationError: error };
+  }, [rankings, startRankInput, endRankInput]);
+
 
   const { chartData, title, valueFormatter, color } = useMemo(() => {
     let data: { label: string, value: number }[] = [];
@@ -18,68 +61,69 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
     let formatter = (v: number) => Math.round(v).toLocaleString();
     let chartColor = 'bg-sky-500';
 
+    const sourceData = filteredRankings;
+
     switch(sortOption) {
         case 'score':
-            chartTitle = 'Total Score Distribution';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.score }));
+            chartTitle = '總分分佈 (Total Score)';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.score }));
             chartColor = 'bg-cyan-500';
             break;
         case 'lastPlayedAt':
-            chartTitle = 'Last Online Time Distribution (Minutes Ago)';
+            chartTitle = '最後上線時間 (分鐘前)';
             const now = Date.now();
-            data = rankings.map(r => ({ label: r.user.display_name, value: (now - new Date(r.lastPlayedAt).getTime()) / 60000 }));
-            formatter = v => `${Math.round(v)} min ago`;
+            data = sourceData.map(r => ({ label: r.user.display_name, value: (now - new Date(r.lastPlayedAt).getTime()) / 60000 }));
+            formatter = v => `${Math.round(v)} 分鐘前`;
             chartColor = 'bg-indigo-500';
             break;
         case 'last1h_count':
-            chartTitle = '1-Hour Play Count Distribution';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last1h.count }));
+            chartTitle = '1H 遊玩次數分佈';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last1h.count }));
             chartColor = 'bg-sky-500';
             break;
         case 'last1h_speed':
-            chartTitle = '1-Hour Score Speed (pts/hr)';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last1h.speed }));
+            chartTitle = '1H 速度 (分/時)';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last1h.speed }));
             formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
             chartColor = 'bg-emerald-500';
             break;
         case 'last1h_average':
-            chartTitle = '1-Hour Average Score';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last1h.average }));
+            chartTitle = '1H 平均分';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last1h.average }));
             formatter = v => `${Math.round(v).toLocaleString()} pts`;
             chartColor = 'bg-amber-500';
             break;
-        // Add cases for 3h and 24h stats
         case 'last3h_count':
-            chartTitle = '3-Hour Play Count Distribution';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last3h.count }));
+            chartTitle = '3H 遊玩次數分佈';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last3h.count }));
             chartColor = 'bg-sky-600';
             break;
         case 'last3h_speed':
-            chartTitle = '3-Hour Score Speed (pts/hr)';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last3h.speed }));
+            chartTitle = '3H 速度 (分/時)';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last3h.speed }));
             formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
             chartColor = 'bg-emerald-600';
             break;
         case 'last3h_average':
-            chartTitle = '3-Hour Average Score';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last3h.average }));
+            chartTitle = '3H 平均分';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last3h.average }));
             formatter = v => `${Math.round(v).toLocaleString()} pts`;
             chartColor = 'bg-amber-600';
             break;
         case 'last24h_count':
-            chartTitle = '24-Hour Play Count Distribution';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last24h.count }));
+            chartTitle = '24H 遊玩次數分佈';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last24h.count }));
             chartColor = 'bg-sky-700';
             break;
         case 'last24h_speed':
-            chartTitle = '24-Hour Score Speed (pts/hr)';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last24h.speed }));
+            chartTitle = '24H 速度 (分/時)';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last24h.speed }));
             formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
             chartColor = 'bg-emerald-700';
             break;
         case 'last24h_average':
-            chartTitle = '24-Hour Average Score';
-            data = rankings.map(r => ({ label: r.user.display_name, value: r.stats.last24h.average }));
+            chartTitle = '24H 平均分';
+            data = sourceData.map(r => ({ label: r.user.display_name, value: r.stats.last24h.average }));
             formatter = v => `${Math.round(v).toLocaleString()} pts`;
             chartColor = 'bg-amber-700';
             break;
@@ -87,7 +131,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
 
     return { chartData: data, title: chartTitle, valueFormatter: formatter, color: chartColor };
 
-  }, [rankings, sortOption]);
+  }, [filteredRankings, sortOption]);
 
   const ChartToggleButton: React.FC<{type: ChartType, label: string}> = ({ type, label }) => (
     <button
@@ -104,25 +148,58 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption }) =
 
   return (
     <div className="space-y-4">
-        <div className="flex justify-between items-center">
-            <h3 className="text-md font-semibold text-slate-200">{title}</h3>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <h3 className="text-md font-semibold text-slate-200 text-center md:text-left">{title}</h3>
             <div className="flex items-center gap-2">
-                <ChartToggleButton type="bar" label="Bar Chart" />
-                <ChartToggleButton type="line" label="Line Chart" />
+                <ChartToggleButton type="bar" label="長條圖 (Bar)" />
+                <ChartToggleButton type="line" label="折線圖 (Line)" />
             </div>
         </div>
-        {chartType === 'bar' ? (
-             <BarChart 
-                data={chartData} 
-                barColor={color}
-                valueFormatter={valueFormatter}
-              />
-        ) : (
-            <LineChart
-                data={chartData}
-                lineColor={color.replace('bg-','').split('-')[0]} // Extract color name from Tailwind class
-                valueFormatter={valueFormatter}
+
+        <div className="bg-slate-800/50 p-3 rounded-md flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
+            <label htmlFor="startRank" className="text-slate-300 font-medium">排名範圍:</label>
+            <input 
+                id="startRank"
+                type="number" 
+                value={startRankInput}
+                onChange={(e) => setStartRankInput(e.target.value)}
+                className="w-24 bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-center focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                aria-label="Start Rank"
             />
+            <span className="text-slate-500">至</span>
+            <input 
+                id="endRank"
+                type="number" 
+                value={endRankInput}
+                onChange={(e) => setEndRankInput(e.target.value)}
+                className="w-24 bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-center focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                aria-label="End Rank"
+            />
+        </div>
+        {validationError && (
+            <p className="text-red-400 text-xs text-center -mt-2">{validationError}</p>
+        )}
+
+        {chartData.length > 0 ? (
+            chartType === 'bar' ? (
+                 <BarChart 
+                    data={chartData} 
+                    barColor={color}
+                    valueFormatter={valueFormatter}
+                  />
+            ) : (
+                <LineChart
+                    data={chartData}
+                    lineColor={color.replace('bg-','').split('-')[0]} // Extract color name from Tailwind class
+                    valueFormatter={valueFormatter}
+                />
+            )
+        ) : (
+             <div className="text-center py-10">
+                <p className="text-slate-400">
+                    { validationError ? '選擇的範圍無效。' : '所選範圍無資料顯示。' }
+                </p>
+            </div>
         )}
     </div>
   );

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RankEntry, SortOption } from '../types';
 import RankingItem from './RankingItem';
@@ -5,9 +6,10 @@ import RankingItem from './RankingItem';
 interface RankingListProps {
   rankings: RankEntry[];
   sortOption: SortOption;
+  hideStats?: boolean;
 }
 
-const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption }) => {
+const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false }) => {
   if (rankings.length === 0) {
     return (
       <div className="text-center py-20">
@@ -20,7 +22,12 @@ const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption }) => {
   return (
     <div className="space-y-3">
       {rankings.map((entry) => (
-        <RankingItem key={entry.user.id} entry={entry} sortOption={sortOption} />
+        <RankingItem 
+            key={entry.user.id} 
+            entry={entry} 
+            sortOption={sortOption} 
+            hideStats={hideStats}
+        />
       ))}
     </div>
   );

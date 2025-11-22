@@ -355,6 +355,7 @@ const App: React.FC = () => {
                 rankings={sortedAndFilteredRankings} 
                 sortOption={sortOption}
                 isHighlights={isHighlights} 
+                eventId={isPastMode ? selectedEvent?.id : undefined}
             />
             </CollapsibleSection>
             

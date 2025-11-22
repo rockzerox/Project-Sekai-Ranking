@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
+import { EVENT_UNIT_MAP, WORLD_LINK_IDS } from '../constants';
 
 interface SimpleRankData {
     rank: number;
@@ -14,8 +15,6 @@ interface ComparisonResult {
     event2: { name: string; data: SimpleRankData[]; duration: number } | null;
 }
 
-const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
-
 const EventComparisonView: React.FC = () => {
     const [events, setEvents] = useState<EventSummary[]>([]);
     const [isLoadingList, setIsLoadingList] = useState(true);
@@ -23,6 +22,7 @@ const EventComparisonView: React.FC = () => {
 
     const [selectedId1, setSelectedId1] = useState<string>('');
     const [selectedId2, setSelectedId2] = useState<string>('');
+    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
     
     const [comparisonData, setComparisonData] = useState<ComparisonResult>({ event1: null, event2: null });
     const [isComparing, setIsComparing] = useState(false);
@@ -63,6 +63,15 @@ const EventComparisonView: React.FC = () => {
             }
         };
         fetchEvents();
+    }, []);
+
+    const filteredEvents = useMemo(() => {
+        if (selectedUnitFilter === 'all') return events;
+        return events.filter(e => EVENT_UNIT_MAP[e.id] === selectedUnitFilter);
+    }, [events, selectedUnitFilter]);
+
+    const uniqueUnits = useMemo(() => {
+        return Array.from(new Set(Object.values(EVENT_UNIT_MAP)));
     }, []);
 
     const handleCompare = async () => {
@@ -478,6 +487,26 @@ const EventComparisonView: React.FC = () => {
             </div>
 
             <div className="bg-slate-800 rounded-lg p-4 sm:p-6 border border-slate-700 shadow-lg">
+                
+                {/* Unit Filter for Dropdowns */}
+                <div className="mb-4">
+                    <label className="block text-slate-400 font-bold mb-2 text-sm sm:text-base">篩選團體 (Filter by Unit)</label>
+                     <select
+                        value={selectedUnitFilter}
+                        onChange={(e) => {
+                            setSelectedUnitFilter(e.target.value);
+                            setSelectedId1(''); // Reset selections as they might not be valid
+                            setSelectedId2('');
+                        }}
+                        className="w-full sm:w-auto bg-slate-900 border border-slate-600 rounded-lg p-2 sm:p-3 text-white focus:ring-2 focus:ring-teal-500 outline-none text-sm sm:text-base min-w-[200px]"
+                     >
+                        <option value="all">所有團體 (All Units)</option>
+                        {uniqueUnits.map(unit => (
+                            <option key={unit} value={unit}>{unit}</option>
+                        ))}
+                     </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {/* Selection 1 */}
                     <div>
@@ -488,7 +517,7 @@ const EventComparisonView: React.FC = () => {
                             className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 sm:p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none text-sm sm:text-base"
                         >
                             <option value="">-- 請選擇活動 --</option>
-                            {events.map(e => (
+                            {filteredEvents.map(e => (
                                 <option key={e.id} value={e.id} disabled={e.id.toString() === selectedId2}>
                                     #{e.id} {e.name}
                                 </option>
@@ -505,7 +534,7 @@ const EventComparisonView: React.FC = () => {
                             className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 sm:p-3 text-white focus:ring-2 focus:ring-pink-500 outline-none text-sm sm:text-base"
                         >
                             <option value="">-- 請選擇活動 --</option>
-                            {events.map(e => (
+                            {filteredEvents.map(e => (
                                 <option key={e.id} value={e.id} disabled={e.id.toString() === selectedId1}>
                                     #{e.id} {e.name}
                                 </option>

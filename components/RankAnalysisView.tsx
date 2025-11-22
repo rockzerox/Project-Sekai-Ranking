@@ -4,6 +4,7 @@ import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '
 import CrownIcon from './icons/CrownIcon';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
+import { EVENT_UNIT_MAP, WORLD_LINK_IDS } from '../constants';
 
 interface EventStat {
     eventId: number;
@@ -17,7 +18,6 @@ interface EventStat {
 }
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
-const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
 
 interface RankTableProps {
     title: string;
@@ -88,6 +88,8 @@ const RankAnalysisView: React.FC = () => {
     const [totalEvents, setTotalEvents] = useState(0);
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
+    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
+
     const abortControllerRef = useRef<AbortController | null>(null);
 
     // Helper to calculate duration
@@ -214,6 +216,9 @@ const RankAnalysisView: React.FC = () => {
 
     }, [eventsToProcess, isAnalyzing, isPaused, totalEvents]);
 
+    const uniqueUnits = useMemo(() => {
+        return Array.from(new Set(Object.values(EVENT_UNIT_MAP)));
+    }, []);
 
     // --- General Analysis Views ---
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
@@ -223,14 +228,19 @@ const RankAnalysisView: React.FC = () => {
             return Math.ceil(rawScore / days);
         };
 
+        // Filter processed stats by Unit
+        const filteredStats = selectedUnitFilter === 'all' 
+            ? processedStats 
+            : processedStats.filter(stat => EVENT_UNIT_MAP[stat.eventId] === selectedUnitFilter);
+
         const getTop10 = (key: keyof Pick<EventStat, 'top1' | 'top10' | 'top100'>) => {
-            return [...processedStats]
+            return [...filteredStats]
                 .sort((a, b) => getMetric(b, b[key]) - getMetric(a, a[key]))
                 .slice(0, 10);
         };
 
         const getTopBorder = (rank: number) => {
-             return [...processedStats]
+             return [...filteredStats]
                 .filter(stat => (stat.borders[rank] || 0) > 0)
                 .sort((a, b) => {
                     const valA = getMetric(a, a.borders[rank] || 0);
@@ -246,7 +256,7 @@ const RankAnalysisView: React.FC = () => {
             top100List: getTop10('top100'),
             borderRankList: getTopBorder(selectedBorderRank)
         };
-    }, [processedStats, selectedBorderRank, displayMode]);
+    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter]);
 
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;
@@ -263,8 +273,19 @@ const RankAnalysisView: React.FC = () => {
                         <p className="text-slate-400">分析過往活動中各個排名的最高分紀錄</p>
                     </div>
                     
-                    {/* Mode Toggles */}
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Unit Filter */}
+                         <select
+                            value={selectedUnitFilter}
+                            onChange={(e) => setSelectedUnitFilter(e.target.value)}
+                            className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[140px]"
+                         >
+                            <option value="all">所有團體 (All Units)</option>
+                            {uniqueUnits.map(unit => (
+                                <option key={unit} value={unit}>{unit}</option>
+                            ))}
+                         </select>
+
                         {/* Score Mode Toggle */}
                         <div className="bg-slate-800 p-1 rounded-lg flex border border-slate-700">
                             <button

@@ -16,19 +16,19 @@ const getRankStyles = (rank: number) => {
       return {
         container: 'border-yellow-400 bg-yellow-900/20 hover:bg-yellow-900/40 shadow-lg shadow-yellow-500/10',
         rankText: 'text-yellow-300',
-        icon: <CrownIcon className="w-6 h-6 text-yellow-400" />,
+        icon: <CrownIcon className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />,
       };
     case 2:
       return {
         container: 'border-slate-400 bg-slate-800/50 hover:bg-slate-700/50 shadow-lg shadow-slate-400/10',
         rankText: 'text-slate-300',
-        icon: <TrophyIcon className="w-5 h-5 text-slate-400" />,
+        icon: <TrophyIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />,
       };
     case 3:
       return {
         container: 'border-orange-500 bg-orange-900/20 hover:bg-orange-900/40 shadow-lg shadow-orange-500/10',
         rankText: 'text-orange-400',
-        icon: <TrophyIcon className="w-5 h-5 text-orange-500" />,
+        icon: <TrophyIcon className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />,
       };
     default:
       return {
@@ -62,16 +62,16 @@ const formatLastPlayed = (dateString: string) => {
 const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption }> = ({ entry, sortOption }) => {
     const renderStat = (value: number, label: string) => (
         <>
-            <p className="text-lg font-bold text-cyan-400">{Math.round(value).toLocaleString()}</p>
-            <p className="text-xs text-slate-500">{label}</p>
+            <p className="text-base sm:text-lg font-bold text-cyan-400">{Math.round(value).toLocaleString()}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500">{label}</p>
         </>
     );
 
     switch(sortOption) {
         case 'lastPlayedAt':
             return <>
-                <p className="text-base font-bold text-cyan-400">{formatLastPlayed(entry.lastPlayedAt)}</p>
-                <p className="text-xs text-slate-500">最後上線</p>
+                <p className="text-sm sm:text-base font-bold text-cyan-400">{formatLastPlayed(entry.lastPlayedAt)}</p>
+                <p className="text-[10px] sm:text-xs text-slate-500">最後上線</p>
             </>;
         // 1 Hour Stats
         case 'last1h_count':
@@ -143,7 +143,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
   
   const DetailStatCard: React.FC<{ title: string, stat: typeof stats.last1h }> = ({ title, stat }) => (
     <div className="bg-slate-800 p-3 rounded-lg">
-      <h4 className="font-bold text-cyan-400 mb-2 text-center">{title}</h4>
+      <h4 className="font-bold text-cyan-400 mb-2 text-center text-sm sm:text-base">{title}</h4>
       <div className="space-y-1">
         {renderStatDetail('次數 (Plays)', stat.count.toLocaleString())}
         {renderStatDetail('時速 (Speed)', Math.round(stat.speed).toLocaleString())}
@@ -158,35 +158,37 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center p-3 text-left transition-colors hover:bg-white/5"
+        className="w-full flex items-center p-2 sm:p-3 text-left transition-colors hover:bg-white/5"
         aria-expanded={isExpanded}
         aria-controls={`details-${user.id}`}
       >
-        <div className="flex items-center w-16 sm:w-20 flex-shrink-0">
-          <span className={`text-xl sm:text-2xl font-bold w-10 text-center ${styles.rankText}`}>
+        {/* Rank Section */}
+        <div className="flex items-center w-12 sm:w-20 flex-shrink-0">
+          <span className={`text-lg sm:text-2xl font-bold w-6 sm:w-10 text-center ${styles.rankText}`}>
             {rank}
           </span>
-          <div className="w-6 h-6 ml-1 flex items-center justify-center">
+          <div className="w-4 h-4 sm:w-6 sm:h-6 ml-0.5 sm:ml-1 flex items-center justify-center">
               {styles.icon}
           </div>
         </div>
 
-        {/* Avatar Removed per user request - DOM element completely removed */}
-        
-        <div className="flex-grow overflow-hidden ml-2">
-          <p className="text-lg font-semibold text-white truncate" title={user.display_name}>
+        {/* Name Section */}
+        <div className="flex-grow overflow-hidden ml-2 mr-2">
+          <p className="text-base sm:text-lg font-semibold text-white truncate" title={user.display_name}>
             {user.display_name}
           </p>
-          <p className="text-sm text-slate-400 truncate" title={`@${user.username}`}>@{user.username}</p>
+          <p className="text-xs sm:text-sm text-slate-400 truncate" title={`@${user.username}`}>@{user.username}</p>
         </div>
 
-        <div className="ml-4 text-right flex-shrink-0 w-28">
+        {/* Stats Section */}
+        <div className="text-right flex-shrink-0 w-20 sm:w-28">
           <StatDisplay entry={entry} sortOption={sortOption} />
         </div>
 
+        {/* Expand Icon */}
         <div className="ml-2 sm:ml-4 flex-shrink-0">
           <svg
-            className={`w-5 h-5 text-slate-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 sm:w-5 sm:h-5 text-slate-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -198,7 +200,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
       </button>
 
       <div id={`details-${user.id}`} className={`collapsible-content ${isExpanded ? 'open' : ''}`}>
-        <div className="p-4 pt-2 border-t border-slate-700/50 bg-black/20">
+        <div className="p-3 sm:p-4 pt-2 border-t border-slate-700/50 bg-black/20">
           {!hideStats && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <DetailStatCard title="過去 1 小時" stat={stats.last1h} />
@@ -216,7 +218,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                         e.stopPropagation();
                         handleFetchProfile();
                     }}
-                    className="font-mono text-cyan-400 hover:text-cyan-300 hover:underline decoration-dotted underline-offset-4 transition-colors"
+                    className="font-mono text-cyan-400 hover:text-cyan-300 hover:underline decoration-dotted underline-offset-4 transition-colors break-all"
                     title="點擊查看詳細資料"
                     aria-label={`查看玩家 ${user.id} 的詳細資料`}
                 >
@@ -241,11 +243,11 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                      <div className="grid grid-cols-2 gap-3 bg-slate-800/40 rounded-lg p-4 border border-slate-700/50">
                          <div className="flex flex-col items-center sm:items-start">
                              <span className="text-xs text-slate-500 uppercase font-bold mb-1">等級 (Rank)</span>
-                             <span className="text-2xl font-bold text-white">{profileData.user.rank}</span>
+                             <span className="text-xl sm:text-2xl font-bold text-white">{profileData.user.rank}</span>
                          </div>
                          <div className="flex flex-col items-center sm:items-start">
                              <span className="text-xs text-slate-500 uppercase font-bold mb-1">綜合力 (Total Power)</span>
-                             <span className="text-2xl font-bold text-emerald-400">
+                             <span className="text-xl sm:text-2xl font-bold text-emerald-400">
                                 {profileData.totalPower.totalPower.toLocaleString()}
                              </span>
                          </div>

@@ -15,6 +15,7 @@ import PastEventsView from './components/PastEventsView';
 import EventComparisonView from './components/EventComparisonView';
 import RankAnalysisView from './components/RankAnalysisView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
+import WorldLinkView from './components/WorldLinkView';
 
 const API_URL = 'https://api.hisekai.org/event/live/top100';
 const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
@@ -25,7 +26,7 @@ const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 
 const App: React.FC = () => {
   // --- Navigation State ---
-  const [currentView, setCurrentView] = useState<'live' | 'past' | 'comparison' | 'analysis' | 'playerAnalysis'>('live');
+  const [currentView, setCurrentView] = useState<'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis'>('live');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For Mobile (Off-canvas)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true); // For Desktop (Mini-width)
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -466,6 +467,10 @@ const App: React.FC = () => {
                 
                 {currentView === 'analysis' && (
                     <RankAnalysisView />
+                )}
+
+                {currentView === 'worldLink' && (
+                    <WorldLinkView />
                 )}
 
                 {currentView === 'playerAnalysis' && (

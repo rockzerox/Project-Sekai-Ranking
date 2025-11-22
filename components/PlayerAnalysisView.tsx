@@ -19,6 +19,8 @@ interface RankingTableProps {
     rankLabel: string;
 }
 
+const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
+
 const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel }) => (
     <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col">
         <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-700 flex justify-between items-center flex-shrink-0 min-h-[56px]`}>
@@ -88,8 +90,9 @@ const PlayerAnalysisView: React.FC = () => {
                 const response = await fetch('https://api.hisekai.org/event/list');
                 const data: EventSummary[] = await response.json();
                 const now = new Date();
-                // Only process closed events
-                const pastEvents = data.filter(e => new Date(e.closed_at) < now).sort((a, b) => b.id - a.id);
+                // Only process closed events AND exclude World Link events
+                const pastEvents = data.filter(e => new Date(e.closed_at) < now && !WORLD_LINK_IDS.includes(e.id))
+                                       .sort((a, b) => b.id - a.id);
                 
                 setEventsToProcess(pastEvents);
                 setTotalEvents(pastEvents.length);
@@ -159,18 +162,6 @@ const PlayerAnalysisView: React.FC = () => {
                             
                             // Update stats
                             newStats[userId].top100Count += 1;
-                            // Keep latest name (simple overwrite strategy, effectively keeps name from random event if order isn't strict, but usually good enough)
-                            // Better: if we process from new to old, the first time we see it is the latest. 
-                            // The list is sorted ID desc, so first batch is newest. 
-                            // So we should only set name if it's not set? Or just update it? 
-                            // Actually, "latest" implies most recent event. Since we process new -> old, the first time we encounter a user is their latest appearance.
-                            // However, we are iterating batches. 
-                            // Let's assume the list is new -> old.
-                            // We update name every time, so the *last* processed event (oldest) would overwrite.
-                            // To keep NEWEST name, we should check if we already have the user.
-                            // But users might change names.
-                            // Let's just overwrite for now, precise name tracking is complex without event dates attached to player entry.
-                            // Actually, since we process newest events first, we should only set name if it doesn't exist.
                             if (newStats[userId].top100Count === 1) {
                                 newStats[userId].latestName = entry.name;
                             }
@@ -223,7 +214,7 @@ const PlayerAnalysisView: React.FC = () => {
         <div className="w-full py-4 animate-fadeIn">
              <div className="mb-6">
                 <h2 className="text-3xl font-bold text-white mb-2">活躍玩家分析 (Active Player Analysis)</h2>
-                <p className="text-slate-400">分析歷代活動中，最常上榜的玩家</p>
+                <p className="text-slate-400">分析歷代活動中，最常上榜的玩家 (不含 World Link)</p>
 
                 {isAnalyzing && (
                     <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 mt-4 mb-6 relative overflow-hidden">

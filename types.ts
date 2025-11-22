@@ -124,22 +124,45 @@ export interface PastEventUserCard {
   specialTrainingStatus: string;
 }
 
+export interface WorldBloomChapterRankingEntry {
+    rank: number;
+    score: number;
+    name: string;
+    userId: number | string;
+}
+
+export interface WorldBloomChapter {
+    eventId: number;
+    gameCharacterId: number;
+    rankings: WorldBloomChapterRankingEntry[];
+}
+
 export interface PastEventRankEntry {
   rank: number;
   name: string;
   score: number;
   userId: number | string; // Will be string after sanitation
   userCard: PastEventUserCard;
-  // There are other fields like userProfile, userProfileHonors, etc., but we mainly need these
 }
 
 export interface PastEventApiResponse {
   isEventAggregate: boolean;
   rankings: PastEventRankEntry[];
+  userWorldBloomChapterRankings?: WorldBloomChapter[]; // For World Link events (Top 100)
+}
+
+// For World Link Border structure
+export interface WorldBloomChapterBorder {
+    eventId: number;
+    gameCharacterId: number;
+    borderRankings: PastEventRankEntry[]; // Key is borderRankings here
+    isWorldBloomChapterAggregate: boolean;
 }
 
 export interface PastEventBorderApiResponse {
-  borderRankings: PastEventRankEntry[]; // Reuses PastEventRankEntry structure but key is different
+  borderRankings: PastEventRankEntry[]; // Standard events
+  userWorldBloomChapterRankings?: WorldBloomChapter[]; // Legacy/Alternate check
+  userWorldBloomChapterRankingBorders?: WorldBloomChapterBorder[]; // Specific field for World Link Borders
 }
 
 // --- Border (Highlights) Types ---

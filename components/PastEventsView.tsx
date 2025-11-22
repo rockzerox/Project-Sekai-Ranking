@@ -8,6 +8,8 @@ interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
 }
 
+const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
+
 const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,8 +31,6 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         setEvents(sortedData);
         
         // Logic to determine default year:
-        // 1. Try to select the current system year (e.g. 2025) if it exists in the data
-        // 2. Fallback to the year of the newest event
         if (sortedData.length > 0) {
           const currentSystemYear = new Date().getFullYear();
           const availableYears = new Set(data.map(e => new Date(e.start_at).getFullYear()));
@@ -163,6 +163,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 const status = getEventStatus(event.start_at, event.closed_at);
                 const isClickable = status === 'past';
                 const duration = calculateEventDays(event.start_at, event.closed_at);
+                const isWorldLink = WORLD_LINK_IDS.includes(event.id);
                 
                 return (
                     <button 
@@ -189,9 +190,16 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                         )}
 
                         <div className="flex items-start justify-between mb-2">
-                            <span className={`text-xs font-mono py-1 px-2 rounded transition-colors ${isClickable ? 'bg-slate-700 text-slate-300 group-hover:bg-cyan-900/50 group-hover:text-cyan-300' : 'bg-slate-700 text-slate-400'}`}>
-                                #{event.id}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs font-mono py-1 px-2 rounded transition-colors ${isClickable ? 'bg-slate-700 text-slate-300 group-hover:bg-cyan-900/50 group-hover:text-cyan-300' : 'bg-slate-700 text-slate-400'}`}>
+                                    #{event.id}
+                                </span>
+                                {isWorldLink && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                        WorldLink
+                                    </span>
+                                )}
+                            </div>
                             <div className="text-right">
                                 <div className="text-xs text-slate-500">
                                     {new Date(event.start_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })} 

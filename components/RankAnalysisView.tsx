@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorMessage from './ErrorMessage';
 
 interface EventStat {
     eventId: number;
@@ -9,12 +11,13 @@ interface EventStat {
     duration: number;
     top1: number;
     top10: number;
-    top50: number; // Kept for data structure consistency
+    top50: number;
     top100: number;
     borders: Record<number, number>;
 }
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
+const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
 
 interface RankTableProps {
     title: string;
@@ -83,10 +86,8 @@ const RankAnalysisView: React.FC = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
     const [totalEvents, setTotalEvents] = useState(0);
-    
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
-
     const abortControllerRef = useRef<AbortController | null>(null);
 
     // Helper to calculate duration
@@ -95,21 +96,25 @@ const RankAnalysisView: React.FC = () => {
         const end = new Date(closedAt);
         const diffTime = Math.abs(end.getTime() - start.getTime());
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-        // Deduct 1 rest day as requested
         return Math.max(0, diffDays - 1);
     };
 
-    // 1. Fetch Event List
+    // 1. Fetch Event List & Filter
     useEffect(() => {
         const fetchList = async () => {
             try {
                 const response = await fetch('https://api.hisekai.org/event/list');
                 const data: EventSummary[] = await response.json();
                 const now = new Date();
-                const pastEvents = data.filter(e => new Date(e.closed_at) < now).sort((a, b) => b.id - a.id);
                 
-                setEventsToProcess(pastEvents);
-                setTotalEvents(pastEvents.length);
+                // Common processing
+                const closedEvents = data.filter(e => new Date(e.closed_at) < now).sort((a, b) => b.id - a.id);
+                
+                // Exclude World Link
+                const generalEvents = closedEvents.filter(e => !WORLD_LINK_IDS.includes(e.id));
+                setEventsToProcess(generalEvents);
+                setTotalEvents(generalEvents.length);
+
             } catch (e) {
                 console.error("Failed to fetch event list", e);
                 setIsAnalyzing(false);
@@ -209,12 +214,11 @@ const RankAnalysisView: React.FC = () => {
 
     }, [eventsToProcess, isAnalyzing, isPaused, totalEvents]);
 
-    // Memoized Sorted Lists
+
+    // --- General Analysis Views ---
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
-        // Helper function to get the value based on mode (Total or Daily)
         const getMetric = (stat: EventStat, rawScore: number) => {
             if (displayMode === 'total') return rawScore;
-            // Prevent division by zero, minimum 1 day
             const days = Math.max(1, stat.duration);
             return Math.ceil(rawScore / days);
         };
@@ -244,7 +248,6 @@ const RankAnalysisView: React.FC = () => {
         };
     }, [processedStats, selectedBorderRank, displayMode]);
 
-    // Value getter for rendering to match the sort logic
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;
         const days = Math.max(1, stat.duration);
@@ -260,31 +263,35 @@ const RankAnalysisView: React.FC = () => {
                         <p className="text-slate-400">分析過往活動中各個排名的最高分紀錄</p>
                     </div>
                     
-                    {/* Display Mode Toggle */}
-                    <div className="bg-slate-800 p-1 rounded-lg flex border border-slate-700">
-                        <button
-                            onClick={() => setDisplayMode('total')}
-                            className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${
-                                displayMode === 'total' 
-                                ? 'bg-cyan-500 text-white shadow' 
-                                : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            總分 (Total Score)
-                        </button>
-                        <button
-                            onClick={() => setDisplayMode('daily')}
-                            className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${
-                                displayMode === 'daily' 
-                                ? 'bg-pink-500 text-white shadow' 
-                                : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                            日均 (Daily Avg)
-                        </button>
+                    {/* Mode Toggles */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Score Mode Toggle */}
+                        <div className="bg-slate-800 p-1 rounded-lg flex border border-slate-700">
+                            <button
+                                onClick={() => setDisplayMode('total')}
+                                className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${
+                                    displayMode === 'total' 
+                                    ? 'bg-cyan-500 text-white shadow' 
+                                    : 'text-slate-400 hover:text-white'
+                                }`}
+                            >
+                                總分
+                            </button>
+                            <button
+                                onClick={() => setDisplayMode('daily')}
+                                className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${
+                                    displayMode === 'daily' 
+                                    ? 'bg-pink-500 text-white shadow' 
+                                    : 'text-slate-400 hover:text-white'
+                                }`}
+                            >
+                                日均
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
+                {/* General Progress Bar */}
                 {isAnalyzing && (
                     <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-6 relative overflow-hidden">
                         <div className="flex justify-between items-center mb-2 relative z-10">
@@ -311,7 +318,6 @@ const RankAnalysisView: React.FC = () => {
                 )}
             </div>
 
-            {/* Grid Layout: Top 1, Top 10, Top 100, Highlights */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
                 <RankTable 
                     title={`Top 1 ${displayMode === 'daily' ? '日均' : '最高分'}`}

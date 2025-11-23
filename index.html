@@ -7,6 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hisekai Live TW Rankings</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
     <style>
       body {
         -webkit-font-smoothing: antialiased;
@@ -20,6 +25,21 @@
       .collapsible-content.open {
         max-height: 5000px; /* A large enough value to not clip content */
       }
+      /* Custom Scrollbar for dark mode */
+      .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.1);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(100, 116, 139, 0.5);
+          border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(100, 116, 139, 0.7);
+      }
     </style>
   <script type="importmap">
 {
@@ -31,7 +51,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-900">
+  <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

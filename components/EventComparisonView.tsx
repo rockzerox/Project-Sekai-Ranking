@@ -1,9 +1,8 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_UNIT_MAP, WORLD_LINK_IDS } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor } from '../constants';
 
 interface SimpleRankData {
     rank: number;
@@ -11,8 +10,8 @@ interface SimpleRankData {
 }
 
 interface ComparisonResult {
-    event1: { name: string; data: SimpleRankData[]; duration: number } | null;
-    event2: { name: string; data: SimpleRankData[]; duration: number } | null;
+    event1: { name: string; data: SimpleRankData[]; duration: number, id: number } | null;
+    event2: { name: string; data: SimpleRankData[]; duration: number, id: number } | null;
 }
 
 const EventComparisonView: React.FC = () => {
@@ -23,17 +22,16 @@ const EventComparisonView: React.FC = () => {
     const [selectedId1, setSelectedId1] = useState<string>('');
     const [selectedId2, setSelectedId2] = useState<string>('');
     const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
+    const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
     
     const [comparisonData, setComparisonData] = useState<ComparisonResult>({ event1: null, event2: null });
     const [isComparing, setIsComparing] = useState(false);
     const [comparisonError, setComparisonError] = useState<string | null>(null);
 
-    // Zoom & Pan State
-    const [zoomRange, setZoomRange] = useState<{start: number, end: number}>({ start: 0, end: 1 }); // 0 to 1 range ratio
+    const [zoomRange, setZoomRange] = useState<{start: number, end: number}>({ start: 0, end: 1 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState<number | null>(null);
     
-    // Helper to calculate duration
     const calculateEventDays = (startAt: string, closedAt: string): number => {
         const start = new Date(startAt);
         const end = new Date(closedAt);
@@ -42,7 +40,6 @@ const EventComparisonView: React.FC = () => {
         return Math.max(0, diffDays - 1);
     };
 
-    // Load Event List
     useEffect(() => {
         const fetchEvents = async () => {
             try {
@@ -51,7 +48,6 @@ const EventComparisonView: React.FC = () => {
                 const data: EventSummary[] = await response.json();
                 
                 const now = new Date();
-                // Filter only closed events AND exclude World Link events
                 const pastEvents = data.filter(e => new Date(e.closed_at) < now && !WORLD_LINK_IDS.includes(e.id))
                                        .sort((a, b) => b.id - a.id);
                 setEvents(pastEvents);
@@ -66,12 +62,28 @@ const EventComparisonView: React.FC = () => {
     }, []);
 
     const filteredEvents = useMemo(() => {
-        if (selectedUnitFilter === 'all') return events;
-        return events.filter(e => EVENT_UNIT_MAP[e.id] === selectedUnitFilter);
-    }, [events, selectedUnitFilter]);
+        let result = events;
+        if (selectedUnitFilter !== 'all') {
+            result = result.filter(e => EVENT_DETAILS[e.id]?.unit === selectedUnitFilter);
+        }
+        if (selectedBannerFilter !== 'all') {
+            result = result.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
+        }
+        return result;
+    }, [events, selectedUnitFilter, selectedBannerFilter]);
 
     const uniqueUnits = useMemo(() => {
-        return Array.from(new Set(Object.values(EVENT_UNIT_MAP)));
+        const units = new Set<string>();
+        Object.values(EVENT_DETAILS).forEach(d => units.add(d.unit));
+        return Array.from(units).sort();
+    }, []);
+
+    const uniqueBanners = useMemo(() => {
+        const banners = new Set<string>();
+        Object.values(EVENT_DETAILS).forEach(d => {
+            if (d.banner) banners.add(d.banner);
+        });
+        return Array.from(banners).sort();
     }, []);
 
     const handleCompare = async () => {
@@ -84,7 +96,7 @@ const EventComparisonView: React.FC = () => {
         setIsComparing(true);
         setComparisonError(null);
         setComparisonData({ event1: null, event2: null });
-        setZoomRange({ start: 0, end: 1 }); // Reset zoom on new compare
+        setZoomRange({ start: 0, end: 1 }); 
 
         try {
             const [res1top, res1border, res2top, res2border] = await Promise.all([
@@ -135,8 +147,8 @@ const EventComparisonView: React.FC = () => {
             };
 
             setComparisonData({
-                event1: { name: eventName1, data: processRankings(data1top.rankings, data1border.borderRankings), duration: duration1 },
-                event2: { name: eventName2, data: processRankings(data2top.rankings, data2border.borderRankings), duration: duration2 }
+                event1: { name: eventName1, data: processRankings(data1top.rankings, data1border.borderRankings), duration: duration1, id: Number(selectedId1) },
+                event2: { name: eventName2, data: processRankings(data2top.rankings, data2border.borderRankings), duration: duration2, id: Number(selectedId2) }
             });
 
         } catch (err) {
@@ -147,17 +159,15 @@ const EventComparisonView: React.FC = () => {
         }
     };
 
-    // --- Zoom Logic Handlers ---
     const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
         if (!comparisonData.event1) return;
         const svgRect = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - svgRect.left;
-        const width = 800; // SVG ViewBox width
+        const width = 800; 
         const paddingLeft = 60;
         const paddingRight = 40;
         const chartWidth = width - paddingLeft - paddingRight;
         
-        // Normalize X to 0-1 relative to chart area
         let relX = (x - paddingLeft) / chartWidth;
         relX = Math.max(0, Math.min(1, relX));
 
@@ -167,7 +177,6 @@ const EventComparisonView: React.FC = () => {
 
     const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
         if (!isDragging || dragStart === null) return;
-        // We could implement a selection box here visually
     };
 
     const handleMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -186,15 +195,10 @@ const EventComparisonView: React.FC = () => {
         const start = Math.min(dragStart, relX);
         const end = Math.max(dragStart, relX);
         
-        // If selection is too small, interpret as click (do nothing or reset?)
         if (end - start > 0.05) {
-            // Map current zoom window to new zoom window
-            // Current window is zoomRange.start to zoomRange.end
-            // The click relX is relative to the VISIBLE window
             const currentSpan = zoomRange.end - zoomRange.start;
             const newStart = zoomRange.start + (start * currentSpan);
             const newEnd = zoomRange.start + (end * currentSpan);
-            
             setZoomRange({ start: newStart, end: newEnd });
         }
         
@@ -222,37 +226,29 @@ const EventComparisonView: React.FC = () => {
         const chartWidth = width - padding.left - padding.right;
         const chartHeight = height - padding.top - padding.bottom;
 
-        // --- Dynamic Scaling based on Zoom ---
         const zoomSpan = zoomRange.end - zoomRange.start;
-        
-        // Full Scale Params
-        const splitRatio = 0.3; // 0.3 of width is linear 1-100
+        const splitRatio = 0.3; 
         const logMin = Math.log(100);
         const logMax = Math.log(maxRank || 10000);
         
-        // Helper: Convert Rank to 'Global 0-1 Position'
         const rankToGlobalPos = (rank: number) => {
             if (rank <= 100) {
-                return ((rank - 1) / 99) * splitRatio; // 0 to 0.3
+                return ((rank - 1) / 99) * splitRatio; 
             } else {
                 const logVal = Math.log(rank);
                 const ratio = (logVal - logMin) / (logMax - logMin);
-                return splitRatio + (ratio * (1 - splitRatio)); // 0.3 to 1
+                return splitRatio + (ratio * (1 - splitRatio)); 
             }
         };
 
-        // Helper: Convert 'Global 0-1 Position' to Screen X
-        // Screen X = padding + (Pos - ZoomStart) / ZoomSpan * ChartWidth
         const getX = (rank: number) => {
             const globalPos = rankToGlobalPos(rank);
-            // If point is outside zoom range, we can clamp or let it draw off-canvas (SVG clipping handles it)
             const viewPos = (globalPos - zoomRange.start) / zoomSpan;
             return padding.left + (viewPos * chartWidth);
         };
 
         const getY = (score: number) => height - padding.bottom - (score / maxScore) * chartHeight;
 
-        // Helper to check if rank is roughly visible (for rendering optimization)
         const isVisible = (rank: number) => {
              const pos = rankToGlobalPos(rank);
              return pos >= zoomRange.start - 0.1 && pos <= zoomRange.end + 0.1;
@@ -261,17 +257,9 @@ const EventComparisonView: React.FC = () => {
         const renderEventVisuals = (data: SimpleRankData[], color: string) => {
             const points = data.map(p => ({ x: getX(p.rank), y: getY(p.score), ...p }));
             
-            // Filter points for rendering to avoid mess lines far off screen
-            // But need to keep one point outside boundaries to maintain line continuity
-            // For simplicity in this SVG implementation, we draw all and let SVG viewbox clip.
-            // SVG clipping is handled by the wrapper div style mostly, but <svg> handles overflow hidden.
-            
-            // 1. Draw Solid Line for Rank <= 100
             const solidPoints = points.filter(p => p.rank <= 100);
             let solidPath = "";
             if (solidPoints.length > 0) {
-                // Optimization: Don't draw if completely out of view? 
-                // Drawing simple lines is cheap.
                 solidPath = solidPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
                 const firstBorder = points.find(p => p.rank > 100);
                 if (firstBorder) {
@@ -279,14 +267,12 @@ const EventComparisonView: React.FC = () => {
                 }
             }
 
-            // 2. Draw Dashed Line for Rank > 100
             const borderPoints = points.filter(p => p.rank >= 100); 
             let dashedPath = "";
             if (borderPoints.length > 1) {
                  dashedPath = borderPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
             }
 
-            // 3. Scatter Points
             const scatterPoints = points.filter(p => p.rank > 100 && isVisible(p.rank)).map((p, i) => (
                 <circle key={i} cx={p.x} cy={p.y} r="4" fill={color} stroke="#1e293b" strokeWidth="1" className="hover:r-6 transition-all cursor-pointer">
                     <title>Rank {p.rank}: {p.score.toLocaleString()}</title>
@@ -309,11 +295,8 @@ const EventComparisonView: React.FC = () => {
             );
         };
 
-        // --- Axis Grid Calculation based on Zoom ---
-        // We need to generate ticks dynamically.
         const generateTicks = () => {
             const ticks = [];
-            // Always include critical points if visible
             if (isVisible(1)) ticks.push({ rank: 1, label: '#1' });
             if (isVisible(10)) ticks.push({ rank: 10, label: '#10' });
             if (isVisible(50)) ticks.push({ rank: 50, label: '#50' });
@@ -327,37 +310,62 @@ const EventComparisonView: React.FC = () => {
         };
         const xTicks = generateTicks();
 
-        // Statistics Logic
-        const getScoreAtRank = (data: SimpleRankData[], rank: number) => {
-            const item = data.find(r => r.rank === rank);
-            return item ? item.score : 0;
+        // --- TREND ANALYSIS LOGIC ---
+        const getTrendAnalysis = () => {
+            const ranges = [
+                { label: 'Top 1-10', min: 1, max: 10 },
+                { label: 'Top 10-100', min: 10, max: 100 },
+                { label: 'Top 100-1000', min: 100, max: 1000 },
+                { label: 'Top 1000+', min: 1000, max: Infinity }
+            ];
+
+            const analysisResults = ranges.map(range => {
+                // Find all ranks that exist in BOTH datasets within this range
+                const commonRanks = d1
+                    .filter(item => item.rank >= range.min && item.rank < range.max)
+                    .map(item => item.rank)
+                    .filter(rank => d2.some(item2 => item2.rank === rank));
+
+                if (commonRanks.length === 0) return null;
+
+                let event1Wins = 0;
+                let totalDiffPercent = 0;
+
+                commonRanks.forEach(rank => {
+                    const s1 = d1.find(i => i.rank === rank)?.score || 0;
+                    const s2 = d2.find(i => i.rank === rank)?.score || 0;
+                    if (s1 > s2) event1Wins++;
+                    if (s2 > 0) totalDiffPercent += ((s1 - s2) / s2);
+                });
+
+                const event1WinRate = event1Wins / commonRanks.length;
+                const avgDiff = (totalDiffPercent / commonRanks.length) * 100;
+                
+                let winner = 'equal';
+                if (event1WinRate > 0.6) winner = 'A';
+                else if (event1WinRate < 0.4) winner = 'B';
+                
+                return {
+                    range: range.label,
+                    winner,
+                    avgDiff,
+                    dataPoints: commonRanks.length
+                };
+            }).filter(res => res !== null);
+
+            return analysisResults;
         };
-        const comparePoint = (rank: number, label: string) => {
-            const s1 = getScoreAtRank(d1, rank);
-            const s2 = getScoreAtRank(d2, rank);
-            const diff = s1 - s2;
-            const higher = diff > 0 ? 'A' : (diff < 0 ? 'B' : 'Equal');
-            return { rank, label, s1, s2, diff, higher };
-        };
-        const availableBorderRanks = Array.from(new Set([...d1, ...d2].map(d => d.rank).filter(r => r > 100))).sort((a, b) => a - b);
-        const ranksOfInterest = [1, 10, 100];
-        if (availableBorderRanks.includes(1000)) ranksOfInterest.push(1000);
-        else if (availableBorderRanks.length > 0) ranksOfInterest.push(availableBorderRanks[0]);
-        if (availableBorderRanks.length > 0) {
-             const maxR = availableBorderRanks[availableBorderRanks.length - 1];
-             if (!ranksOfInterest.includes(maxR)) ranksOfInterest.push(maxR);
-        }
-        const stats = ranksOfInterest.map(r => comparePoint(r, r <= 100 ? `Top ${r}` : `Rank ${r}`));
-        const formatScore = (num: number) => num === 0 ? '-' : (num > 10000 ? `${(num / 10000).toFixed(2)}萬` : num.toLocaleString());
+
+        const trendStats = getTrendAnalysis();
 
         return (
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 sm:p-6 mt-6 shadow-xl">
-                <h3 className="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2 flex justify-between items-center">
-                    <span>📊 數據比較與分析 (Data Comparison)</span>
+            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 sm:p-6 mt-6 shadow-lg transition-colors duration-300">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2 flex justify-between items-center">
+                    <span>📊 數據比較與趨勢分析 (Trend Analysis)</span>
                     {zoomSpan < 0.99 && (
                         <button 
                             onClick={resetZoom}
-                            className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded border border-slate-600 transition-colors"
+                            className="text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 transition-colors"
                         >
                             重置縮放 (Reset Zoom)
                         </button>
@@ -365,14 +373,12 @@ const EventComparisonView: React.FC = () => {
                 </h3>
                 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Left Side: Chart */}
                     <div className="flex-1 min-w-0 relative group">
-                        {/* Zoom Hint Overlay */}
-                        <div className="absolute top-2 right-2 text-[10px] text-slate-500 bg-slate-900/50 px-2 py-1 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <div className="absolute top-2 right-2 text-[10px] text-slate-500 bg-white/80 dark:bg-slate-900/50 px-2 py-1 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm">
                             拖曳滑鼠可放大區域 (Drag to Zoom)
                         </div>
 
-                        <div className="w-full flex justify-center lg:justify-start items-center bg-slate-900/30 rounded-lg p-2 cursor-crosshair overflow-hidden">
+                        <div className="w-full flex justify-center lg:justify-start items-center bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2 cursor-crosshair overflow-hidden border border-slate-200 dark:border-transparent">
                             <svg 
                                 viewBox={`0 0 ${width} ${height}`} 
                                 className="w-full h-auto max-h-[50vh]" 
@@ -382,32 +388,28 @@ const EventComparisonView: React.FC = () => {
                                 onMouseUp={handleMouseUp}
                                 onMouseLeave={handleMouseUp}
                             >
-                                {/* Grid Lines & Axis */}
-                                <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="#475569" strokeWidth="1" />
-                                <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="#475569" strokeWidth="1" />
+                                <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="#94a3b8" strokeWidth="1" />
+                                <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="#94a3b8" strokeWidth="1" />
                                 
-                                {/* Vertical Split Line (Only if visible) */}
                                 {isVisible(100) && (
                                     <line 
                                         x1={getX(100)} 
                                         y1={padding.top} 
                                         x2={getX(100)} 
                                         y2={height - padding.bottom} 
-                                        stroke="#475569" 
+                                        stroke="#94a3b8" 
                                         strokeWidth="1" 
                                         strokeDasharray="2 2"
                                     />
                                 )}
 
-                                {/* X Axis Labels */}
                                 {xTicks.map(tick => (
                                     <g key={tick.rank}>
                                         <text x={getX(tick.rank)} y={height - 10} textAnchor="middle" fill="#94a3b8" fontSize="10">{tick.label}</text>
-                                        <line x1={getX(tick.rank)} y1={height - padding.bottom} x2={getX(tick.rank)} y2={height - padding.bottom + 5} stroke="#475569" />
+                                        <line x1={getX(tick.rank)} y1={height - padding.bottom} x2={getX(tick.rank)} y2={height - padding.bottom + 5} stroke="#94a3b8" />
                                     </g>
                                 ))}
 
-                                {/* Y Axis Labels */}
                                 {[0, 0.25, 0.5, 0.75, 1].map(ratio => {
                                     const val = maxScore * ratio;
                                     const y = getY(val);
@@ -416,59 +418,75 @@ const EventComparisonView: React.FC = () => {
                                             <text x={padding.left - 10} y={y + 4} textAnchor="end" fill="#94a3b8" fontSize="12">
                                                 {(val / 10000).toFixed(0)}萬
                                             </text>
-                                            <line x1={padding.left - 5} y1={y} x2={width - padding.right} y2={y} stroke="#334155" strokeDasharray="4 4" />
+                                            <line x1={padding.left - 5} y1={y} x2={width - padding.right} y2={y} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity="0.5" />
                                         </g>
                                     );
                                 })}
 
-                                {/* Events */}
                                 {renderEventVisuals(d1, "#06b6d4")} 
                                 {renderEventVisuals(d2, "#f472b6")}
                             </svg>
                         </div>
                     </div>
 
-                    {/* Right Side: Analysis Panel */}
-                    <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-700 pt-6 lg:pt-0 lg:pl-6 flex flex-col gap-4">
+                    <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 pt-6 lg:pt-0 lg:pl-6 flex flex-col gap-4">
                          <div className="space-y-3 mb-2">
                             <div className="flex items-start gap-2">
                                 <div className="w-3 h-3 mt-1.5 rounded-full bg-cyan-500 shrink-0"></div>
                                 <div>
-                                    <p className="text-xs text-slate-400 font-bold">活動 A</p>
-                                    <p className="text-sm text-cyan-300 line-clamp-2 leading-tight">{comparisonData.event1?.name}</p>
-                                    <p className="text-xs text-slate-500 mt-0.5 font-mono">{comparisonData.event1?.duration} 天</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">活動 A</p>
+                                    <p 
+                                        className="text-sm font-bold line-clamp-2 leading-tight"
+                                        style={{ color: getEventColor(comparisonData.event1?.id || 0) || '#0891b2' }}
+                                    >
+                                        {comparisonData.event1?.name}
+                                    </p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono">{comparisonData.event1?.duration} 天</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-2">
                                 <div className="w-3 h-3 mt-1.5 rounded-full bg-pink-500 shrink-0"></div>
                                 <div>
-                                    <p className="text-xs text-slate-400 font-bold">活動 B</p>
-                                    <p className="text-sm text-pink-300 line-clamp-2 leading-tight">{comparisonData.event2?.name}</p>
-                                    <p className="text-xs text-slate-500 mt-0.5 font-mono">{comparisonData.event2?.duration} 天</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">活動 B</p>
+                                    <p 
+                                        className="text-sm font-bold line-clamp-2 leading-tight"
+                                        style={{ color: getEventColor(comparisonData.event2?.id || 0) || '#db2777' }}
+                                    >
+                                        {comparisonData.event2?.name}
+                                    </p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono">{comparisonData.event2?.duration} 天</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="space-y-3 bg-slate-900/40 rounded-lg p-3 max-h-64 overflow-y-auto custom-scrollbar">
-                            {stats.map((stat) => (
-                                <div key={stat.rank} className="flex flex-col border-b border-slate-800 last:border-0 pb-2 last:pb-0">
+                        <div className="space-y-3 bg-slate-100 dark:bg-slate-900/40 rounded-lg p-3 max-h-64 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-transparent">
+                            {trendStats.map((stat, idx) => (
+                                <div key={idx} className="flex flex-col border-b border-slate-200 dark:border-slate-800 last:border-0 pb-3 last:pb-0">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-bold text-white">{stat.label}</span>
+                                        <span className="text-sm font-bold text-slate-800 dark:text-white">{stat?.range}</span>
                                         <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                                            stat.s1 === 0 || stat.s2 === 0 ? 'bg-slate-700 text-slate-400' :
-                                            stat.higher === 'A' ? 'bg-cyan-900 text-cyan-300' : 
-                                            stat.higher === 'B' ? 'bg-pink-900 text-pink-300' : 'bg-slate-700 text-slate-300'
+                                            stat?.winner === 'A' ? 'bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300' : 
+                                            stat?.winner === 'B' ? 'bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300' : 
+                                            'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                                         }`}>
-                                            {stat.s1 === 0 || stat.s2 === 0 ? 'N/A' : stat.higher === 'A' ? 'A 勝' : stat.higher === 'B' ? 'B 勝' : '平手'}
+                                            {stat?.winner === 'A' ? 'A 較高' : stat?.winner === 'B' ? 'B 較高' : '相近'}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-cyan-500/80">{formatScore(stat.s1)}</span>
-                                        <span className="text-slate-600">vs</span>
-                                        <span className="text-pink-500/80">{formatScore(stat.s2)}</span>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                                        {stat?.winner === 'A' ? (
+                                            <>平均高出 <span className="font-mono text-cyan-600 dark:text-cyan-400">{stat.avgDiff.toFixed(1)}%</span></>
+                                        ) : stat?.winner === 'B' ? (
+                                            <>平均低於 <span className="font-mono text-pink-600 dark:text-pink-400">{Math.abs(stat.avgDiff).toFixed(1)}%</span></>
+                                        ) : (
+                                            <>競爭強度相當</>
+                                        )}
+                                        <span className="opacity-50 ml-1">({stat?.dataPoints} 點)</span>
                                     </div>
                                 </div>
                             ))}
+                            {trendStats.length === 0 && (
+                                <p className="text-xs text-center text-slate-500 py-4">無足夠數據進行區間分析</p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -476,96 +494,92 @@ const EventComparisonView: React.FC = () => {
         );
     }, [comparisonData, zoomRange]);
 
-    if (isLoadingList) return <LoadingSpinner />;
-    if (listError) return <ErrorMessage message={listError} />;
-
     return (
         <div className="w-full animate-fadeIn">
-            <div className="mb-6">
-                <h2 className="text-3xl font-bold text-white mb-2">活動比較分析 (Event Comparison)</h2>
-                <p className="text-slate-400">比較過往任意兩期活動的分數分佈 (不包含 World Link)</p>
-            </div>
+            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-6 shadow-sm">
+                 <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white">活動比較 (Event Comparison)</h3>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                    <div className="lg:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            活動 1 (Base Event)
+                        </label>
+                        <select 
+                            value={selectedId1}
+                            onChange={(e) => setSelectedId1(e.target.value)}
+                            className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none"
+                        >
+                            <option value="">選擇活動...</option>
+                            {filteredEvents.map(e => (
+                                <option key={e.id} value={e.id} style={{ color: getEventColor(e.id) }}>
+                                    #{e.id} {e.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-            <div className="bg-slate-800 rounded-lg p-4 sm:p-6 border border-slate-700 shadow-lg">
-                
-                {/* Unit Filter for Dropdowns */}
-                <div className="mb-4">
-                    <label className="block text-slate-400 font-bold mb-2 text-sm sm:text-base">篩選團體 (Filter by Unit)</label>
+                    <div className="lg:col-span-2">
+                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                            活動 2 (Comparison)
+                        </label>
+                        <select 
+                             value={selectedId2}
+                             onChange={(e) => setSelectedId2(e.target.value)}
+                             className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-pink-500 outline-none"
+                        >
+                            <option value="">選擇活動...</option>
+                            {filteredEvents.map(e => (
+                                <option key={e.id} value={e.id} style={{ color: getEventColor(e.id) }}>
+                                    #{e.id} {e.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="lg:col-span-1">
+                        <button
+                            onClick={handleCompare}
+                            disabled={isComparing || !selectedId1 || !selectedId2}
+                            className={`w-full py-2 px-4 rounded font-bold text-white transition-all ${
+                                isComparing || !selectedId1 || !selectedId2 
+                                ? 'bg-slate-400 cursor-not-allowed' 
+                                : 'bg-gradient-to-r from-cyan-500 to-pink-500 hover:opacity-90 shadow-md'
+                            }`}
+                        >
+                            {isComparing ? '分析中...' : '開始比較'}
+                        </button>
+                    </div>
+                 </div>
+
+                 <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
+                     <span className="text-sm text-slate-500">篩選列表:</span>
                      <select
                         value={selectedUnitFilter}
-                        onChange={(e) => {
-                            setSelectedUnitFilter(e.target.value);
-                            setSelectedId1(''); // Reset selections as they might not be valid
-                            setSelectedId2('');
-                        }}
-                        className="w-full sm:w-auto bg-slate-900 border border-slate-600 rounded-lg p-2 sm:p-3 text-white focus:ring-2 focus:ring-teal-500 outline-none text-sm sm:text-base min-w-[200px]"
+                        onChange={(e) => setSelectedUnitFilter(e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
                      >
-                        <option value="all">所有團體 (All Units)</option>
+                        <option value="all">所有團體</option>
                         {uniqueUnits.map(unit => (
                             <option key={unit} value={unit}>{unit}</option>
                         ))}
                      </select>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {/* Selection 1 */}
-                    <div>
-                        <label className="block text-cyan-400 font-bold mb-2 text-sm sm:text-base">活動 A (基準)</label>
-                        <select 
-                            value={selectedId1}
-                            onChange={(e) => setSelectedId1(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 sm:p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none text-sm sm:text-base"
-                        >
-                            <option value="">-- 請選擇活動 --</option>
-                            {filteredEvents.map(e => (
-                                <option key={e.id} value={e.id} disabled={e.id.toString() === selectedId2}>
-                                    #{e.id} {e.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Selection 2 */}
-                    <div>
-                        <label className="block text-pink-400 font-bold mb-2 text-sm sm:text-base">活動 B (比較對象)</label>
-                        <select 
-                            value={selectedId2}
-                            onChange={(e) => setSelectedId2(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 sm:p-3 text-white focus:ring-2 focus:ring-pink-500 outline-none text-sm sm:text-base"
-                        >
-                            <option value="">-- 請選擇活動 --</option>
-                            {filteredEvents.map(e => (
-                                <option key={e.id} value={e.id} disabled={e.id.toString() === selectedId1}>
-                                    #{e.id} {e.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="flex justify-center">
-                    <button
-                        onClick={handleCompare}
-                        disabled={!selectedId1 || !selectedId2 || isComparing}
-                        className={`
-                            px-6 py-2 sm:px-8 sm:py-3 rounded-lg font-bold text-base sm:text-lg transition-all duration-200 shadow-lg
-                            ${!selectedId1 || !selectedId2 || isComparing
-                                ? 'bg-slate-600 text-slate-400 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-cyan-600 to-pink-600 text-white hover:from-cyan-500 hover:to-pink-500 transform hover:scale-105'
-                            }
-                        `}
-                    >
-                        {isComparing ? '分析中...' : '開始比較分析'}
-                    </button>
-                </div>
-
-                {comparisonError && (
-                    <div className="mt-4 p-3 bg-red-900/30 border border-red-500 rounded text-red-200 text-center">
-                        {comparisonError}
-                    </div>
-                )}
+                     <select
+                        value={selectedBannerFilter}
+                        onChange={(e) => setSelectedBannerFilter(e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                     >
+                        <option value="all">所有 Banner</option>
+                        {uniqueBanners.map(banner => (
+                            <option key={banner} value={banner}>{banner}</option>
+                        ))}
+                     </select>
+                 </div>
             </div>
 
+            {listError && <ErrorMessage message={listError} />}
+            {comparisonError && <ErrorMessage message={comparisonError} />}
+            
             {ChartDisplay}
         </div>
     );

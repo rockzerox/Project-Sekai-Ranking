@@ -22,8 +22,8 @@ interface RankingTableProps {
 const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
 
 const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel }) => (
-    <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col">
-        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-700 flex justify-between items-center flex-shrink-0 min-h-[56px]`}>
+    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
+        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0 min-h-[56px]`}>
             <div className="flex items-center flex-1 min-w-0 mr-2">
                 <h3 className={`font-bold ${color.replace('bg-', 'text-')} truncate mr-2`}>{title}</h3>
                 {headerAction}
@@ -32,7 +32,7 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
         </div>
         <div className="overflow-x-auto flex-1 custom-scrollbar">
             <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-400 bg-slate-800 uppercase sticky top-0 z-10">
+                <thead className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 uppercase sticky top-0 z-10">
                     <tr>
                         <th className="px-3 py-2 w-10">#</th>
                         <th className="px-3 py-2">玩家 (Player)</th>
@@ -41,19 +41,19 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
                 </thead>
                 <tbody>
                     {data.map((stat, idx) => (
-                        <tr key={stat.userId} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
-                            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-400' : 'text-slate-500'}`}>
+                        <tr key={stat.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
                                 {idx + 1}
                             </td>
                             <td className="px-3 py-2">
-                                <div className="font-medium text-slate-200 truncate" title={stat.latestName}>
+                                <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
                                     {stat.latestName}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-0.5 font-mono">
                                     ID: {stat.userId}
                                 </div>
                             </td>
-                            <td className="px-3 py-2 text-right font-mono text-white">
+                            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
                                 {valueGetter(stat)} 次
                             </td>
                         </tr>
@@ -213,20 +213,20 @@ const PlayerAnalysisView: React.FC = () => {
     return (
         <div className="w-full py-4 animate-fadeIn">
              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-white mb-2">活躍玩家分析 (Active Player Analysis)</h2>
-                <p className="text-slate-400">分析歷代活動中，最常上榜的玩家 (不含 World Link)</p>
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活躍玩家分析 (Active Player Analysis)</h2>
+                <p className="text-slate-500 dark:text-slate-400">分析歷代活動中，最常上榜的玩家 (不含 World Link)</p>
 
                 {isAnalyzing && (
-                    <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 mt-4 mb-6 relative overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mt-4 mb-6 relative overflow-hidden shadow-sm">
                         <div className="flex justify-between items-center mb-2 relative z-10">
-                            <span className="text-cyan-400 font-bold text-sm animate-pulse">
+                            <span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">
                                 正在同步分析過往數據... ({loadingProgress}%)
                             </span>
-                            <span className="text-slate-400 text-xs">
+                            <span className="text-slate-500 dark:text-slate-400 text-xs">
                                 已掃描玩家數: {Object.keys(playerStats).length}
                             </span>
                         </div>
-                        <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden relative z-10">
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden relative z-10">
                             <div 
                                 className="bg-cyan-500 h-2 rounded-full transition-all duration-500 ease-out"
                                 style={{ width: `${loadingProgress}%` }}
@@ -234,7 +234,7 @@ const PlayerAnalysisView: React.FC = () => {
                         </div>
                          <button 
                             onClick={() => setIsPaused(!isPaused)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-2 py-1 rounded border border-slate-300 dark:border-transparent"
                          >
                              {isPaused ? "繼續" : "暫停"}
                          </button>
@@ -261,7 +261,7 @@ const PlayerAnalysisView: React.FC = () => {
                             value={selectedSpecificRank} 
                             onChange={(e) => setSelectedSpecificRank(Number(e.target.value))}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-slate-900 text-white text-xs font-bold py-1 px-1 rounded border border-slate-600 focus:ring-1 focus:ring-pink-500 outline-none cursor-pointer hover:bg-slate-800 ml-2"
+                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold py-1 px-1 rounded border border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-pink-500 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 ml-2"
                         >
                             {Array.from({ length: 10 }, (_, i) => i + 1).map(rank => (
                                 <option key={rank} value={rank}>Rank {rank}</option>

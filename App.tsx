@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { RankEntry, HisekaiApiResponse, SortOption, PastEventApiResponse, HisekaiBorderApiResponse, PastEventBorderApiResponse } from './types';
 import SearchBar from './components/SearchBar';
@@ -16,38 +15,50 @@ import EventComparisonView from './components/EventComparisonView';
 import RankAnalysisView from './components/RankAnalysisView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
+import HomeView from './components/HomeView';
+import { getEventColor } from './constants';
 
 const API_URL = 'https://api.hisekai.org/event/live/top100';
 const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
 const ITEMS_PER_PAGE = 20;
 
-// Regex to catch large integers (15+ digits) associated with keys ending in Id or id, and wrap them in quotes.
 const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 
 const App: React.FC = () => {
-  // --- Navigation State ---
-  const [currentView, setCurrentView] = useState<'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis'>('live');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For Mobile (Off-canvas)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true); // For Desktop (Mini-width)
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis'>('home');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
+  
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // --- Rankings Data State ---
+  useEffect(() => {
+      if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+      } else {
+          document.documentElement.classList.remove('dark');
+      }
+  }, [theme]);
+
+  const toggleTheme = () => {
+      setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   const [rankings, setRankings] = useState<RankEntry[]>([]);
-  const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]); // Cache for live rankings
-  const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]); // Cache for past rankings
+  const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]);
+  const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('score');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [eventName, setEventName] = useState('Hisekai Live TW Rankings');
+  const [liveEventId, setLiveEventId] = useState<number | null>(null);
   
-  // --- UI Toggle State ---
   const [isRankingsOpen, setIsRankingsOpen] = useState(true);
   const [isChartsOpen, setIsChartsOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
 
-  // Function to fetch LIVE rankings
   const fetchLiveRankings = async () => {
       setIsLoading(true);
       setError(null);
@@ -88,14 +99,17 @@ const App: React.FC = () => {
               id: String(item.last_player_info.profile.id),
               username: item.name,
               display_name: item.name,
-              avatar: '', // Avatar removed per request
+              avatar: '',
               supporter_tier: 0, 
             }
           }));
           
           setRankings(transformedRankings);
-          setCachedLiveRankings(transformedRankings); // Update cache
+          setCachedLiveRankings(transformedRankings);
           setEventName(responseData.name);
+          if (responseData.id) {
+              setLiveEventId(responseData.id);
+          }
           setLastUpdated(new Date());
 
         } else {
@@ -109,7 +123,6 @@ const App: React.FC = () => {
       }
   };
 
-  // Function to fetch BORDER rankings (Highlights)
   const fetchBorderRankings = async () => {
       setIsLoading(true);
       setError(null);
@@ -126,13 +139,13 @@ const App: React.FC = () => {
               const transformedRankings: RankEntry[] = responseData.border_player_rankings.map(item => ({
                   rank: item.rank,
                   score: item.score,
-                  lastPlayedAt: '', // Border data doesn't include timestamps
+                  lastPlayedAt: '',
                   stats: { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat },
                   user: {
                       id: String(item.last_player_info.profile.id),
                       username: item.name,
                       display_name: item.name,
-                      avatar: '', // Avatar removed per request
+                      avatar: '',
                       supporter_tier: 0,
                   }
               }));
@@ -145,7 +158,6 @@ const App: React.FC = () => {
       }
   }
 
-  // Function to fetch PAST rankings
   const fetchPastRankings = async (eventId: number) => {
     setIsLoading(true);
     setError(null);
@@ -172,13 +184,13 @@ const App: React.FC = () => {
                     id: String(item.userId),
                     username: item.name,
                     display_name: item.name,
-                    avatar: '', // Avatar removed per request
+                    avatar: '',
                     supporter_tier: 0
                 }
             }));
 
             setRankings(transformedRankings);
-            setCachedPastRankings(transformedRankings); // Update cache
+            setCachedPastRankings(transformedRankings);
             setLastUpdated(null);
         } else {
             throw new Error('Unexpected API response format.');
@@ -191,7 +203,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Function to fetch PAST BORDER rankings (Highlights)
   const fetchPastBorderRankings = async (eventId: number) => {
     setIsLoading(true);
     setError(null);
@@ -214,7 +225,7 @@ const App: React.FC = () => {
                     id: String(item.userId),
                     username: item.name,
                     display_name: item.name,
-                    avatar: '', // Avatar removed per request
+                    avatar: '',
                     supporter_tier: 0
                 }
             }));
@@ -228,10 +239,8 @@ const App: React.FC = () => {
     }
   };
 
-  // Data fetching effect
   useEffect(() => {
     if (currentView === 'live') {
-        // If switching to live from elsewhere, or initial load
         fetchLiveRankings();
         setCurrentPage(1);
     } else if (currentView === 'past' && selectedEvent) {
@@ -241,7 +250,6 @@ const App: React.FC = () => {
     }
   }, [currentView, selectedEvent]);
 
-  // Handle Page Change
   const handlePageChange = (page: number | 'highlights') => {
       setCurrentPage(page);
       
@@ -249,11 +257,9 @@ const App: React.FC = () => {
           if (page === 'highlights') {
               fetchBorderRankings();
           } else {
-              // If we were in highlights, restore cached live rankings
               if (currentPage === 'highlights') {
                    setRankings(cachedLiveRankings);
               }
-              // Optimization: If cached rankings are empty (e.g. refresh), fetch again
               if (cachedLiveRankings.length === 0) {
                   fetchLiveRankings();
               }
@@ -272,21 +278,17 @@ const App: React.FC = () => {
       }
   };
 
-  // Reset pagination when filters change (except when entering highlights mode intentionally)
   useEffect(() => {
     if (currentPage !== 'highlights') {
         setCurrentPage(1);
     }
   }, [searchTerm, sortOption, currentView, selectedEvent]);
 
-  // Sort logic
   const sortedAndFilteredRankings = useMemo(() => {
     const filtered = rankings.filter(entry =>
       entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Skip sorting if in Highlights mode (usually pre-sorted by specific ranks, or strictly score)
-    // But applying score sort doesn't hurt.
     const sorted = [...filtered].sort((a, b) => {
         switch (sortOption) {
             case 'lastPlayedAt':
@@ -308,7 +310,6 @@ const App: React.FC = () => {
         }
     });
     
-    // In Highlights mode, ranks are fixed (e.g. 100, 200...), don't overwrite them with index+1
     if (currentPage === 'highlights') {
         return sorted;
     }
@@ -320,25 +321,19 @@ const App: React.FC = () => {
 
   }, [searchTerm, rankings, sortOption, currentPage]);
   
-  // Pagination Logic
   const paginatedRankings = useMemo(() => {
     if (currentPage === 'highlights') {
-        return sortedAndFilteredRankings; // Show all for highlights
+        return sortedAndFilteredRankings;
     }
-    // Safe check for number type
     const pageNum = typeof currentPage === 'number' ? currentPage : 1;
     const startIndex = (pageNum - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return sortedAndFilteredRankings.slice(startIndex, endIndex);
   }, [sortedAndFilteredRankings, currentPage]);
 
-  
-  // Render Content
   const renderContent = () => {
       const isPastMode = currentView === 'past' && selectedEvent !== null;
       const isHighlights = currentPage === 'highlights';
-      
-      // Stats are hidden for Past Events OR Highlights
       const shouldHideStats = isPastMode || isHighlights;
       
       if (isLoading) return <LoadingSpinner />;
@@ -368,9 +363,8 @@ const App: React.FC = () => {
                 <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    {/* Pagination with Highlights support */}
                     <Pagination
-                        totalItems={100} // Fixed to 100 for Live mode main pages, and Past Mode Top 100
+                        totalItems={100}
                         itemsPerPage={ITEMS_PER_PAGE}
                         currentPage={currentPage}
                         onPageChange={handlePageChange}
@@ -395,7 +389,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex bg-slate-900 min-h-screen text-slate-200 font-sans">
+    <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300">
         <Sidebar 
             currentView={currentView}
             setCurrentView={setCurrentView}
@@ -403,36 +397,50 @@ const App: React.FC = () => {
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isCollapsed={isSidebarCollapsed}
             toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            theme={theme}
+            toggleTheme={toggleTheme}
         />
 
         <div className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'ml-0 md:ml-20' : 'ml-0 md:ml-64'}`}>
-            {/* Mobile Header */}
-            <div className="md:hidden flex items-center justify-between p-4 bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
+            <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
                 <div className="flex items-center">
                     <div className="bg-cyan-500/20 p-2 rounded-lg mr-3">
-                        <TrophyIcon className="w-6 h-6 text-cyan-400" />
+                        <TrophyIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
                     </div>
-                    <h1 className="text-lg font-bold text-white">Hisekai TW</h1>
+                    <h1 className="text-lg font-bold text-slate-900 dark:text-white">Hisekai TW</h1>
                 </div>
-                <button 
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-2 text-slate-400 hover:text-white focus:outline-none"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button onClick={toggleTheme} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                        {theme === 'dark' ? (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        ) : (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                        )}
+                    </button>
+                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white focus:outline-none">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            {/* Main Content Area - w-full ensures full width usage */}
             <main className="p-4 w-full">
-                {/* View Switcher Logic */}
+                {currentView === 'home' && (
+                    <HomeView setCurrentView={setCurrentView} />
+                )}
+
                 {currentView === 'live' && (
                     <>
                         <div className="flex flex-col sm:flex-row justify-between items-end mb-6 gap-4">
                             <div>
-                                <h2 className="text-2xl font-bold text-white mb-1">{eventName}</h2>
-                                <p className="text-slate-400 text-sm">
+                                <h2 
+                                    className="text-2xl font-bold mb-1"
+                                    style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
+                                >
+                                    {eventName}
+                                </h2>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm">
                                     最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
                                 </p>
                             </div>
@@ -450,7 +458,7 @@ const App: React.FC = () => {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                              <button 
                                 onClick={() => setSelectedEvent(null)}
-                                className="flex items-center text-cyan-400 hover:text-cyan-300 transition-colors"
+                                className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
                              >
                                 <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, UNIT_STYLES, getEventColor } from '../constants';
+import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER } from '../constants';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
@@ -13,12 +14,24 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  
+  // Default year will be set after data load
+  const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
   
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<'all' | 'marathon' | 'cheerful_carnival' | 'world_link'>('all');
   const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
+  
+  const [sortType, setSortType] = useState<'id' | 'duration'>('id');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  const calculateEventDays = (startAt: string, closedAt: string): number => {
+    const start = new Date(startAt);
+    const end = new Date(closedAt);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays - 1);
+  };
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -32,17 +45,20 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         const sortedData = data.sort((a, b) => b.id - a.id);
         setEvents(sortedData);
         
-        if (sortedData.length > 0) {
-          const currentSystemYear = new Date().getFullYear();
-          const availableYears = new Set(data.map(e => new Date(e.start_at).getFullYear()));
-          
-          if (availableYears.has(currentSystemYear)) {
-             setSelectedYear(currentSystemYear);
-          } else {
-             const newestYear = new Date(sortedData[0].start_at).getFullYear();
-             setSelectedYear(newestYear);
-          }
+        // Prioritize setting the default year to the current year if exists
+        const currentYear = new Date().getFullYear();
+        const hasCurrentYear = sortedData.some(e => new Date(e.start_at).getFullYear() === currentYear);
+
+        if (hasCurrentYear) {
+            setSelectedYear(currentYear);
+        } else if (sortedData.length > 0) {
+            // Fallback to the latest available year
+            const latestYear = new Date(sortedData[0].start_at).getFullYear();
+            if (!isNaN(latestYear)) {
+                setSelectedYear(latestYear);
+            }
         }
+        
       } catch (err) {
         setError('無法載入過往活動。');
         console.error(err);
@@ -54,56 +70,68 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
     fetchEvents();
   }, []);
 
-  const eventsByYear = useMemo(() => {
-    const groups: Record<number, EventSummary[]> = {};
-    events.forEach(event => {
-      const year = new Date(event.start_at).getFullYear();
-      if (!groups[year]) {
-        groups[year] = [];
-      }
-      groups[year].push(event);
+  const years = useMemo(() => {
+    const uniqueYears = new Set<number>();
+    events.forEach(e => {
+        const year = new Date(e.start_at).getFullYear();
+        if (!isNaN(year)) {
+            uniqueYears.add(year);
+        }
     });
-    return groups;
+    return Array.from(uniqueYears).sort((a: number, b: number) => b - a);
   }, [events]);
 
-  const years = useMemo(() => {
-    return Object.keys(eventsByYear).map(Number).sort((a, b) => b - a);
-  }, [eventsByYear]);
-
   const filteredEvents = useMemo(() => {
-    if (!selectedYear) return [];
-    
-    let currentYearEvents = eventsByYear[selectedYear] || [];
-    const term = searchTerm.toLowerCase();
+    // 1. Global Filter (Applies to ALL events first)
+    let currentEvents = events;
 
-    // 1. Search Filter
+    // Search Filter
     if (searchTerm.trim() !== '') {
-        currentYearEvents = currentYearEvents.filter(e => 
+        const term = searchTerm.toLowerCase();
+        currentEvents = currentEvents.filter(e => 
             e.name.toLowerCase().includes(term) || 
             e.id.toString().includes(term)
         );
     }
 
-    // 2. Unit Filter
+    // Unit Filter
     if (selectedUnitFilter !== 'all') {
-        currentYearEvents = currentYearEvents.filter(e => EVENT_DETAILS[e.id]?.unit === selectedUnitFilter);
+        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.unit === selectedUnitFilter);
     }
 
-    // 3. Type Filter
+    // Type Filter
     if (selectedTypeFilter !== 'all') {
-        currentYearEvents = currentYearEvents.filter(e => EVENT_DETAILS[e.id]?.type === selectedTypeFilter);
+        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.type === selectedTypeFilter);
     }
 
-    // 4. Banner Filter
+    // Banner Filter
     if (selectedBannerFilter !== 'all') {
-        currentYearEvents = currentYearEvents.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
+        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
     }
 
-    // 5. Sort
-    return currentYearEvents.sort((a, b) => {
+    // 2. Year Filter (Only if a specific year is selected)
+    if (selectedYear !== 'all') {
+        currentEvents = currentEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
+    }
+
+    // 3. Sort
+    return currentEvents.sort((a, b) => {
+        if (sortType === 'duration') {
+            const durA = calculateEventDays(a.start_at, a.closed_at);
+            const durB = calculateEventDays(b.start_at, b.closed_at);
+            // desc: Longest to Shortest
+            // asc: Shortest to Longest
+            if (durA !== durB) {
+                return sortOrder === 'desc' ? durA - durB : durB - durA;
+            }
+            // Secondary sort by ID desc always
+            return b.id - a.id;
+        }
+        
+        // Default ID sort
         return sortOrder === 'desc' ? b.id - a.id : a.id - b.id;
     });
-  }, [eventsByYear, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, sortOrder]);
+  }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, sortOrder, sortType]);
 
   const getEventStatus = (startAt: string, closedAt: string) => {
       const now = new Date();
@@ -115,31 +143,9 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
       return 'past';
   };
 
-  const calculateEventDays = (startAt: string, closedAt: string): number => {
-    const start = new Date(startAt);
-    const end = new Date(closedAt);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays - 1);
-  };
-
   const toggleSortOrder = () => {
       setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
   };
-
-  const uniqueUnits = useMemo(() => {
-      const units = new Set<string>();
-      Object.values(EVENT_DETAILS).forEach(d => units.add(d.unit));
-      return Array.from(units).sort();
-  }, []);
-
-  const uniqueBanners = useMemo(() => {
-      const banners = new Set<string>();
-      Object.values(EVENT_DETAILS).forEach(d => {
-          if (d.banner) banners.add(d.banner);
-      });
-      return Array.from(banners).sort();
-  }, []);
 
   const getTypeLabel = (type: string) => {
       switch(type) {
@@ -161,12 +167,23 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 pb-1">
+        <button
+            onClick={() => {
+                setSelectedYear('all');
+            }}
+            className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${
+                selectedYear === 'all'
+                ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 border-cyan-500'
+                : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+            }`}
+        >
+            全部 (All)
+        </button>
         {years.map(year => (
           <button
             key={year}
             onClick={() => {
                 setSelectedYear(year);
-                setSearchTerm(''); 
             }}
             className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${
               selectedYear === year
@@ -183,7 +200,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
           <div className="relative w-full xl:max-w-md">
             <input
             type="text"
-            placeholder={`搜尋 ${selectedYear} 活動... (期數/名稱)`}
+            placeholder={`搜尋活動... (期數/名稱)`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
@@ -199,23 +216,28 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
           </div>
 
           <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-             <button
-                onClick={toggleSortOrder}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-400 dark:hover:border-slate-500 transition-all min-w-[100px]"
-                title={sortOrder === 'desc' ? "由新到舊 (Newest First)" : "由舊到新 (Oldest First)"}
-             >
-                {sortOrder === 'desc' ? (
-                    <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4 4m-4-4v12" /></svg>
-                        <span>降冪</span>
-                    </>
-                ) : (
-                    <>
-                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4 4m-4-4v12" transform="scale(1, -1) translate(0, -24)" /></svg>
-                         <span>升冪</span>
-                    </>
-                )}
-             </button>
+             <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+                 <select
+                    value={sortType}
+                    onChange={(e) => setSortType(e.target.value as 'id' | 'duration')}
+                    className="bg-transparent text-slate-700 dark:text-slate-300 text-sm font-bold p-2.5 outline-none border-r border-slate-300 dark:border-slate-700 cursor-pointer"
+                 >
+                     <option value="id">依照期數</option>
+                     <option value="duration">依照天數</option>
+                 </select>
+                 
+                 <button
+                    onClick={toggleSortOrder}
+                    className="px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    title={sortOrder === 'desc' ? "降冪 (由大到小 / 由新到舊)" : "升冪 (由小到大 / 由舊到新)"}
+                 >
+                    {sortOrder === 'desc' ? (
+                        <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                    ) : (
+                        <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                    )}
+                 </button>
+             </div>
 
              <select
                 value={selectedUnitFilter}
@@ -223,7 +245,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[140px]"
              >
                 <option value="all">所有團體 (All Units)</option>
-                {uniqueUnits.map(unit => (
+                {UNIT_ORDER.map(unit => (
                     <option key={unit} value={unit}>{unit}</option>
                 ))}
              </select>
@@ -245,7 +267,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[140px]"
              >
                 <option value="all">所有 Banner</option>
-                {uniqueBanners.map(banner => (
+                {BANNER_ORDER.map(banner => (
                     <option key={banner} value={banner}>{banner}</option>
                 ))}
              </select>

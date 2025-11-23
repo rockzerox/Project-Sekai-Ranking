@@ -1,3 +1,4 @@
+
 import React from 'react';
 import TrophyIcon from './icons/TrophyIcon';
 

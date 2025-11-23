@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { RankEntry, HisekaiApiResponse, SortOption, PastEventApiResponse, HisekaiBorderApiResponse, PastEventBorderApiResponse } from './types';
 import SearchBar from './components/SearchBar';

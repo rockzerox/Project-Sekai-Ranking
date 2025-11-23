@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER } from '../constants';
 
 interface SimpleRankData {
     rank: number;
@@ -31,6 +32,8 @@ const EventComparisonView: React.FC = () => {
     const [zoomRange, setZoomRange] = useState<{start: number, end: number}>({ start: 0, end: 1 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState<number | null>(null);
+    
+    const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     
     const calculateEventDays = (startAt: string, closedAt: string): number => {
         const start = new Date(startAt);
@@ -71,20 +74,6 @@ const EventComparisonView: React.FC = () => {
         }
         return result;
     }, [events, selectedUnitFilter, selectedBannerFilter]);
-
-    const uniqueUnits = useMemo(() => {
-        const units = new Set<string>();
-        Object.values(EVENT_DETAILS).forEach(d => units.add(d.unit));
-        return Array.from(units).sort();
-    }, []);
-
-    const uniqueBanners = useMemo(() => {
-        const banners = new Set<string>();
-        Object.values(EVENT_DETAILS).forEach(d => {
-            if (d.banner) banners.add(d.banner);
-        });
-        return Array.from(banners).sort();
-    }, []);
 
     const handleCompare = async () => {
         if (!selectedId1 || !selectedId2) return;
@@ -211,8 +200,15 @@ const EventComparisonView: React.FC = () => {
     const ChartDisplay = useMemo(() => {
         if (!comparisonData.event1 || !comparisonData.event2) return null;
 
-        const d1 = comparisonData.event1.data;
-        const d2 = comparisonData.event2.data;
+        // Apply mode transformation
+        const d1 = comparisonData.event1.data.map(d => ({
+            ...d,
+            score: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, comparisonData.event1!.duration)) : d.score
+        }));
+        const d2 = comparisonData.event2.data.map(d => ({
+            ...d,
+            score: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, comparisonData.event2!.duration)) : d.score
+        }));
 
         const allScores = [...d1.map(d => d.score), ...d2.map(d => d.score)];
         const allRanks = [...d1.map(d => d.rank), ...d2.map(d => d.rank)];
@@ -310,7 +306,7 @@ const EventComparisonView: React.FC = () => {
         };
         const xTicks = generateTicks();
 
-        // --- TREND ANALYSIS LOGIC ---
+        // --- TREND & SCORE ANALYSIS LOGIC ---
         const getTrendAnalysis = () => {
             const ranges = [
                 { label: 'Top 1-10', min: 1, max: 10 },
@@ -320,36 +316,57 @@ const EventComparisonView: React.FC = () => {
             ];
 
             const analysisResults = ranges.map(range => {
-                // Find all ranks that exist in BOTH datasets within this range
-                const commonRanks = d1
-                    .filter(item => item.rank >= range.min && item.rank < range.max)
-                    .map(item => item.rank)
-                    .filter(rank => d2.some(item2 => item2.rank === rank));
+                const getMetrics = (data: SimpleRankData[]) => {
+                    const inRange = data.filter(d => d.rank >= range.min && d.rank < range.max);
+                    if (inRange.length < 2) return null;
+                    
+                    const maxS = Math.max(...inRange.map(d => d.score));
+                    const minS = Math.min(...inRange.map(d => d.score));
+                    const avgS = inRange.reduce((a, b) => a + b.score, 0) / inRange.length;
+                    
+                    // Spread Ratio: (Max - Min) / Avg. Higher = Steeper Gap.
+                    const spread = (maxS - minS) / avgS; 
+                    
+                    return { spread, avgScore: avgS };
+                };
 
-                if (commonRanks.length === 0) return null;
+                const metricsA = getMetrics(d1);
+                const metricsB = getMetrics(d2);
 
-                let event1Wins = 0;
-                let totalDiffPercent = 0;
+                if (metricsA === null || metricsB === null) return null;
 
-                commonRanks.forEach(rank => {
-                    const s1 = d1.find(i => i.rank === rank)?.score || 0;
-                    const s2 = d2.find(i => i.rank === rank)?.score || 0;
-                    if (s1 > s2) event1Wins++;
-                    if (s2 > 0) totalDiffPercent += ((s1 - s2) / s2);
-                });
+                // 1. Steepness Analysis
+                let steepnessWinner = 'equal';
+                // Threshold: 10% diff
+                if (metricsA.spread > metricsB.spread * 1.1) steepnessWinner = 'A'; 
+                else if (metricsB.spread > metricsA.spread * 1.1) steepnessWinner = 'B'; 
 
-                const event1WinRate = event1Wins / commonRanks.length;
-                const avgDiff = (totalDiffPercent / commonRanks.length) * 100;
+                // 2. Score/Resource Analysis
+                let scoreWinner = 'equal';
+                // Threshold: 5% diff
+                if (metricsA.avgScore > metricsB.avgScore * 1.05) scoreWinner = 'A';
+                else if (metricsB.avgScore > metricsA.avgScore * 1.05) scoreWinner = 'B';
+
+                // 3. Combined Evaluation String
+                let evaluation = '';
+                if (steepnessWinner === 'A' && scoreWinner === 'A') evaluation = 'A 競爭強度極高，且斷層明顯';
+                else if (steepnessWinner === 'B' && scoreWinner === 'B') evaluation = 'B 競爭強度極高，且斷層明顯';
+                else if (steepnessWinner === 'equal' && scoreWinner === 'equal') evaluation = '兩者競爭環境與投入程度相當';
                 
-                let winner = 'equal';
-                if (event1WinRate > 0.6) winner = 'A';
-                else if (event1WinRate < 0.4) winner = 'B';
+                else if (steepnessWinner === 'A' && scoreWinner === 'B') evaluation = 'A 前段斷層大，但 B 整體投入較高';
+                else if (steepnessWinner === 'B' && scoreWinner === 'A') evaluation = 'B 前段斷層大，但 A 整體投入較高';
                 
+                else if (steepnessWinner === 'A' && scoreWinner === 'equal') evaluation = '投入相當，但 A 排名競爭較不均';
+                else if (steepnessWinner === 'B' && scoreWinner === 'equal') evaluation = '投入相當，但 B 排名競爭較不均';
+                
+                else if (steepnessWinner === 'equal' && scoreWinner === 'A') evaluation = 'A 整體投入較高，但斷層分佈相似';
+                else if (steepnessWinner === 'equal' && scoreWinner === 'B') evaluation = 'B 整體投入較高，但斷層分佈相似';
+
                 return {
                     range: range.label,
-                    winner,
-                    avgDiff,
-                    dataPoints: commonRanks.length
+                    steepnessWinner,
+                    scoreWinner,
+                    evaluation
                 };
             }).filter(res => res !== null);
 
@@ -360,17 +377,51 @@ const EventComparisonView: React.FC = () => {
 
         return (
             <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 sm:p-6 mt-6 shadow-lg transition-colors duration-300">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-700 pb-2 flex justify-between items-center">
-                    <span>📊 數據比較與趨勢分析 (Trend Analysis)</span>
-                    {zoomSpan < 0.99 && (
-                        <button 
-                            onClick={resetZoom}
-                            className="text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 transition-colors"
-                        >
-                            重置縮放 (Reset Zoom)
-                        </button>
-                    )}
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 border-b border-slate-200 dark:border-slate-700 pb-2 flex flex-wrap justify-between items-center gap-4">
+                    <span>📊 綜合分析 (Comprehensive Analysis)</span>
+                    <div className="flex gap-2">
+                        <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm mr-2">
+                            <button
+                                onClick={() => setDisplayMode('total')}
+                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${
+                                    displayMode === 'total' 
+                                    ? 'bg-cyan-500 text-white shadow' 
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                總分
+                            </button>
+                            <button
+                                onClick={() => setDisplayMode('daily')}
+                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${
+                                    displayMode === 'daily' 
+                                    ? 'bg-pink-500 text-white shadow' 
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                            >
+                                日均
+                            </button>
+                        </div>
+
+                        {zoomSpan < 0.99 && (
+                            <button 
+                                onClick={resetZoom}
+                                className="text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 transition-colors"
+                            >
+                                重置縮放
+                            </button>
+                        )}
+                    </div>
                 </h3>
+                
+                <div className="mb-4 text-xs text-slate-500 dark:text-slate-400 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                     <p>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">[趨勢] 陡峭 (Steep):</span> 分數斷層大，排名固化
+                     </p>
+                     <p>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">[數值] 整體分數 (Score):</span> 該區間平均分數，代表資源投入量
+                     </p>
+                </div>
                 
                 <div className="flex flex-col lg:flex-row gap-8">
                     <div className="flex-1 min-w-0 relative group">
@@ -416,7 +467,10 @@ const EventComparisonView: React.FC = () => {
                                     return (
                                         <g key={ratio}>
                                             <text x={padding.left - 10} y={y + 4} textAnchor="end" fill="#94a3b8" fontSize="12">
-                                                {(val / 10000).toFixed(0)}萬
+                                                {displayMode === 'daily' 
+                                                    ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) 
+                                                    : `${(val / 10000).toFixed(0)}萬`
+                                                }
                                             </text>
                                             <line x1={padding.left - 5} y1={y} x2={width - padding.right} y2={y} stroke="#94a3b8" strokeDasharray="4 4" strokeOpacity="0.5" />
                                         </g>
@@ -459,28 +513,32 @@ const EventComparisonView: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-3 bg-slate-100 dark:bg-slate-900/40 rounded-lg p-3 max-h-64 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-transparent">
+                        <div className="space-y-3 bg-slate-100 dark:bg-slate-900/40 rounded-lg p-3 max-h-[300px] overflow-y-auto custom-scrollbar border border-slate-200 dark:border-transparent">
                             {trendStats.map((stat, idx) => (
                                 <div key={idx} className="flex flex-col border-b border-slate-200 dark:border-slate-800 last:border-0 pb-3 last:pb-0">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-bold text-slate-800 dark:text-white">{stat?.range}</span>
-                                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                                            stat?.winner === 'A' ? 'bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300' : 
-                                            stat?.winner === 'B' ? 'bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300' : 
-                                            'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                        }`}>
-                                            {stat?.winner === 'A' ? 'A 較高' : stat?.winner === 'B' ? 'B 較高' : '相近'}
-                                        </span>
+                                        <span className="text-sm font-bold text-slate-800 dark:text-white">{stat.range}</span>
                                     </div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                                        {stat?.winner === 'A' ? (
-                                            <>平均高出 <span className="font-mono text-cyan-600 dark:text-cyan-400">{stat.avgDiff.toFixed(1)}%</span></>
-                                        ) : stat?.winner === 'B' ? (
-                                            <>平均低於 <span className="font-mono text-pink-600 dark:text-pink-400">{Math.abs(stat.avgDiff).toFixed(1)}%</span></>
-                                        ) : (
-                                            <>競爭強度相當</>
-                                        )}
-                                        <span className="opacity-50 ml-1">({stat?.dataPoints} 點)</span>
+                                    <div className="grid grid-cols-2 gap-2 text-[10px] mb-1">
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-500">變化 (Steep)</span>
+                                            <span className={`font-bold ${
+                                                stat.steepnessWinner === 'A' ? 'text-cyan-600' : stat.steepnessWinner === 'B' ? 'text-pink-600' : 'text-slate-500'
+                                            }`}>
+                                                {stat.steepnessWinner === 'A' ? 'A 較陡' : stat.steepnessWinner === 'B' ? 'B 較陡' : '相似'}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-slate-500">分數 (Score)</span>
+                                            <span className={`font-bold ${
+                                                stat.scoreWinner === 'A' ? 'text-cyan-600' : stat.scoreWinner === 'B' ? 'text-pink-600' : 'text-slate-500'
+                                            }`}>
+                                                {stat.scoreWinner === 'A' ? 'A 較高' : stat.scoreWinner === 'B' ? 'B 較高' : '相似'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 p-1.5 rounded border border-slate-200 dark:border-slate-700/50">
+                                        {stat.evaluation}
                                     </div>
                                 </div>
                             ))}
@@ -488,11 +546,15 @@ const EventComparisonView: React.FC = () => {
                                 <p className="text-xs text-center text-slate-500 py-4">無足夠數據進行區間分析</p>
                             )}
                         </div>
+                        
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 italic px-1">
+                            註：此分析僅基於最終分數數值，無法校正遊戲歷程中因改版造成的活動倍率或計算公式差異。
+                        </div>
                     </div>
                 </div>
             </div>
         );
-    }, [comparisonData, zoomRange]);
+    }, [comparisonData, zoomRange, displayMode]);
 
     return (
         <div className="w-full animate-fadeIn">
@@ -559,7 +621,7 @@ const EventComparisonView: React.FC = () => {
                         className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
                      >
                         <option value="all">所有團體</option>
-                        {uniqueUnits.map(unit => (
+                        {UNIT_ORDER.map(unit => (
                             <option key={unit} value={unit}>{unit}</option>
                         ))}
                      </select>
@@ -570,7 +632,7 @@ const EventComparisonView: React.FC = () => {
                         className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
                      >
                         <option value="all">所有 Banner</option>
-                        {uniqueBanners.map(banner => (
+                        {BANNER_ORDER.map(banner => (
                             <option key={banner} value={banner}>{banner}</option>
                         ))}
                      </select>

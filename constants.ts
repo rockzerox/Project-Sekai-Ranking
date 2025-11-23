@@ -1,5 +1,5 @@
 
-export const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
+export const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140, 163];
 
 export const UNIT_COLORS: Record<string, string> = {
     "Leo/need": "#4455DD",
@@ -7,8 +7,8 @@ export const UNIT_COLORS: Record<string, string> = {
     "Vivid BAD SQUAD": "#EE1166",
     "Wonderlands × Showtime": "#FF9900",
     "25點,nightcord見": "#884499",
-    "Virtual Singer": "#71717A", // Slate-500 for text visibility
-    "混活": "#64748B" // Slate-500
+    "Virtual Singer": "#71717A",
+    "混活": "#64748B"
 };
 
 export const UNIT_STYLES: Record<string, string> = {
@@ -20,6 +20,31 @@ export const UNIT_STYLES: Record<string, string> = {
     "Virtual Singer": "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-600 dark:border-slate-300",
     "混活": "bg-slate-500 text-white border-transparent"
 };
+
+export const UNIT_ORDER = [
+    "Virtual Singer",
+    "Leo/need",
+    "MORE MORE JUMP!",
+    "Vivid BAD SQUAD",
+    "Wonderlands × Showtime",
+    "25點,nightcord見",
+    "混活"
+];
+
+export const BANNER_ORDER = [
+    // Leo/need
+    "星乃一歌", "天馬咲希", "望月穗波", "日野森志步",
+    // MORE MORE JUMP!
+    "花里實乃理", "桐谷遙", "桃井愛莉", "日野森雫",
+    // Vivid BAD SQUAD
+    "小豆澤心羽", "白石杏", "東雲彰人", "青柳冬彌",
+    // Wonderlands × Showtime
+    "天馬司", "鳳笑夢", "草薙寧寧", "神代類",
+    // 25-ji
+    "宵崎奏", "朝比奈真冬", "東雲繪名", "曉山瑞希",
+    // VS
+    "初音未來"
+];
 
 export const CHAR_INFO: Record<string, string> = {
     "朝比奈真冬": "#8888CC",
@@ -218,10 +243,11 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     159: { unit: "混活", type: "marathon", banner: "天馬咲希" },
     160: { unit: "混活", type: "marathon", banner: "天馬司" },
     161: { unit: "25點,nightcord見", type: "marathon", banner: "宵崎奏" },
-    162: { unit: "Leo/need", type: "marathon", banner: "日野森志步" }
+    162: { unit: "Leo/need", type: "marathon", banner: "日野森志步" },
+    163: { unit: "Vivid BAD SQUAD", type: "world_link", banner: "Vivid BAD SQUAD" },
+    164: { unit: "Wonderlands × Showtime", type: "marathon", banner: "鳳笑夢" }
 };
 
-// Map old simple mapping to new details for backward compatibility where only Unit name is needed
 export const EVENT_UNIT_MAP: Record<number, string> = Object.fromEntries(
     Object.entries(EVENT_DETAILS).map(([k, v]) => [k, v.unit])
 );
@@ -230,12 +256,10 @@ export const getEventColor = (eventId: number): string => {
     const details = EVENT_DETAILS[eventId];
     if (!details) return '';
 
-    // 1. Check Banner Character
     if (CHAR_INFO[details.banner]) {
         return CHAR_INFO[details.banner];
     }
 
-    // 2. Check Unit Color
     if (UNIT_COLORS[details.unit]) {
         return UNIT_COLORS[details.unit];
     }

@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 
 interface ChartData {
   label: string;
@@ -26,6 +26,14 @@ const LineChart: React.FC<LineChartProps> = ({
 }) => {
   // Use default formatter for axis if specific one not provided
   const axisFormatter = yAxisFormatter || valueFormatter;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   if (!data || data.length < 2) {
     return <p className="text-slate-400 text-center py-10">Not enough data to draw a line chart.</p>;
@@ -110,7 +118,15 @@ const LineChart: React.FC<LineChartProps> = ({
       // Linear Section: 1, 10, 20... 100
       const linearSteps = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
       // Log Section: major steps
-      const logSteps = [200, 500, 1000, 2000, 5000, 10000, 20000, 50000].filter(r => r <= maxRank);
+      // Filter log steps based on screen width to prevent overlap
+      let logSteps = [200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+      
+      if (isMobile) {
+          // Reduce density for mobile
+          logSteps = [1000, 5000, 10000, 50000];
+      }
+      
+      logSteps = logSteps.filter(r => r <= maxRank);
       xGridRanks = [...linearSteps, ...logSteps];
   } else {
       // Standard charts (Rank 1-100 linear)
@@ -235,11 +251,19 @@ const LineChart: React.FC<LineChartProps> = ({
             <div className="absolute left-12 right-4 bottom-0 h-6 overflow-visible">
                  {xGridRanks.map((rank, i) => {
                      const x = getXPercent(rank);
-                     // Avoid label clutter: if highlights exist (dense ticks), skip some labels if too close
-                     // Rank 1 is always shown. For linear part 10, 20... check density?
-                     // Simple heuristic: 
+                     
+                     // Smart label filtering to prevent overlap
                      if (hasHighlights) {
-                        if (rank > 1 && rank < 100 && rank % 20 !== 0) return null; // Show 1, 20, 40, 60, 80, 100
+                        // For Top 100 Linear section
+                        if (rank > 1 && rank < 100) {
+                            if (isMobile) {
+                                // Mobile: Only show 1, 50, 100 in linear part
+                                if (rank !== 50) return null;
+                            } else {
+                                // Desktop: Show 20, 40, 60, 80
+                                if (rank % 20 !== 0) return null; 
+                            }
+                        }
                      }
 
                      return (

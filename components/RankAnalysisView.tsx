@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER } from '../constants';
 
 interface EventStat {
     eventId: number;
@@ -90,7 +90,9 @@ const RankAnalysisView: React.FC = () => {
     const [totalEvents, setTotalEvents] = useState(0);
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
+    
     const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
+    const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -212,12 +214,6 @@ const RankAnalysisView: React.FC = () => {
 
     }, [eventsToProcess, isAnalyzing, isPaused, totalEvents]);
 
-    const uniqueUnits = useMemo(() => {
-        const units = new Set<string>();
-        Object.values(EVENT_DETAILS).forEach(d => units.add(d.unit));
-        return Array.from(units);
-    }, []);
-
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
         const getMetric = (stat: EventStat, rawScore: number) => {
             if (displayMode === 'total') return rawScore;
@@ -225,9 +221,15 @@ const RankAnalysisView: React.FC = () => {
             return Math.ceil(rawScore / days);
         };
 
-        const filteredStats = selectedUnitFilter === 'all' 
-            ? processedStats 
-            : processedStats.filter(stat => EVENT_DETAILS[stat.eventId]?.unit === selectedUnitFilter);
+        let filteredStats = processedStats;
+
+        if (selectedUnitFilter !== 'all') {
+            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.unit === selectedUnitFilter);
+        }
+
+        if (selectedBannerFilter !== 'all') {
+            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.banner === selectedBannerFilter);
+        }
 
         const getTop10 = (key: keyof Pick<EventStat, 'top1' | 'top10' | 'top100'>) => {
             return [...filteredStats]
@@ -252,7 +254,7 @@ const RankAnalysisView: React.FC = () => {
             top100List: getTop10('top100'),
             borderRankList: getTopBorder(selectedBorderRank)
         };
-    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter]);
+    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter, selectedBannerFilter]);
 
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;
@@ -276,8 +278,19 @@ const RankAnalysisView: React.FC = () => {
                             className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[140px]"
                          >
                             <option value="all">所有團體 (All Units)</option>
-                            {uniqueUnits.map(unit => (
+                            {UNIT_ORDER.map(unit => (
                                 <option key={unit} value={unit}>{unit}</option>
+                            ))}
+                         </select>
+
+                         <select
+                            value={selectedBannerFilter}
+                            onChange={(e) => setSelectedBannerFilter(e.target.value)}
+                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[140px]"
+                         >
+                            <option value="all">所有 Banner</option>
+                            {BANNER_ORDER.map(banner => (
+                                <option key={banner} value={banner}>{banner}</option>
                             ))}
                          </select>
 

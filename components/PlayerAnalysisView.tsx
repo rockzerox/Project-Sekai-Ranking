@@ -2,12 +2,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
+import { EVENT_DETAILS, UNIT_STYLES } from '../constants';
 
 interface PlayerStat {
     userId: string;
     latestName: string;
     top100Count: number;
     rankSpecificCounts: Record<number, number>; // Key: rank 1-10, Value: count
+    unitCounts: Record<string, number>; // Key: Unit Name, Value: count
 }
 
 interface RankingTableProps {
@@ -19,7 +21,19 @@ interface RankingTableProps {
     rankLabel: string;
 }
 
-const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140];
+const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140, 163];
+
+const getFavoriteUnit = (stat: PlayerStat): string | null => {
+    let maxCount = 0;
+    let favUnit = null;
+    Object.entries(stat.unitCounts).forEach(([unit, count]) => {
+        if (count > maxCount) {
+            maxCount = count;
+            favUnit = unit;
+        }
+    });
+    return favUnit;
+};
 
 const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel }) => (
     <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
@@ -40,24 +54,36 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((stat, idx) => (
-                        <tr key={stat.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                {idx + 1}
-                            </td>
-                            <td className="px-3 py-2">
-                                <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
-                                    {stat.latestName}
-                                </div>
-                                <div className="text-xs text-slate-500 mt-0.5 font-mono">
-                                    ID: {stat.userId}
-                                </div>
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
-                                {valueGetter(stat)} 次
-                            </td>
-                        </tr>
-                    ))}
+                    {data.map((stat, idx) => {
+                         const favUnit = getFavoriteUnit(stat);
+                         const unitStyle = favUnit ? UNIT_STYLES[favUnit] : "";
+
+                         return (
+                            <tr key={stat.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                    {idx + 1}
+                                </td>
+                                <td className="px-3 py-2">
+                                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
+                                        {stat.latestName}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <div className="text-xs text-slate-500 font-mono">
+                                            ID: {stat.userId}
+                                        </div>
+                                        {favUnit && favUnit !== '混活' && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold truncate max-w-[120px] ${unitStyle}`}>
+                                                {favUnit}
+                                            </span>
+                                        )}
+                                    </div>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
+                                    {valueGetter(stat)} 次
+                                </td>
+                            </tr>
+                        );
+                    })}
                     {data.length === 0 && (
                         <tr>
                             <td colSpan={3} className="px-3 py-4 text-center text-slate-500">
@@ -130,14 +156,14 @@ const PlayerAnalysisView: React.FC = () => {
                         const text = await resTop100.text();
                         const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
                         const data: PastEventApiResponse = JSON.parse(sanitized);
-                        return data.rankings;
+                        return { rankings: data.rankings, eventId: event.id };
                     }
-                    return [];
+                    return null;
                 } catch (err) {
                     if ((err as Error).name !== 'AbortError') {
                         console.warn(`Failed to fetch event ${event.id}`, err);
                     }
-                    return [];
+                    return null;
                 }
             });
 
@@ -147,7 +173,12 @@ const PlayerAnalysisView: React.FC = () => {
                 setPlayerStats(prevStats => {
                     const newStats = { ...prevStats };
                     
-                    results.forEach(rankings => {
+                    results.forEach(result => {
+                        if (!result) return;
+                        
+                        const { rankings, eventId } = result;
+                        const eventUnit = EVENT_DETAILS[eventId]?.unit || 'Unknown';
+
                         rankings.forEach(entry => {
                             const userId = String(entry.userId);
                             
@@ -156,7 +187,8 @@ const PlayerAnalysisView: React.FC = () => {
                                     userId,
                                     latestName: entry.name,
                                     top100Count: 0,
-                                    rankSpecificCounts: {}
+                                    rankSpecificCounts: {},
+                                    unitCounts: {}
                                 };
                             }
                             
@@ -164,6 +196,11 @@ const PlayerAnalysisView: React.FC = () => {
                             newStats[userId].top100Count += 1;
                             if (newStats[userId].top100Count === 1) {
                                 newStats[userId].latestName = entry.name;
+                            }
+
+                            // Track Unit
+                            if (eventUnit !== 'Unknown') {
+                                newStats[userId].unitCounts[eventUnit] = (newStats[userId].unitCounts[eventUnit] || 0) + 1;
                             }
 
                             if (entry.rank <= 10) {

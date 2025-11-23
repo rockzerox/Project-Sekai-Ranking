@@ -75,6 +75,15 @@ export const CHAR_INFO: Record<string, string> = {
     "初音未來": "#33CCBB"
 };
 
+export const EVENT_CHAPTER_ORDER: Record<number, string[]> = {
+    112: ["朝比奈真冬", "曉山瑞希", "東雲繪名", "宵崎奏"],
+    118: ["東雲彰人", "青柳冬彌", "白石杏", "小豆澤心羽"],
+    124: ["神代類", "草薙寧寧", "鳳笑夢", "天馬司"],
+    130: ["桃井愛莉", "桐谷遙", "日野森雫", "花里實乃理"],
+    137: ["天馬咲希", "望月穗波", "日野森志步", "星乃一歌"],
+    140: ["巡音流歌", "鏡音鈴", "MEIKO", "鏡音連", "KAITO", "初音未來"]
+};
+
 export interface EventDetail {
     unit: string;
     type: 'marathon' | 'cheerful_carnival' | 'world_link';
@@ -186,7 +195,7 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     102: { unit: "混活", type: "cheerful_carnival", banner: "桃井愛莉" },
     103: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "小豆澤心羽" },
     104: { unit: "Wonderlands × Showtime", type: "marathon", banner: "鳳笑夢" },
-    105: { unit: "Virtual Singer", type: "cheerful_carnival", banner: "初音未來" },
+    105: { unit: "Vitrual singer", type: "cheerful_carnival", banner: "初音未來" },
     106: { unit: "混活", type: "marathon", banner: "天馬咲希" },
     107: { unit: "混活", type: "marathon", banner: "白石杏" },
     108: { unit: "混活", type: "cheerful_carnival", banner: "星乃一歌" },

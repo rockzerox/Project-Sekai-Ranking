@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PastEventApiResponse, PastEventBorderApiResponse, WorldBloomChapter, WorldBloomChapterBorder } from '../types';
 import CrownIcon from './icons/CrownIcon';
 import CollapsibleSection from './CollapsibleSection';
-import { CHAR_INFO, WORLD_LINK_IDS } from '../constants';
+import { CHAR_INFO, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER } from '../constants';
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
@@ -24,6 +24,8 @@ interface AggregatedCharStat {
     top10: number;
     top100: number;
     borders: Record<number, number>;
+    duration: number;
+    chapterOrder: number;
 }
 
 type MetricType = 'top1' | 'top10' | 'top100' | number; 
@@ -31,21 +33,22 @@ type MetricType = 'top1' | 'top10' | 'top100' | number;
 const HorizontalBarChart: React.FC<{
     data: AggregatedCharStat[];
     dataKey: MetricType;
-}> = ({ data, dataKey }) => {
+    displayMode: 'total' | 'daily';
+}> = ({ data, dataKey, displayMode }) => {
     const isBorder = typeof dataKey === 'number';
     
-    const sortedData = [...data].sort((a, b) => {
-        const valA = isBorder ? (a.borders[dataKey as number] || 0) : a[dataKey as keyof AggregatedCharStat] as number;
-        const valB = isBorder ? (b.borders[dataKey as number] || 0) : b[dataKey as keyof AggregatedCharStat] as number;
-        return valB - valA;
-    });
+    const getValue = (char: AggregatedCharStat) => {
+        const raw = isBorder ? (char.borders[dataKey as number] || 0) : char[dataKey as keyof AggregatedCharStat] as number;
+        return displayMode === 'daily' ? Math.ceil(raw / char.duration) : raw;
+    };
 
-    const maxVal = Math.max(...sortedData.map(d => isBorder ? (d.borders[dataKey as number] || 0) : d[dataKey as keyof AggregatedCharStat] as number));
+    const sortedData = [...data].sort((a, b) => getValue(b) - getValue(a));
+    const maxVal = Math.max(...sortedData.map(d => getValue(d)));
     
     return (
         <div className="flex flex-col gap-2 pr-2">
             {sortedData.map((char, idx) => {
-                const val = isBorder ? (char.borders[dataKey as number] || 0) : char[dataKey as keyof AggregatedCharStat] as number;
+                const val = getValue(char);
                 const percentage = maxVal > 0 ? (val / maxVal) * 100 : 0;
                 
                 return (
@@ -54,7 +57,7 @@ const HorizontalBarChart: React.FC<{
                             className="w-24 sm:w-32 flex-shrink-0 text-right pr-3 truncate font-bold"
                             style={{ color: char.color }}
                         >
-                            #{idx + 1} {char.charName}
+                            {char.charName}
                         </div>
                         <div className="flex-1 h-6 bg-slate-200 dark:bg-slate-700/50 rounded-r overflow-hidden relative flex items-center">
                             <div 
@@ -101,9 +104,12 @@ const RankShape: React.FC<{ rank: number; color: string }> = ({ rank, color }) =
 
 const GlobalScoreChart: React.FC<{
     data: AggregatedCharStat[];
-}> = ({ data }) => {
-    const sortedData = [...data].sort((a, b) => b.top100 - a.top100);
-    const globalMax = Math.max(...data.map(d => d.top100)) * 1.05;
+    displayMode: 'total' | 'daily';
+}> = ({ data, displayMode }) => {
+    const getVal = (char: AggregatedCharStat, raw: number) => displayMode === 'daily' ? Math.ceil(raw / char.duration) : raw;
+
+    const sortedData = [...data].sort((a, b) => getVal(b, b.top100) - getVal(a, a.top100));
+    const globalMax = Math.max(...data.map(d => getVal(d, d.top100))) * 1.05;
 
     return (
         <div className="flex flex-col gap-3 pr-2">
@@ -121,7 +127,8 @@ const GlobalScoreChart: React.FC<{
             </div>
 
             {sortedData.map((char, idx) => {
-                const top100Width = (char.top100 / globalMax) * 100;
+                const val = getVal(char, char.top100);
+                const top100Width = (val / globalMax) * 100;
                 
                 return (
                     <div key={`${char.eventId}-${char.charName}`} className="flex items-center text-xs sm:text-sm group">
@@ -146,12 +153,13 @@ const GlobalScoreChart: React.FC<{
                                 className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600 dark:text-white/60 font-mono z-0 pl-2 pointer-events-none whitespace-nowrap"
                                 style={{ left: `${top100Width}%` }}
                             >
-                                T100: {(char.top100 / 10000).toFixed(1)}萬
+                                T100: {displayMode === 'daily' ? val.toLocaleString() : `${(val / 10000).toFixed(1)}萬`}
                             </div>
 
                             {SCATTER_RANKS.map(rank => {
-                                const score = char.borders[rank] || 0;
-                                if (score === 0) return null;
+                                const rawScore = char.borders[rank] || 0;
+                                if (rawScore === 0) return null;
+                                const score = getVal(char, rawScore);
                                 const pos = (score / globalMax) * 100;
 
                                 return (
@@ -211,19 +219,24 @@ const RankTable: React.FC<{
                             <td className="px-3 py-2">
                                 <div className="flex items-center gap-2">
                                     <div 
-                                        className="w-2 h-8 rounded-sm" 
+                                        className="w-2 h-8 rounded-sm flex-shrink-0" 
                                         style={{ backgroundColor: stat.color }}
                                     ></div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <div 
-                                            className="font-bold" 
+                                            className="font-bold truncate" 
                                             title={stat.charName}
                                             style={{ color: stat.color }}
                                         >
                                             {stat.charName}
                                         </div>
-                                        <div className="text-[10px] text-slate-500 font-mono">
-                                            Event #{stat.eventId}
+                                        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                                            <span>Event #{stat.eventId}</span>
+                                            {stat.chapterOrder > 0 && (
+                                                <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1 rounded text-[9px] font-bold">
+                                                    Ch.{stat.chapterOrder}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -246,6 +259,7 @@ const WorldLinkView: React.FC = () => {
     
     const [isChartOpen, setIsChartOpen] = useState(true);
     const [chartViewMode, setChartViewMode] = useState<'activity' | 'global'>('activity');
+    const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     const [chartMetric, setChartMetric] = useState<MetricType>('top1');
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
 
@@ -282,6 +296,13 @@ const WorldLinkView: React.FC = () => {
                     }
 
                     const charMap = EVENT_CHAR_MAP[eventId] || {};
+                    const chapterList = EVENT_CHAPTER_ORDER[eventId] || [];
+                    
+                    // Determine chapter duration
+                    // Event 140 (VS): 2 days
+                    // Others (Unit): 3 days
+                    const duration = eventId === 140 ? 2 : 3;
+
                     Object.keys(charMap).forEach(key => {
                         const charId = Number(key);
                         const charName = charMap[charId];
@@ -297,6 +318,9 @@ const WorldLinkView: React.FC = () => {
                             borderScores[b.rank] = b.score;
                         });
 
+                        const orderIndex = chapterList.indexOf(charName);
+                        const chapterOrder = orderIndex >= 0 ? orderIndex + 1 : 0;
+
                         tempStats.push({
                             charName,
                             color: CHAR_INFO[charName] || '#999',
@@ -304,7 +328,9 @@ const WorldLinkView: React.FC = () => {
                             top1: getScore(1),
                             top10: getScore(10),
                             top100: getScore(100),
-                            borders: borderScores
+                            borders: borderScores,
+                            duration,
+                            chapterOrder
                         });
                     });
 
@@ -322,19 +348,50 @@ const WorldLinkView: React.FC = () => {
         fetchData();
     }, []);
 
+    const getValue = (stat: AggregatedCharStat, raw: number) => {
+        return displayMode === 'daily' ? Math.ceil(raw / stat.duration) : raw;
+    };
+
     const getSortedList = (key: 'top1' | 'top10' | 'top100') => {
-        return [...aggregatedData].sort((a, b) => b[key] - a[key]);
+        return [...aggregatedData].sort((a, b) => getValue(b, b[key]) - getValue(a, a[key]));
     };
 
     const getBorderList = (rank: number) => {
-        return [...aggregatedData].sort((a, b) => (b.borders[rank] || 0) - (a.borders[rank] || 0));
+        return [...aggregatedData].sort((a, b) => getValue(b, b.borders[rank] || 0) - getValue(a, a.borders[rank] || 0));
     };
 
     return (
         <div className="w-full animate-fadeIn py-4">
              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">World Link 綜合分析 (Aggregated Analysis)</h2>
-                <p className="text-slate-500 dark:text-slate-400">彙整所有 World Link 期數，比較各角色分數排行</p>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-2">
+                    <div>
+                        <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">World Link 綜合分析 (Aggregated Analysis)</h2>
+                        <p className="text-slate-500 dark:text-slate-400">彙整所有 World Link 期數，比較各角色分數排行</p>
+                    </div>
+                    
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <button
+                            onClick={() => setDisplayMode('total')}
+                            className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${
+                                displayMode === 'total' 
+                                ? 'bg-cyan-500 text-white shadow' 
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                        >
+                            總分
+                        </button>
+                        <button
+                            onClick={() => setDisplayMode('daily')}
+                            className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${
+                                displayMode === 'daily' 
+                                ? 'bg-pink-500 text-white shadow' 
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                        >
+                            日均
+                        </button>
+                    </div>
+                </div>
 
                 {isAnalyzing && (
                     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mt-4 mb-6 relative overflow-hidden shadow-sm">
@@ -376,20 +433,27 @@ const WorldLinkView: React.FC = () => {
                         </div>
 
                         {chartViewMode === 'activity' && (
-                             <div className="flex flex-wrap gap-2">
-                                <button onClick={() => setChartMetric('top1')} className={`px-2 py-1 rounded text-xs font-bold transition-colors ${chartMetric === 'top1' ? 'bg-yellow-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>Top 1</button>
-                                <button onClick={() => setChartMetric('top10')} className={`px-2 py-1 rounded text-xs font-bold transition-colors ${chartMetric === 'top10' ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>Top 10</button>
-                                <button onClick={() => setChartMetric('top100')} className={`px-2 py-1 rounded text-xs font-bold transition-colors ${chartMetric === 'top100' ? 'bg-cyan-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>Top 100</button>
-                                <div className="w-px bg-slate-300 dark:bg-slate-600 mx-1 h-5 self-center"></div>
-                                {BORDER_OPTIONS.map(rank => (
-                                    <button 
-                                        key={rank}
-                                        onClick={() => setChartMetric(rank)} 
-                                        className={`px-2 py-1 rounded text-xs font-bold transition-colors ${chartMetric === rank ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                                    >
-                                        T{rank}
-                                    </button>
-                                ))}
+                             <div className="flex items-center gap-2">
+                                <label className="text-sm text-slate-500 dark:text-slate-400 font-medium">排名基準:</label>
+                                <select
+                                    value={typeof chartMetric === 'string' ? chartMetric : chartMetric.toString()}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (['top1', 'top10', 'top100'].includes(val)) {
+                                            setChartMetric(val as MetricType);
+                                        } else {
+                                            setChartMetric(Number(val));
+                                        }
+                                    }}
+                                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold py-1.5 px-2 rounded border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-cyan-500 outline-none cursor-pointer"
+                                >
+                                    <option value="top1">Top 1</option>
+                                    <option value="top10">Top 10</option>
+                                    <option value="top100">Top 100</option>
+                                    {BORDER_OPTIONS.map(rank => (
+                                        <option key={rank} value={rank}>T{rank}</option>
+                                    ))}
+                                </select>
                             </div>
                         )}
                     </div>
@@ -398,34 +462,38 @@ const WorldLinkView: React.FC = () => {
                          <HorizontalBarChart 
                             data={aggregatedData} 
                             dataKey={chartMetric} 
+                            displayMode={displayMode}
                         />
                     ) : (
-                        <GlobalScoreChart data={aggregatedData} />
+                        <GlobalScoreChart 
+                            data={aggregatedData} 
+                            displayMode={displayMode}
+                        />
                     )}
                 </CollapsibleSection>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                 <RankTable 
-                    title="Top 1 (最高分)" 
+                    title={`Top 1 ${displayMode === 'daily' ? '(日均)' : '(最高分)'}`}
                     data={getSortedList('top1')} 
-                    valueGetter={d => d.top1} 
+                    valueGetter={d => getValue(d, d.top1)} 
                     color="bg-yellow-500" 
                 />
                 <RankTable 
-                    title="Top 10" 
+                    title={`Top 10 ${displayMode === 'daily' ? '(日均)' : ''}`}
                     data={getSortedList('top10')} 
-                    valueGetter={d => d.top10} 
+                    valueGetter={d => getValue(d, d.top10)} 
                     color="bg-purple-500" 
                 />
                 <RankTable 
-                    title="Top 100" 
+                    title={`Top 100 ${displayMode === 'daily' ? '(日均)' : ''}`}
                     data={getSortedList('top100')} 
-                    valueGetter={d => d.top100} 
+                    valueGetter={d => getValue(d, d.top100)} 
                     color="bg-cyan-500" 
                 />
                 <RankTable 
-                    title={`Highlights T${selectedBorderRank}`}
+                    title={`Highlights T${selectedBorderRank} ${displayMode === 'daily' ? '(日均)' : ''}`}
                     headerAction={
                          <select 
                             value={selectedBorderRank} 
@@ -439,7 +507,7 @@ const WorldLinkView: React.FC = () => {
                         </select>
                     }
                     data={getBorderList(selectedBorderRank)} 
-                    valueGetter={d => d.borders[selectedBorderRank] || 0} 
+                    valueGetter={d => getValue(d, d.borders[selectedBorderRank] || 0)} 
                     color="bg-teal-500" 
                 />
             </div>

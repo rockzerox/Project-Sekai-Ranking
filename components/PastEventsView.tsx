@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER } from '../constants';
+import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl } from '../constants';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
@@ -286,6 +286,9 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 const typeLabel = getTypeLabel(details.type);
                 const unitStyle = UNIT_STYLES[unitLabel] || "bg-slate-500 text-white";
                 const eventColor = getEventColor(event.id);
+                
+                const unitImg = getAssetUrl(unitLabel, 'unit');
+                const bannerImg = getAssetUrl(details.banner, 'character');
 
                 return (
                     <button 
@@ -341,16 +344,26 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                             </h3>
                             
                             {details.banner && (
-                                <div className="text-xs text-slate-400 mb-3">
-                                    Banner: {details.banner}
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-xs text-slate-400">Banner: {details.banner}</span>
+                                    {bannerImg && (
+                                        <img 
+                                            src={bannerImg} 
+                                            alt={details.banner} 
+                                            className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-600 object-cover"
+                                        />
+                                    )}
                                 </div>
                             )}
                         </div>
 
                         <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700/50 flex justify-end">
                             <span 
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${unitStyle}`}
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${unitStyle} flex items-center gap-1`}
                             >
+                                {unitImg && (
+                                    <img src={unitImg} alt={unitLabel} className="w-3 h-3 object-contain" />
+                                )}
                                 {unitLabel}
                             </span>
                         </div>

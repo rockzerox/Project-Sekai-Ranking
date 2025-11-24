@@ -17,7 +17,7 @@ import RankAnalysisView from './components/RankAnalysisView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
 import HomeView from './components/HomeView';
-import { getEventColor } from './constants';
+import { getEventColor, EVENT_DETAILS, UNIT_STYLES, getAssetUrl } from './constants';
 
 const API_URL = 'https://api.hisekai.org/event/live/top100';
 const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
@@ -340,12 +340,48 @@ const App: React.FC = () => {
       if (isLoading) return <LoadingSpinner />;
       if (error) return <ErrorMessage message={error} />;
 
+      // Construct the Rich Title for Past Events
+      let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";
+      
+      if (isPastMode && selectedEvent) {
+          const details = EVENT_DETAILS[selectedEvent.id];
+          const color = getEventColor(selectedEvent.id);
+          const unitLogo = getAssetUrl(details?.unit, 'unit');
+          const bannerImg = getAssetUrl(details?.banner, 'character');
+          const unitStyle = UNIT_STYLES[details?.unit] || "bg-slate-500 text-white";
+
+          rankingsTitle = (
+              <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
+                  <span>前百排行榜 (Top 100) - </span>
+                  <span style={{ color: color || 'inherit' }} className="mr-2">{selectedEvent.name}</span>
+                  
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${unitStyle}`}>
+                      {unitLogo && details.unit !== '混活' && (
+                          <img src={unitLogo} alt={details.unit} className="w-4 h-4 object-contain" />
+                      )}
+                      {details?.unit}
+                  </span>
+
+                  {bannerImg && (
+                      <img 
+                          src={bannerImg} 
+                          alt={details?.banner} 
+                          className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover ml-1"
+                          title={`Banner: ${details?.banner}`}
+                      />
+                  )}
+              </div>
+          );
+      } else if (isHighlights) {
+          rankingsTitle = "精彩片段 (Highlights)";
+      }
+
       return (
         <div className="animate-fadeIn">
             <CollapsibleSection
-            title="圖表分析 (Chart Analysis)"
-            isOpen={isChartsOpen}
-            onToggle={() => setIsChartsOpen(!isChartsOpen)}
+                title="圖表分析 (Chart Analysis)"
+                isOpen={isChartsOpen}
+                onToggle={() => setIsChartsOpen(!isChartsOpen)}
             >
             <ChartAnalysis 
                 rankings={sortedAndFilteredRankings} 
@@ -356,9 +392,9 @@ const App: React.FC = () => {
             </CollapsibleSection>
             
             <CollapsibleSection
-            title={isPastMode ? `前百排行榜 (Top 100 Rankings) - ${selectedEvent?.name}` : (isHighlights ? "精彩片段 (Highlights)" : "前百排行榜 (Top 100 Rankings)")}
-            isOpen={isRankingsOpen}
-            onToggle={() => setIsRankingsOpen(!isRankingsOpen)}
+                title={rankingsTitle}
+                isOpen={isRankingsOpen}
+                onToggle={() => setIsRankingsOpen(!isRankingsOpen)}
             >
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
                 <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
@@ -432,22 +468,25 @@ const App: React.FC = () => {
                 )}
 
                 {currentView === 'live' && (
-                    <>
-                        <div className="flex flex-col sm:flex-row justify-between items-end mb-6 gap-4">
-                            <div>
-                                <h2 
-                                    className="text-2xl font-bold mb-1"
-                                    style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
-                                >
-                                    {eventName}
-                                </h2>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                                    最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
-                                </p>
+                    <div className="animate-fadeIn">
+                        <div className="mb-6">
+                            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
+                            <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
+                                <div>
+                                    <h2 
+                                        className="text-xl sm:text-2xl font-bold mb-1"
+                                        style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
+                                    >
+                                        {eventName}
+                                    </h2>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                        最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         {renderContent()}
-                    </>
+                    </div>
                 )}
 
                 {currentView === 'past' && !selectedEvent && (

@@ -154,14 +154,14 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     61: { unit: "25點,nightcord見", type: "marathon", banner: "朝比奈真冬" },
     62: { unit: "Wonderlands × Showtime", type: "marathon", banner: "草薙寧寧" },
     63: { unit: "混活", type: "cheerful_carnival", banner: "宵崎奏" },
-    64: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "小豆澤心羽" },
+    64: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "白石杏" },
     65: { unit: "Leo/need", type: "marathon", banner: "天馬咲希" },
     66: { unit: "混活", type: "cheerful_carnival", banner: "草薙寧寧" },
     67: { unit: "MORE MORE JUMP!", type: "marathon", banner: "桃井愛莉" },
     68: { unit: "25點,nightcord見", type: "marathon", banner: "曉山瑞希" },
     69: { unit: "Leo/need", type: "cheerful_carnival", banner: "日野森志步" },
     70: { unit: "混活", type: "marathon", banner: "東雲繪名" },
-    71: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "小豆澤心羽" },
+    71: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "青柳冬彌" },
     72: { unit: "混活", type: "cheerful_carnival", banner: "朝比奈真冬" },
     73: { unit: "MORE MORE JUMP!", type: "marathon", banner: "花里實乃理" },
     74: { unit: "Wonderlands × Showtime", type: "marathon", banner: "神代類" },
@@ -274,4 +274,57 @@ export const getEventColor = (eventId: number): string => {
     }
 
     return '';
+};
+
+// New Image Constants
+const BASE_IMAGE_URL = "https://raw.githubusercontent.com/rockzerox/Project-Sekai-Ranking/refs/heads/main/public/images/";
+
+export const CHARACTER_FILENAME_MAP: Record<string, string> = {
+    "朝比奈真冬": "Mafuyu",
+    "曉山瑞希": "Mizuki",
+    "東雲繪名": "Ena",
+    "宵崎奏": "Kanade",
+    "東雲彰人": "Akito",
+    "青柳冬彌": "Toya",
+    "白石杏": "An",
+    "小豆澤心羽": "Kohane",
+    "神代類": "Rui",
+    "草薙寧寧": "Nene",
+    "鳳笑夢": "Emu",
+    "天馬司": "Tsukasa",
+    "桃井愛莉": "Airi",
+    "桐谷遙": "Haruka",
+    "日野森雫": "Shizuku",
+    "花里實乃理": "Minori",
+    "天馬咲希": "Saki",
+    "望月穗波": "Honami",
+    "日野森志步": "Shiho",
+    "星乃一歌": "Ichika",
+    "巡音流歌": "Luka",
+    "鏡音鈴": "Rin",
+    "MEIKO": "Meiko",
+    "鏡音連": "Len",
+    "KAITO": "Kaito",
+    "初音未來": "Miku"
+};
+
+export const UNIT_FILENAME_MAP: Record<string, string> = {
+    "Virtual Singer": "VS_logo",
+    "Leo/need": "LN_logo",
+    "MORE MORE JUMP!": "MMJ_logo",
+    "Vivid BAD SQUAD": "VBS_logo",
+    "Wonderlands × Showtime": "WS_logo",
+    "25點,nightcord見": "25_logo"
+};
+
+export const getAssetUrl = (name: string, type: 'character' | 'unit'): string | null => {
+    let filename = '';
+    if (type === 'character') {
+        filename = CHARACTER_FILENAME_MAP[name];
+    } else {
+        filename = UNIT_FILENAME_MAP[name];
+    }
+
+    if (!filename) return null;
+    return `${BASE_IMAGE_URL}${filename}.png`;
 };

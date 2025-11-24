@@ -100,6 +100,12 @@ export interface UserProfileResponse {
   };
   totalPower: {
     totalPower: number;
+    areaItemBonus: number;
+    basicCardTotalPower: number;
+    characterRankBonus: number;
+    honorBonus: number;
+    mysekaiFixtureGameCharacterPerformanceBonus: number;
+    mysekaiGateLevelBonus: number;
   };
   userMusicDifficultyClearCount: MusicDifficultyStats[];
 }
@@ -192,4 +198,10 @@ export interface HisekaiBorderApiResponse {
   id: number;
   name: string;
   border_player_rankings: BorderPlayerRanking[];
+}
+
+// --- Sekai Best API Types ---
+export interface SekaiBestRankingResponse {
+  rankings: any[];
+  totalCount: number;
 }

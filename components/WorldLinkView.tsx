@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PastEventApiResponse, PastEventBorderApiResponse, WorldBloomChapter, WorldBloomChapterBorder } from '../types';
 import CrownIcon from './icons/CrownIcon';
 import CollapsibleSection from './CollapsibleSection';
-import { CHAR_INFO, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER } from '../constants';
+import { CHAR_INFO, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, getAssetUrl } from '../constants';
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
@@ -46,10 +46,11 @@ const HorizontalBarChart: React.FC<{
     const maxVal = Math.max(...sortedData.map(d => getValue(d)));
     
     return (
-        <div className="flex flex-col gap-2 pr-2">
+        <div className="flex flex-col gap-2 pr-12">
             {sortedData.map((char, idx) => {
                 const val = getValue(char);
                 const percentage = maxVal > 0 ? (val / maxVal) * 100 : 0;
+                const charImg = getAssetUrl(char.charName, 'character');
                 
                 return (
                     <div key={`${char.eventId}-${char.charName}`} className="flex items-center text-xs sm:text-sm group">
@@ -59,7 +60,7 @@ const HorizontalBarChart: React.FC<{
                         >
                             {char.charName}
                         </div>
-                        <div className="flex-1 h-6 bg-slate-200 dark:bg-slate-700/50 rounded-r overflow-hidden relative flex items-center">
+                        <div className="flex-1 h-8 bg-slate-200 dark:bg-slate-700/50 rounded-r relative flex items-center overflow-visible">
                             <div 
                                 className="h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-2"
                                 style={{ 
@@ -69,9 +70,17 @@ const HorizontalBarChart: React.FC<{
                                 }}
                             >
                             </div>
-                            <span className="absolute left-2 text-slate-700 dark:text-white font-mono drop-shadow-md font-bold z-10">
+                            <span className="absolute left-2 text-slate-700 dark:text-white font-mono drop-shadow-md font-bold z-10 pointer-events-none">
                                 {val.toLocaleString()}
                             </span>
+                            {charImg && (
+                                <img 
+                                    src={charImg} 
+                                    alt={char.charName} 
+                                    className="absolute w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover z-20 transition-all duration-500 ease-out"
+                                    style={{ left: `${percentage}%`, marginLeft: '0.5rem' }}
+                                />
+                            )}
                         </div>
                     </div>
                 );
@@ -79,8 +88,6 @@ const HorizontalBarChart: React.FC<{
         </div>
     );
 };
-
-const SCATTER_RANKS = [200, 300, 400, 500, 1000];
 
 const RankShape: React.FC<{ rank: number; color: string }> = ({ rank, color }) => {
     const classes = "w-3 h-3 drop-shadow-md hover:scale-150 transition-transform cursor-help";
@@ -97,6 +104,18 @@ const RankShape: React.FC<{ rank: number; color: string }> = ({ rank, color }) =
             return <svg viewBox="0 0 10 10" className={classes}><polygon points="5,1 9,5 5,9 1,5" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
         case 1000:
             return <svg viewBox="0 0 10 10" className={classes}><polygon points="5,1 6.3,3.5 9,3.9 7,5.7 7.5,8.5 5,7.2 2.5,8.5 3,5.7 1,3.9 3.7,3.5" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
+        case 2000:
+            // Hexagon
+            return <svg viewBox="0 0 10 10" className={classes}><path d="M2.5 1 L7.5 1 L10 5 L7.5 9 L2.5 9 L0 5 Z" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
+        case 5000:
+            // Inverted Triangle
+            return <svg viewBox="0 0 10 10" className={classes}><polygon points="1,1 9,1 5,9" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
+        case 10000:
+            // Cross
+            return <svg viewBox="0 0 10 10" className={classes}><path d="M2 2 L8 8 M8 2 L2 8" stroke={color} strokeWidth="2.5" /></svg>;
+        case 50000:
+            // Diamond
+            return <svg viewBox="0 0 10 10" className={classes}><rect x="2.5" y="2.5" width="5" height="5" transform="rotate(45 5 5)" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
         default:
             return <div className="w-2 h-2 rounded-full bg-white" />;
     }
@@ -105,20 +124,32 @@ const RankShape: React.FC<{ rank: number; color: string }> = ({ rank, color }) =
 const GlobalScoreChart: React.FC<{
     data: AggregatedCharStat[];
     displayMode: 'total' | 'daily';
-}> = ({ data, displayMode }) => {
+    globalBase: 'T100' | 'T500';
+}> = ({ data, displayMode, globalBase }) => {
+    
     const getVal = (char: AggregatedCharStat, raw: number) => displayMode === 'daily' ? Math.ceil(raw / char.duration) : raw;
 
-    const sortedData = [...data].sort((a, b) => getVal(b, b.top100) - getVal(a, a.top100));
-    const globalMax = Math.max(...data.map(d => getVal(d, d.top100))) * 1.05;
+    // Determine Base Value
+    const getBaseValue = (char: AggregatedCharStat) => {
+        if (globalBase === 'T100') return getVal(char, char.top100);
+        return getVal(char, char.borders[500] || 0);
+    };
+
+    const sortedData = [...data].sort((a, b) => getBaseValue(b) - getBaseValue(a));
+    const globalMax = Math.max(...data.map(d => getBaseValue(d))) * 1.05;
+
+    const scatterRanks = globalBase === 'T100' 
+        ? [200, 300, 400, 500, 1000]
+        : [1000, 2000, 5000, 10000, 50000];
 
     return (
-        <div className="flex flex-col gap-3 pr-2">
+        <div className="flex flex-col gap-3 pr-12">
             <div className="flex flex-wrap justify-end items-center gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-slate-300 mb-2 px-2">
                 <div className="flex items-center gap-1">
                     <div className="w-8 h-4 bg-slate-300/50 dark:bg-slate-500/30 border border-slate-400 dark:border-slate-500 rounded-sm"></div>
-                    <span>Top 100 Range</span>
+                    <span>{globalBase} Range</span>
                 </div>
-                {SCATTER_RANKS.map(rank => (
+                {scatterRanks.map(rank => (
                      <div key={rank} className="flex items-center gap-1" title={`Rank ${rank}`}>
                         <RankShape rank={rank} color="#71717a" />
                         <span className="font-mono">T{rank}</span>
@@ -127,8 +158,9 @@ const GlobalScoreChart: React.FC<{
             </div>
 
             {sortedData.map((char, idx) => {
-                const val = getVal(char, char.top100);
-                const top100Width = (val / globalMax) * 100;
+                const val = getBaseValue(char);
+                const barWidth = (val / globalMax) * 100;
+                const charImg = getAssetUrl(char.charName, 'character');
                 
                 return (
                     <div key={`${char.eventId}-${char.charName}`} className="flex items-center text-xs sm:text-sm group">
@@ -136,27 +168,24 @@ const GlobalScoreChart: React.FC<{
                             className="w-24 sm:w-32 flex-shrink-0 text-right pr-3 truncate font-bold"
                             style={{ color: char.color }}
                         >
-                            #{idx + 1} {char.charName}
+                            {char.charName}
                         </div>
 
-                        <div className="flex-1 h-8 bg-slate-100 dark:bg-slate-800/30 rounded-r relative border-l border-slate-300 dark:border-slate-700">
+                        <div className="flex-1 h-8 bg-slate-100 dark:bg-slate-800/30 rounded-r relative border-l border-slate-300 dark:border-slate-700 overflow-visible">
                             <div 
-                                className="absolute top-0 left-0 h-full rounded-r transition-all duration-500 ease-out flex items-center"
+                                className="absolute top-0 left-0 h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-2"
                                 style={{ 
-                                    width: `${top100Width}%`, 
+                                    width: `${barWidth}%`, 
                                     backgroundColor: char.color,
                                     opacity: 0.4
                                 }}
                             >
-                            </div>
-                            <div 
-                                className="absolute top-1/2 -translate-y-1/2 text-[10px] text-slate-600 dark:text-white/60 font-mono z-0 pl-2 pointer-events-none whitespace-nowrap"
-                                style={{ left: `${top100Width}%` }}
-                            >
-                                T100: {displayMode === 'daily' ? val.toLocaleString() : `${(val / 10000).toFixed(1)}萬`}
+                                <div className="text-[10px] text-slate-700 dark:text-white font-mono font-bold whitespace-nowrap drop-shadow-sm pointer-events-none">
+                                    {displayMode === 'daily' ? val.toLocaleString() : `${(val / 10000).toFixed(1)}萬`}
+                                </div>
                             </div>
 
-                            {SCATTER_RANKS.map(rank => {
+                            {scatterRanks.map(rank => {
                                 const rawScore = char.borders[rank] || 0;
                                 if (rawScore === 0) return null;
                                 const score = getVal(char, rawScore);
@@ -173,6 +202,15 @@ const GlobalScoreChart: React.FC<{
                                     </div>
                                 );
                             })}
+
+                            {charImg && (
+                                <img 
+                                    src={charImg} 
+                                    alt={char.charName} 
+                                    className="absolute top-0 w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover z-20 transition-all duration-500 ease-out"
+                                    style={{ left: `${barWidth}%`, marginLeft: '0.5rem' }}
+                                />
+                            )}
                         </div>
                     </div>
                 );
@@ -262,6 +300,7 @@ const WorldLinkView: React.FC = () => {
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     const [chartMetric, setChartMetric] = useState<MetricType>('top1');
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
+    const [globalBase, setGlobalBase] = useState<'T100' | 'T500'>('T100');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -416,20 +455,39 @@ const WorldLinkView: React.FC = () => {
                     isOpen={isChartOpen}
                     onToggle={() => setIsChartOpen(!isChartOpen)}
                 >
-                    <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1">
-                            <button 
-                                onClick={() => setChartViewMode('activity')}
-                                className={`px-3 py-1 rounded text-xs font-bold transition-all ${chartViewMode === 'activity' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                            >
-                                活躍程度 (Activity)
-                            </button>
-                            <button 
-                                onClick={() => setChartViewMode('global')}
-                                className={`px-3 py-1 rounded text-xs font-bold transition-all ${chartViewMode === 'global' ? 'bg-purple-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                            >
-                                全域顯示 (Global)
-                            </button>
+                    <div className="mb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                        <div className="flex flex-wrap gap-3">
+                            <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1">
+                                <button 
+                                    onClick={() => setChartViewMode('activity')}
+                                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${chartViewMode === 'activity' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                                >
+                                    活躍程度 (Activity)
+                                </button>
+                                <button 
+                                    onClick={() => setChartViewMode('global')}
+                                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${chartViewMode === 'global' ? 'bg-purple-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                                >
+                                    全域顯示 (Global)
+                                </button>
+                            </div>
+
+                            {chartViewMode === 'global' && (
+                                <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1">
+                                    <button 
+                                        onClick={() => setGlobalBase('T100')}
+                                        className={`px-3 py-1 rounded text-xs font-bold transition-all ${globalBase === 'T100' ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                                    >
+                                        T100 Base
+                                    </button>
+                                    <button 
+                                        onClick={() => setGlobalBase('T500')}
+                                        className={`px-3 py-1 rounded text-xs font-bold transition-all ${globalBase === 'T500' ? 'bg-teal-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                                    >
+                                        T500 Base
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {chartViewMode === 'activity' && (
@@ -468,6 +526,7 @@ const WorldLinkView: React.FC = () => {
                         <GlobalScoreChart 
                             data={aggregatedData} 
                             displayMode={displayMode}
+                            globalBase={globalBase}
                         />
                     )}
                 </CollapsibleSection>

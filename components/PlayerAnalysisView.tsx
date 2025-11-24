@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
-import { EVENT_DETAILS, UNIT_STYLES } from '../constants';
+import { EVENT_DETAILS, UNIT_STYLES, UNIT_ORDER } from '../constants';
 
 interface PlayerStat {
     userId: string;
@@ -19,30 +19,37 @@ interface RankingTableProps {
     valueGetter: (stat: PlayerStat) => number;
     color: string;
     rankLabel: string;
+    showUnitBreakdown?: boolean;
+    totalCount?: number;
 }
 
 const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140, 163];
 
-const getFavoriteUnit = (stat: PlayerStat): string | null => {
-    let maxCount = 0;
-    let favUnit = null;
-    Object.entries(stat.unitCounts).forEach(([unit, count]) => {
-        if (count > maxCount) {
-            maxCount = count;
-            favUnit = unit;
-        }
-    });
-    return favUnit;
+const UNIT_ABBR: Record<string, string> = {
+    "Leo/need": "L/n",
+    "MORE MORE JUMP!": "MMJ",
+    "Vivid BAD SQUAD": "VBS",
+    "Wonderlands × Showtime": "WxS",
+    "25點,nightcord見": "25時",
+    "Virtual Singer": "VS",
+    "混活": "Mix"
 };
 
-const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel }) => (
+const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel, showUnitBreakdown = false, totalCount }) => (
     <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
-        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0 min-h-[56px]`}>
-            <div className="flex items-center flex-1 min-w-0 mr-2">
-                <h3 className={`font-bold ${color.replace('bg-', 'text-')} truncate mr-2`}>{title}</h3>
+        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center flex-shrink-0 min-h-[56px]`}>
+            <div className="flex items-center flex-1 min-w-0 mr-2 mb-2 sm:mb-0">
+                <div className="flex flex-col">
+                    <h3 className={`font-bold ${color.replace('bg-', 'text-')} truncate mr-2`}>{title}</h3>
+                    {totalCount !== undefined && (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
+                            共 {totalCount.toLocaleString()} 位玩家
+                        </span>
+                    )}
+                </div>
                 {headerAction}
             </div>
-            <CrownIcon className={`w-5 h-5 ${color.replace('bg-', 'text-')} flex-shrink-0`} />
+            <CrownIcon className={`w-5 h-5 ${color.replace('bg-', 'text-')} flex-shrink-0 hidden sm:block`} />
         </div>
         <div className="overflow-x-auto flex-1 custom-scrollbar">
             <table className="w-full text-sm text-left">
@@ -55,9 +62,6 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
                 </thead>
                 <tbody>
                     {data.map((stat, idx) => {
-                         const favUnit = getFavoriteUnit(stat);
-                         const unitStyle = favUnit ? UNIT_STYLES[favUnit] : "";
-
                          return (
                             <tr key={stat.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                 <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
@@ -67,18 +71,29 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
                                     <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
                                         {stat.latestName}
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                        <div className="text-xs text-slate-500 font-mono">
-                                            ID: {stat.userId}
-                                        </div>
-                                        {favUnit && favUnit !== '混活' && (
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-bold truncate max-w-[120px] ${unitStyle}`}>
-                                                {favUnit}
-                                            </span>
-                                        )}
+                                    <div className="text-xs text-slate-500 font-mono">
+                                        ID: {stat.userId}
                                     </div>
+                                    
+                                    {showUnitBreakdown && (
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                            {UNIT_ORDER.map(unit => {
+                                                const count = stat.unitCounts[unit] || 0;
+                                                if (count === 0) return null;
+                                                return (
+                                                    <span 
+                                                        key={unit} 
+                                                        className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold ${UNIT_STYLES[unit]}`}
+                                                        title={`${unit}: ${count} 次`}
+                                                    >
+                                                        {UNIT_ABBR[unit]}: {count}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </td>
-                                <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
+                                <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white align-top pt-3">
                                     {valueGetter(stat)} 次
                                 </td>
                             </tr>
@@ -100,6 +115,8 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
 const PlayerAnalysisView: React.FC = () => {
     const [eventsToProcess, setEventsToProcess] = useState<EventSummary[]>([]);
     const [playerStats, setPlayerStats] = useState<Record<string, PlayerStat>>({});
+    
+    // Main Analysis Loading State
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
@@ -136,7 +153,7 @@ const PlayerAnalysisView: React.FC = () => {
         };
     }, []);
 
-    // 2. Batch Processing
+    // 2. Batch Processing for Player Stats
     useEffect(() => {
         if (eventsToProcess.length === 0 || !isAnalyzing || isPaused) return;
 
@@ -194,6 +211,10 @@ const PlayerAnalysisView: React.FC = () => {
                             
                             // Update stats
                             newStats[userId].top100Count += 1;
+                            // Update latest name to the most recent event seen (since we process DESC, the first time we see a user is their latest name)
+                            // Wait, we process DESC? Yes: sort((a, b) => b.id - a.id) in fetchList.
+                            // So the first time we encounter a user, it's from the most recent event.
+                            // However, to be safe, we can just keep the name from the highest event ID if needed, but relying on processing order is fine here.
                             if (newStats[userId].top100Count === 1) {
                                 newStats[userId].latestName = entry.name;
                             }
@@ -228,22 +249,26 @@ const PlayerAnalysisView: React.FC = () => {
 
     }, [eventsToProcess, isAnalyzing, isPaused, totalEvents]);
 
+
     // Memoized Sorted Lists
-    const { topFrequent100, topFrequentSpecific } = useMemo(() => {
+    const { topFrequent100, topFrequentSpecific, totalPlayersTop100, totalPlayersSpecific } = useMemo(() => {
         const allStats = Object.values(playerStats) as PlayerStat[];
 
         const sortedByTop100 = [...allStats]
             .sort((a, b) => b.top100Count - a.top100Count)
             .slice(0, 10);
 
-        const sortedBySpecificRank = [...allStats]
-            .filter(s => (s.rankSpecificCounts[selectedSpecificRank] || 0) > 0)
+        const specificRankUsers = allStats.filter(s => (s.rankSpecificCounts[selectedSpecificRank] || 0) > 0);
+        
+        const sortedBySpecificRank = [...specificRankUsers]
             .sort((a, b) => (b.rankSpecificCounts[selectedSpecificRank] || 0) - (a.rankSpecificCounts[selectedSpecificRank] || 0))
             .slice(0, 10);
 
         return {
             topFrequent100: sortedByTop100,
-            topFrequentSpecific: sortedBySpecificRank
+            topFrequentSpecific: sortedBySpecificRank,
+            totalPlayersTop100: allStats.length,
+            totalPlayersSpecific: specificRankUsers.length
         };
     }, [playerStats, selectedSpecificRank]);
 
@@ -260,7 +285,7 @@ const PlayerAnalysisView: React.FC = () => {
                                 正在同步分析過往數據... ({loadingProgress}%)
                             </span>
                             <span className="text-slate-500 dark:text-slate-400 text-xs">
-                                已掃描玩家數: {Object.keys(playerStats).length}
+                                已掃描玩家數: {totalPlayersTop100}
                             </span>
                         </div>
                         <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden relative z-10">
@@ -279,7 +304,7 @@ const PlayerAnalysisView: React.FC = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Table 1: Most Frequent Top 100 */}
                 <RankingTable 
                     title="前百常客 (Top 100 Frequency)"
@@ -287,6 +312,8 @@ const PlayerAnalysisView: React.FC = () => {
                     data={topFrequent100}
                     valueGetter={(stat) => stat.top100Count}
                     color="bg-cyan-500"
+                    showUnitBreakdown={true}
+                    totalCount={totalPlayersTop100}
                 />
 
                 {/* Table 2: Specific Rank Frequency */}
@@ -308,6 +335,8 @@ const PlayerAnalysisView: React.FC = () => {
                     data={topFrequentSpecific}
                     valueGetter={(stat) => stat.rankSpecificCounts[selectedSpecificRank] || 0}
                     color="bg-pink-500"
+                    showUnitBreakdown={true}
+                    totalCount={totalPlayersSpecific}
                 />
             </div>
         </div>

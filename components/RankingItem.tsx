@@ -152,13 +152,20 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
     </div>
   );
 
+  const PowerBreakdownItem: React.FC<{ label: string, value: number }> = ({ label, value }) => (
+      <div className="flex flex-col">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">{label}</span>
+          <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{value.toLocaleString()}</span>
+      </div>
+  );
+
   return (
     <div
       className={`border rounded-lg transition-all duration-300 overflow-hidden ${styles.container}`}
     >
-      <button
+      <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center p-2 sm:p-3 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+        className="w-full flex items-center p-2 sm:p-3 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
         aria-expanded={isExpanded}
         aria-controls={`details-${user.id}`}
       >
@@ -173,11 +180,21 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
         </div>
 
         {/* Name Section */}
-        <div className="flex-grow overflow-hidden ml-2 mr-2">
+        <div className="flex-grow overflow-hidden ml-2 mr-2 flex flex-col justify-center">
           <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
             {user.display_name}
           </p>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate" title={`@${user.username}`}>@{user.username}</p>
+          <button
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isExpanded) setIsExpanded(true);
+                handleFetchProfile();
+            }}
+            className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-mono hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline decoration-dotted underline-offset-2 text-left w-fit transition-colors"
+            title="點擊載入玩家詳細資料"
+          >
+            ID: {user.id}
+          </button>
         </div>
 
         {/* Stats Section */}
@@ -197,7 +214,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
-      </button>
+      </div>
 
       <div id={`details-${user.id}`} className={`collapsible-content ${isExpanded ? 'open' : ''}`}>
         <div className="p-3 sm:p-4 pt-2 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-black/20">
@@ -211,45 +228,53 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
 
           {/* Player Profile Section */}
           <div className={`${hideStats ? '' : 'pt-3 border-t border-slate-200 dark:border-slate-700/50'}`}>
-             <div className="flex flex-wrap items-center gap-2 text-sm mb-3">
-                <span className="text-slate-500 dark:text-slate-400">Player ID:</span>
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleFetchProfile();
-                    }}
-                    className="font-mono text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 hover:underline decoration-dotted underline-offset-4 transition-colors break-all"
-                    title="點擊查看詳細資料"
-                    aria-label={`查看玩家 ${user.id} 的詳細資料`}
-                >
-                    {user.id}
-                </button>
-                {!profileData && !isLoadingProfile && (
-                    <span className="text-xs text-slate-500 hidden sm:inline ml-1">
-                        (點擊 ID 載入詳細資料)
-                    </span>
-                )}
-                {isLoadingProfile && (
-                    <span className="text-xs text-cyan-600 dark:text-cyan-500 ml-2 animate-pulse">載入中...</span>
-                )}
-                {profileError && (
-                     <span className="text-xs text-red-500 dark:text-red-400 ml-2">{profileError}</span>
-                )}
-             </div>
+             {/* Loading/Error State if not loaded yet */}
+             {!profileData && (
+                 <div className="flex items-center gap-2 text-sm py-2">
+                    {isLoadingProfile ? (
+                        <span className="text-cyan-600 dark:text-cyan-500 animate-pulse flex items-center">
+                            <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            載入玩家資料中...
+                        </span>
+                    ) : profileError ? (
+                        <span className="text-red-500 dark:text-red-400">{profileError}</span>
+                    ) : (
+                        <span className="text-slate-500 italic">點擊上方 ID 查看詳細資料</span>
+                    )}
+                 </div>
+             )}
 
              {/* Profile Data Display */}
              {profileData && (
                 <div className="space-y-4 animate-fadeIn">
-                     <div className="grid grid-cols-2 gap-3 bg-white dark:bg-slate-800/40 rounded-lg p-4 border border-slate-200 dark:border-slate-700/50 shadow-sm">
-                         <div className="flex flex-col items-center sm:items-start">
-                             <span className="text-xs text-slate-500 uppercase font-bold mb-1">等級 (Rank)</span>
-                             <span className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">{profileData.user.rank}</span>
+                     <div className="bg-white dark:bg-slate-800/40 rounded-lg p-4 border border-slate-200 dark:border-slate-700/50 shadow-sm">
+                         <div className="grid grid-cols-2 gap-4 mb-4">
+                             <div className="flex flex-col items-center sm:items-start">
+                                 <span className="text-xs text-slate-500 uppercase font-bold mb-1">等級 (Rank)</span>
+                                 <span className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">{profileData.user.rank}</span>
+                             </div>
+                             <div className="flex flex-col items-center sm:items-start">
+                                 <span className="text-xs text-slate-500 uppercase font-bold mb-1">綜合力 (Total Power)</span>
+                                 <span className="text-xl sm:text-2xl font-bold text-emerald-500 dark:text-emerald-400">
+                                    {profileData.totalPower.totalPower.toLocaleString()}
+                                 </span>
+                             </div>
                          </div>
-                         <div className="flex flex-col items-center sm:items-start">
-                             <span className="text-xs text-slate-500 uppercase font-bold mb-1">綜合力 (Total Power)</span>
-                             <span className="text-xl sm:text-2xl font-bold text-emerald-500 dark:text-emerald-400">
-                                {profileData.totalPower.totalPower.toLocaleString()}
-                             </span>
+                         
+                         {/* Power Breakdown */}
+                         <div className="border-t border-slate-100 dark:border-slate-700/50 pt-3">
+                             <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">綜合力來源 (Total Power Source)</h5>
+                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3 gap-x-2">
+                                <PowerBreakdownItem label="表現力 (Cards)" value={profileData.totalPower.basicCardTotalPower} />
+                                <PowerBreakdownItem label="區域道具 (Area Item)" value={profileData.totalPower.areaItemBonus} />
+                                <PowerBreakdownItem label="角色等級 (Char Rank)" value={profileData.totalPower.characterRankBonus} />
+                                <PowerBreakdownItem label="稱號加成 (Honor)" value={profileData.totalPower.honorBonus} />
+                                <PowerBreakdownItem label="家具加成 (Fixture)" value={profileData.totalPower.mysekaiFixtureGameCharacterPerformanceBonus} />
+                                <PowerBreakdownItem label="大門加成 (Gate)" value={profileData.totalPower.mysekaiGateLevelBonus} />
+                             </div>
                          </div>
                      </div>
                      

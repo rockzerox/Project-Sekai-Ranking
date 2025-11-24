@@ -43,6 +43,7 @@ const EventComparisonView: React.FC = () => {
         return Math.max(0, diffDays - 1);
     };
 
+    // ... (Previous useEffects and logic functions remain same)
     useEffect(() => {
         const fetchEvents = async () => {
             try {
@@ -557,9 +558,13 @@ const EventComparisonView: React.FC = () => {
     }, [comparisonData, zoomRange, displayMode]);
 
     return (
-        <div className="w-full animate-fadeIn">
+        <div className="w-full animate-fadeIn py-4">
+            <div className="mb-6">
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活動比較分析 (Event Comparison)</h2>
+                <p className="text-slate-500 dark:text-slate-400">選擇任意兩期過往活動，比較其分數線趨勢</p>
+            </div>
+
             <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-6 shadow-sm">
-                 <h3 className="font-bold text-lg mb-4 text-slate-800 dark:text-white">活動比較 (Event Comparison)</h3>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                     <div className="lg:col-span-2">

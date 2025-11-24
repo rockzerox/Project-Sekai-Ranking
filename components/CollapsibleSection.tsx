@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface CollapsibleSectionProps {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   isOpen: boolean;
   onToggle: () => void;
@@ -15,11 +15,11 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children
         onClick={onToggle}
         className="w-full flex justify-between items-center p-4 text-left font-bold text-lg text-white hover:bg-slate-700/50 transition-colors"
         aria-expanded={isOpen}
-        aria-controls={`collapsible-content-${title.replace(/\s+/g, '-')}`}
+        aria-controls={`collapsible-content`}
       >
-        <span>{title}</span>
+        <span className="flex-1 flex items-center gap-2 overflow-hidden">{title}</span>
         <svg
-          className={`w-6 h-6 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-6 h-6 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''} flex-shrink-0 ml-2`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -28,7 +28,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <div id={`collapsible-content-${title.replace(/\s+/g, '-')}`} className={`collapsible-content ${isOpen ? 'open' : ''}`}>
+      <div className={`collapsible-content ${isOpen ? 'open' : ''}`}>
         <div className="p-4 border-t border-slate-700">
           {children}
         </div>

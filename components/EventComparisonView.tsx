@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
 
 interface SimpleRankData {
     rank: number;
@@ -24,6 +24,8 @@ const EventComparisonView: React.FC = () => {
     const [selectedId2, setSelectedId2] = useState<string>('');
     const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
     const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
+    const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
+    const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
     
     const [comparisonData, setComparisonData] = useState<ComparisonResult>({ event1: null, event2: null });
     const [isComparing, setIsComparing] = useState(false);
@@ -35,15 +37,6 @@ const EventComparisonView: React.FC = () => {
     
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     
-    const calculateEventDays = (startAt: string, closedAt: string): number => {
-        const start = new Date(startAt);
-        const end = new Date(closedAt);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-        return Math.max(0, diffDays - 1);
-    };
-
-    // ... (Previous useEffects and logic functions remain same)
     useEffect(() => {
         const fetchEvents = async () => {
             try {
@@ -73,8 +66,14 @@ const EventComparisonView: React.FC = () => {
         if (selectedBannerFilter !== 'all') {
             result = result.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
         }
+        if (selectedStoryFilter !== 'all') {
+            result = result.filter(e => EVENT_DETAILS[e.id]?.storyType === selectedStoryFilter);
+        }
+        if (selectedCardFilter !== 'all') {
+            result = result.filter(e => EVENT_DETAILS[e.id]?.cardType === selectedCardFilter);
+        }
         return result;
-    }, [events, selectedUnitFilter, selectedBannerFilter]);
+    }, [events, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
 
     const handleCompare = async () => {
         if (!selectedId1 || !selectedId2) return;
@@ -123,8 +122,8 @@ const EventComparisonView: React.FC = () => {
             const eventName1 = eventSummary1?.name || `Event ${selectedId1}`;
             const eventName2 = eventSummary2?.name || `Event ${selectedId2}`;
 
-            const duration1 = eventSummary1 ? calculateEventDays(eventSummary1.start_at, eventSummary1.closed_at) : 0;
-            const duration2 = eventSummary2 ? calculateEventDays(eventSummary2.start_at, eventSummary2.closed_at) : 0;
+            const duration1 = eventSummary1 ? calculatePreciseDuration(eventSummary1.start_at, eventSummary1.aggregate_at) : 0;
+            const duration2 = eventSummary2 ? calculatePreciseDuration(eventSummary2.start_at, eventSummary2.aggregate_at) : 0;
 
             const processRankings = (topData: any[], borderData: any[] = []): SimpleRankData[] => {
                 const combined = [
@@ -417,10 +416,10 @@ const EventComparisonView: React.FC = () => {
                 
                 <div className="mb-4 text-xs text-slate-500 dark:text-slate-400 grid grid-cols-1 sm:grid-cols-2 gap-2">
                      <p>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">[趨勢] 陡峭 (Steep):</span> 分數斷層大，排名固化
+                        <span className="font-bold text-slate-700 dark:text-slate-300">[趨勢] 陡峭 (Steep):</span> 分數斷層大，排名固化; <span className="font-bold text-slate-700 dark:text-slate-300">平緩 (Flat):</span> 競爭密集，排名易變動
                      </p>
                      <p>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">[數值] 整體分數 (Score):</span> 該區間平均分數，代表資源投入量
+                        <span className="font-bold text-slate-700 dark:text-slate-300">[數值] 整體分數 (Score):</span> 代表資源投入量 (包含活動時間投入、長期隊伍養成與課金道具使用)
                      </p>
                 </div>
                 
@@ -496,7 +495,9 @@ const EventComparisonView: React.FC = () => {
                                     >
                                         {comparisonData.event1?.name}
                                     </p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono">{comparisonData.event1?.duration} 天</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
+                                        {comparisonData.event1?.duration.toFixed(2)} 天
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-2">
@@ -509,7 +510,9 @@ const EventComparisonView: React.FC = () => {
                                     >
                                         {comparisonData.event2?.name}
                                     </p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono">{comparisonData.event2?.duration} 天</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
+                                        {comparisonData.event2?.duration.toFixed(2)} 天
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -640,6 +643,28 @@ const EventComparisonView: React.FC = () => {
                         {BANNER_ORDER.map(banner => (
                             <option key={banner} value={banner}>{banner}</option>
                         ))}
+                     </select>
+
+                     <select
+                        value={selectedStoryFilter}
+                        onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                     >
+                        <option value="all">所有劇情 (All Stories)</option>
+                        <option value="unit_event">箱活</option>
+                        <option value="mixed_event">混活</option>
+                        <option value="world_link">World Link</option>
+                     </select>
+
+                     <select
+                        value={selectedCardFilter}
+                        onChange={(e) => setSelectedCardFilter(e.target.value as any)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                     >
+                        <option value="all">所有卡面 (All Cards)</option>
+                        <option value="permanent">常駐</option>
+                        <option value="limited">限定</option>
+                        <option value="special_limited">特殊限定</option>
                      </select>
                  </div>
             </div>

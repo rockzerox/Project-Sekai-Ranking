@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl } from '../constants';
+import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration } from '../constants';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
@@ -21,17 +21,11 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<'all' | 'marathon' | 'cheerful_carnival' | 'world_link'>('all');
   const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
+  const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
+  const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
   
   const [sortType, setSortType] = useState<'id' | 'duration'>('id');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-
-  const calculateEventDays = (startAt: string, closedAt: string): number => {
-    const start = new Date(startAt);
-    const end = new Date(closedAt);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays - 1);
-  };
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -109,6 +103,16 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
     }
 
+    // Story Filter
+    if (selectedStoryFilter !== 'all') {
+        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.storyType === selectedStoryFilter);
+    }
+
+    // Card Filter
+    if (selectedCardFilter !== 'all') {
+        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.cardType === selectedCardFilter);
+    }
+
     // 2. Year Filter (Only if a specific year is selected)
     if (selectedYear !== 'all') {
         currentEvents = currentEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
@@ -117,8 +121,8 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
     // 3. Sort
     return currentEvents.sort((a, b) => {
         if (sortType === 'duration') {
-            const durA = calculateEventDays(a.start_at, a.closed_at);
-            const durB = calculateEventDays(b.start_at, b.closed_at);
+            const durA = calculatePreciseDuration(a.start_at, a.aggregate_at);
+            const durB = calculatePreciseDuration(b.start_at, b.aggregate_at);
             // desc: Longest to Shortest
             // asc: Shortest to Longest
             if (durA !== durB) {
@@ -131,15 +135,17 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         // Default ID sort
         return sortOrder === 'desc' ? b.id - a.id : a.id - b.id;
     });
-  }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, sortOrder, sortType]);
+  }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, sortOrder, sortType]);
 
-  const getEventStatus = (startAt: string, closedAt: string) => {
+  const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string) => {
       const now = new Date();
       const start = new Date(startAt);
+      const agg = new Date(aggregateAt);
       const closed = new Date(closedAt);
 
       if (now < start) return 'future';
-      if (now >= start && now <= closed) return 'active';
+      if (now >= start && now <= agg) return 'active';
+      if (now > agg && now <= closed) return 'ended';
       return 'past';
   };
 
@@ -153,6 +159,33 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
           case 'cheerful_carnival': return '歡樂嘉年華';
           case 'world_link': return 'World Link';
           default: return type;
+      }
+  };
+
+  const getStoryTypeLabel = (type: string) => {
+      switch(type) {
+          case 'unit_event': return '箱活';
+          case 'mixed_event': return '混活';
+          case 'world_link': return 'World Link';
+          default: return '';
+      }
+  };
+
+  const getCardTypeLabel = (type: string) => {
+      switch(type) {
+          case 'permanent': return '常駐';
+          case 'limited': return '限定';
+          case 'special_limited': return '特殊限定';
+          default: return '';
+      }
+  };
+
+  const getCardTypeStyle = (type: string) => {
+      switch(type) {
+          case 'permanent': return 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+          case 'limited': return 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-700';
+          case 'special_limited': return 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700';
+          default: return 'bg-slate-100 dark:bg-slate-700 text-slate-500';
       }
   };
 
@@ -197,7 +230,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
       </div>
 
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6">
-          <div className="relative w-full xl:max-w-md">
+          <div className="relative w-full xl:w-64">
             <input
             type="text"
             placeholder={`搜尋活動... (期數/名稱)`}
@@ -271,24 +304,51 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                     <option key={banner} value={banner}>{banner}</option>
                 ))}
              </select>
+
+             <select
+                value={selectedStoryFilter}
+                onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
+                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[120px]"
+             >
+                <option value="all">所有劇情 (All Stories)</option>
+                <option value="unit_event">箱活</option>
+                <option value="mixed_event">混活</option>
+                <option value="world_link">World Link</option>
+             </select>
+
+             <select
+                value={selectedCardFilter}
+                onChange={(e) => setSelectedCardFilter(e.target.value as any)}
+                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[120px]"
+             >
+                <option value="all">所有卡面 (All Cards)</option>
+                <option value="permanent">常駐</option>
+                <option value="limited">限定</option>
+                <option value="special_limited">特殊限定</option>
+             </select>
           </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {filteredEvents.length > 0 ? (
             filteredEvents.map(event => {
-                const status = getEventStatus(event.start_at, event.closed_at);
-                const isClickable = status === 'past';
-                const duration = calculateEventDays(event.start_at, event.closed_at);
+                const status = getEventStatus(event.start_at, event.aggregate_at, event.closed_at);
+                const isClickable = status === 'past' || status === 'ended';
+                const duration = calculateDisplayDuration(event.start_at, event.aggregate_at);
                 
-                const details = EVENT_DETAILS[event.id] || { unit: "Unknown", type: "marathon", banner: "" };
+                const details = EVENT_DETAILS[event.id] || { unit: "Unknown", type: "marathon", banner: "", storyType: "unit_event", cardType: "permanent" };
                 const unitLabel = details.unit;
                 const typeLabel = getTypeLabel(details.type);
+                const storyLabel = getStoryTypeLabel(details.storyType);
+                const cardLabel = getCardTypeLabel(details.cardType);
+                
                 const unitStyle = UNIT_STYLES[unitLabel] || "bg-slate-500 text-white";
+                const cardStyle = getCardTypeStyle(details.cardType);
                 const eventColor = getEventColor(event.id);
                 
                 const unitImg = getAssetUrl(unitLabel, 'unit');
                 const bannerImg = getAssetUrl(details.banner, 'character');
+                const eventLogoUrl = getAssetUrl(event.id.toString(), 'event');
 
                 return (
                     <button 
@@ -309,6 +369,11 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                                     活動進行中
                                 </div>
                             )}
+                            {status === 'ended' && (
+                                <div className="absolute top-0 right-0 bg-slate-500 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold z-10">
+                                    活動已結束
+                                </div>
+                            )}
                             {status === 'future' && (
                                 <div className="absolute top-0 right-0 bg-amber-600 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold z-10">
                                     活動尚未開始
@@ -317,34 +382,54 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
 
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex flex-col gap-1.5 items-start">
-                                    <span className={`text-xs font-mono py-0.5 px-1.5 rounded transition-colors ${isClickable ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-cyan-100 dark:group-hover:bg-cyan-900/50 group-hover:text-cyan-700 dark:group-hover:text-cyan-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
-                                        #{event.id}
-                                    </span>
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
-                                        {typeLabel}
-                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <span className={`text-xs font-mono py-0.5 px-1.5 rounded transition-colors ${isClickable ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-cyan-100 dark:group-hover:bg-cyan-900/50 group-hover:text-cyan-700 dark:group-hover:text-cyan-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'}`}>
+                                            #{event.id}
+                                        </span>
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                                            {typeLabel}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-1 mt-0.5">
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                                            {storyLabel}
+                                        </span>
+                                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${cardStyle}`}>
+                                            {cardLabel}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-xs text-slate-500">
                                         {new Date(event.start_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })} 
                                         {' - '}
-                                        {new Date(event.closed_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
+                                        {new Date(event.aggregate_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}
                                     </div>
                                     <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                        {duration} 天
+                                        {duration} 日
                                     </div>
                                 </div>
                             </div>
                             
-                            <h3 
-                                className={`text-lg font-bold transition-colors mb-1 line-clamp-2 leading-snug`}
-                                style={{ color: isClickable && eventColor ? eventColor : undefined }}
-                            >
-                                {event.name}
-                            </h3>
+                            <div className="flex flex-col mb-1">
+                                {eventLogoUrl && (
+                                    <img 
+                                        src={eventLogoUrl} 
+                                        alt="Event Logo" 
+                                        className="h-auto object-contain my-2 rounded-md max-h-24 self-start max-w-full"
+                                        onError={(e) => e.currentTarget.style.display = 'none'}
+                                    />
+                                )}
+                                <h3 
+                                    className={`text-lg font-bold transition-colors line-clamp-2 leading-snug`}
+                                    style={{ color: isClickable && eventColor ? eventColor : undefined }}
+                                >
+                                    {event.name}
+                                </h3>
+                            </div>
                             
                             {details.banner && (
-                                <div className="flex items-center gap-2 mb-3">
+                                <div className="flex items-center gap-2 mb-3 mt-1">
                                     <span className="text-xs text-slate-400">Banner: {details.banner}</span>
                                     {bannerImg && (
                                         <img 
@@ -361,7 +446,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                             <span 
                                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${unitStyle} flex items-center gap-1`}
                             >
-                                {unitImg && (
+                                {unitImg && details.unit !== 'Mix' && (
                                     <img src={unitImg} alt={unitLabel} className="w-3 h-3 object-contain" />
                                 )}
                                 {unitLabel}

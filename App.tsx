@@ -60,6 +60,15 @@ const App: React.FC = () => {
   const [isChartsOpen, setIsChartsOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
 
+  // Manage Chart Collapse State based on View
+  useEffect(() => {
+      if (currentView === 'live') {
+          setIsChartsOpen(true);
+      } else if (currentView === 'past' && selectedEvent) {
+          setIsChartsOpen(false); // Default collapsed for past events
+      }
+  }, [currentView, selectedEvent]);
+
   const fetchLiveRankings = async () => {
       setIsLoading(true);
       setError(null);
@@ -348,15 +357,24 @@ const App: React.FC = () => {
           const color = getEventColor(selectedEvent.id);
           const unitLogo = getAssetUrl(details?.unit, 'unit');
           const bannerImg = getAssetUrl(details?.banner, 'character');
+          const eventLogoUrl = getAssetUrl(selectedEvent.id.toString(), 'event');
           const unitStyle = UNIT_STYLES[details?.unit] || "bg-slate-500 text-white";
 
           rankingsTitle = (
               <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
                   <span>前百排行榜 (Top 100) - </span>
+                  {eventLogoUrl && (
+                      <img 
+                          src={eventLogoUrl} 
+                          alt="Logo" 
+                          className="h-8 w-auto object-contain mr-1"
+                          onError={(e) => e.currentTarget.style.display = 'none'}
+                      />
+                  )}
                   <span style={{ color: color || 'inherit' }} className="mr-2">{selectedEvent.name}</span>
                   
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${unitStyle}`}>
-                      {unitLogo && details.unit !== '混活' && (
+                      {unitLogo && details.unit !== 'Mix' && (
                           <img src={unitLogo} alt={details.unit} className="w-4 h-4 object-contain" />
                       )}
                       {details?.unit}
@@ -438,7 +456,7 @@ const App: React.FC = () => {
             toggleTheme={toggleTheme}
         />
 
-        <div className={`flex-1 transition-all duration-300 ${isSidebarCollapsed ? 'ml-0 md:ml-20' : 'ml-0 md:ml-64'}`}>
+        <div className="flex-1 transition-all duration-300 w-full">
             <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
                 <div className="flex items-center">
                     <div className="bg-cyan-500/20 p-2 rounded-lg mr-3">
@@ -472,16 +490,26 @@ const App: React.FC = () => {
                         <div className="mb-6">
                             <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
                             <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
-                                <div>
-                                    <h2 
-                                        className="text-xl sm:text-2xl font-bold mb-1"
-                                        style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
-                                    >
-                                        {eventName}
-                                    </h2>
-                                    <p className="text-slate-500 dark:text-slate-400 text-sm">
-                                        最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
-                                    </p>
+                                <div className="flex items-center gap-3">
+                                    {liveEventId && (
+                                        <img 
+                                            src={getAssetUrl(liveEventId.toString(), 'event') || ''} 
+                                            alt="Logo" 
+                                            className="h-12 w-auto object-contain rounded-md"
+                                            onError={(e) => e.currentTarget.style.display = 'none'}
+                                        />
+                                    )}
+                                    <div>
+                                        <h2 
+                                            className="text-xl sm:text-2xl font-bold mb-1"
+                                            style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
+                                        >
+                                            {eventName}
+                                        </h2>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                            最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

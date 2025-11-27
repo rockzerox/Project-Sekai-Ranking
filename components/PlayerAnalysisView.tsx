@@ -32,7 +32,7 @@ const UNIT_ABBR: Record<string, string> = {
     "Wonderlands × Showtime": "WxS",
     "25點,nightcord見": "25時",
     "Virtual Singer": "VS",
-    "混活": "Mix"
+    "Mix": "Mix"
 };
 
 const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel, showUnitBreakdown = false, totalCount }) => (

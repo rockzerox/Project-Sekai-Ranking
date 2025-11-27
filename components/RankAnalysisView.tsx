@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
 
 interface EventStat {
     eventId: number;
@@ -60,7 +60,7 @@ const RankTable: React.FC<RankTableProps> = ({ title, headerAction, data, valueG
                                 <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
                                     <span>ID: {stat.eventId}</span>
                                     <span className="w-0.5 h-0.5 bg-slate-400 rounded-full"></span>
-                                    <span>{stat.duration} 天</span>
+                                    <span>{stat.duration.toFixed(2)} 天</span>
                                 </div>
                             </td>
                             <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
@@ -93,16 +93,10 @@ const RankAnalysisView: React.FC = () => {
     
     const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
     const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
+    const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
+    const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
 
     const abortControllerRef = useRef<AbortController | null>(null);
-
-    const calculateEventDays = (startAt: string, closedAt: string): number => {
-        const start = new Date(startAt);
-        const end = new Date(closedAt);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-        return Math.max(0, diffDays - 1);
-    };
 
     useEffect(() => {
         const fetchList = async () => {
@@ -172,7 +166,7 @@ const RankAnalysisView: React.FC = () => {
                         }
                     }
 
-                    const duration = calculateEventDays(event.start_at, event.closed_at);
+                    const duration = calculatePreciseDuration(event.start_at, event.aggregate_at);
 
                     return {
                         eventId: event.id,
@@ -231,6 +225,14 @@ const RankAnalysisView: React.FC = () => {
             filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.banner === selectedBannerFilter);
         }
 
+        if (selectedStoryFilter !== 'all') {
+            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.storyType === selectedStoryFilter);
+        }
+
+        if (selectedCardFilter !== 'all') {
+            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.cardType === selectedCardFilter);
+        }
+
         const getTop10 = (key: keyof Pick<EventStat, 'top1' | 'top10' | 'top100'>) => {
             return [...filteredStats]
                 .sort((a, b) => getMetric(b, b[key]) - getMetric(a, a[key]))
@@ -254,7 +256,7 @@ const RankAnalysisView: React.FC = () => {
             top100List: getTop10('top100'),
             borderRankList: getTopBorder(selectedBorderRank)
         };
-    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter, selectedBannerFilter]);
+    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
 
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;
@@ -267,7 +269,7 @@ const RankAnalysisView: React.FC = () => {
             <div className="mb-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
                     <div>
-                        <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">排名分數排行榜 (High Score Hall of Fame)</h2>
+                        <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活動榜線分析 (Rank Analysis)</h2>
                         <p className="text-slate-500 dark:text-slate-400">分析過往活動中各個排名的最高分紀錄</p>
                     </div>
                     
@@ -292,6 +294,28 @@ const RankAnalysisView: React.FC = () => {
                             {BANNER_ORDER.map(banner => (
                                 <option key={banner} value={banner}>{banner}</option>
                             ))}
+                         </select>
+
+                         <select
+                            value={selectedStoryFilter}
+                            onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
+                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[120px]"
+                         >
+                            <option value="all">所有劇情 (All Stories)</option>
+                            <option value="unit_event">箱活</option>
+                            <option value="mixed_event">混活</option>
+                            <option value="world_link">World Link</option>
+                         </select>
+
+                         <select
+                            value={selectedCardFilter}
+                            onChange={(e) => setSelectedCardFilter(e.target.value as any)}
+                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[120px]"
+                         >
+                            <option value="all">所有卡面 (All Cards)</option>
+                            <option value="permanent">常駐</option>
+                            <option value="limited">限定</option>
+                            <option value="special_limited">特殊限定</option>
                          </select>
 
                         <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm">

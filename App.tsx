@@ -25,6 +25,34 @@ const ITEMS_PER_PAGE = 20;
 
 const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 
+const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date().getTime();
+            const target = new Date(targetDate).getTime();
+            const distance = target - now;
+
+            if (distance < 0) {
+                setTimeLeft('即將公佈');
+                clearInterval(interval);
+                return;
+            }
+
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            setTimeLeft(`${hours}小時 ${minutes}分 ${seconds}秒`);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [targetDate]);
+
+    return <span className="font-mono text-xl sm:text-2xl font-bold text-cyan-600 dark:text-cyan-400">{timeLeft}</span>;
+};
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -55,6 +83,7 @@ const App: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [eventName, setEventName] = useState('Hisekai Live TW Rankings');
   const [liveEventId, setLiveEventId] = useState<number | null>(null);
+  const [liveEventTiming, setLiveEventTiming] = useState<{ aggregateAt: string, rankingAnnounceAt: string } | null>(null);
   
   const [isRankingsOpen, setIsRankingsOpen] = useState(true);
   const [isChartsOpen, setIsChartsOpen] = useState(true);
@@ -119,6 +148,12 @@ const App: React.FC = () => {
           setEventName(responseData.name);
           if (responseData.id) {
               setLiveEventId(responseData.id);
+          }
+          if (responseData.aggregate_at && responseData.ranking_announce_at) {
+              setLiveEventTiming({
+                  aggregateAt: responseData.aggregate_at,
+                  rankingAnnounceAt: responseData.ranking_announce_at
+              });
           }
           setLastUpdated(new Date());
 
@@ -341,6 +376,15 @@ const App: React.FC = () => {
     return sortedAndFilteredRankings.slice(startIndex, endIndex);
   }, [sortedAndFilteredRankings, currentPage]);
 
+  // Check calculation status for Live Event
+  const isCalculating = useMemo(() => {
+      if (currentView !== 'live' || !liveEventTiming) return false;
+      const now = new Date();
+      const agg = new Date(liveEventTiming.aggregateAt);
+      const announce = new Date(liveEventTiming.rankingAnnounceAt);
+      return now >= agg && now < announce;
+  }, [currentView, liveEventTiming]);
+
   const renderContent = () => {
       const isPastMode = currentView === 'past' && selectedEvent !== null;
       const isHighlights = currentPage === 'highlights';
@@ -348,6 +392,30 @@ const App: React.FC = () => {
       
       if (isLoading) return <LoadingSpinner />;
       if (error) return <ErrorMessage message={error} />;
+
+      // Special View for Calculating Phase in Live Mode
+      if (currentView === 'live' && isCalculating && liveEventTiming) {
+          return (
+              <div className="flex flex-col items-center justify-center py-20 animate-fadeIn text-center">
+                  <div className="bg-amber-100 dark:bg-amber-900/30 p-8 rounded-2xl border border-amber-200 dark:border-amber-700 shadow-lg max-w-lg w-full mx-4">
+                      <div className="mb-6 flex justify-center">
+                          <div className="p-4 bg-amber-500/20 rounded-full">
+                              <svg className="w-16 h-16 text-amber-500 dark:text-amber-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                          </div>
+                      </div>
+                      <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">活動結算中請稍後...</h3>
+                      <p className="text-slate-500 dark:text-slate-400 mb-6">正在統計最終排名數據，請耐心等待結果公佈。</p>
+                      
+                      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                          <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">距離結果公佈 (Results in)</p>
+                          <CountdownTimer targetDate={liveEventTiming.rankingAnnounceAt} />
+                      </div>
+                  </div>
+              </div>
+          );
+      }
 
       // Construct the Rich Title for Past Events
       let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";

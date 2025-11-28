@@ -14,6 +14,7 @@ interface LineChartProps {
   yAxisFormatter?: (value: number) => string;
   xAxisLabel?: string;
   yAxisLabel?: string;
+  useLinearScale?: boolean;
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -22,7 +23,8 @@ const LineChart: React.FC<LineChartProps> = ({
   valueFormatter = (v) => v.toLocaleString(),
   yAxisFormatter,
   xAxisLabel = 'Rank',
-  yAxisLabel = 'Value'
+  yAxisLabel = 'Value',
+  useLinearScale = false,
 }) => {
   // Use default formatter for axis if specific one not provided
   const axisFormatter = yAxisFormatter || valueFormatter;
@@ -52,8 +54,10 @@ const LineChart: React.FC<LineChartProps> = ({
   const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
   const yRange = yDomainMax - yDomainMin || 1;
 
+  const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
-  const hasHighlights = maxRank > 100;
+  // If maxRank > 100, we enable the hybrid split scale logic, unless forced linear
+  const hasHighlights = !useLinearScale && maxRank > 100;
 
   // 3. Hybrid Scale Logic
   // Split Ratio: Percentage of width dedicated to Top 100
@@ -62,9 +66,11 @@ const LineChart: React.FC<LineChartProps> = ({
 
   const getXPercent = (rank: number) => {
       if (!hasHighlights) {
-          // Simple Linear 0-100 for standard charts (e.g. 1H count, or if no borders fetched)
-          // rank 1 -> 0%, rank 100 -> 100%
-          return ((rank - 1) / (maxRank - 1)) * 100;
+          // Simple Linear 0-100 for standard charts (or arbitrary linear if useLinearScale)
+          const minR = minRank;
+          // Avoid division by zero if only one point (though guarded above)
+          if (maxRank === minR) return 50;
+          return ((rank - minR) / (maxRank - minR)) * 100;
       }
 
       if (rank <= 100) {
@@ -92,17 +98,25 @@ const LineChart: React.FC<LineChartProps> = ({
   }));
 
   // 5. Generate Paths
-  const solidPoints = points.filter(p => (p.rank || 0) <= 100);
-  const dashedPoints = points.filter(p => (p.rank || 0) >= 100);
+  let solidPathD = '';
+  let dashedPathD = '';
 
-  // Create SVG path d attribute
-  const createPath = (pts: typeof points) => {
-      if (pts.length < 2) return '';
-      return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  };
-
-  const solidPathD = createPath(solidPoints);
-  const dashedPathD = createPath(dashedPoints);
+  if (!hasHighlights) {
+      // Single solid line for linear mode
+      solidPathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  } else {
+      // Split solid/dashed for hybrid mode
+      const solidPoints = points.filter(p => (p.rank || 0) <= 100);
+      const dashedPoints = points.filter(p => (p.rank || 0) >= 100);
+      
+      const createPath = (pts: typeof points) => {
+          if (pts.length < 2) return '';
+          return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      };
+      
+      solidPathD = createPath(solidPoints);
+      dashedPathD = createPath(dashedPoints);
+  }
 
   // 6. Generate Grid Lines
   // Y-Axis Grid (5 horizontal lines)
@@ -114,26 +128,35 @@ const LineChart: React.FC<LineChartProps> = ({
 
   // X-Axis Grid
   let xGridRanks: number[] = [];
+  
   if (hasHighlights) {
       // Linear Section: 1, 10, 20... 100
       const linearSteps = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
       // Log Section: major steps
-      // Filter log steps based on screen width to prevent overlap
       let logSteps = [200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
       
       if (isMobile) {
-          // Reduce density for mobile
           logSteps = [1000, 5000, 10000, 50000];
       }
       
       logSteps = logSteps.filter(r => r <= maxRank);
       xGridRanks = [...linearSteps, ...logSteps];
   } else {
-      // Standard charts (Rank 1-100 linear)
-      xGridRanks = [1, 25, 50, 75, 100];
+      if (useLinearScale) {
+          // Dynamic uniform ticks
+          const range = maxRank - minRank;
+          const ticks = isMobile ? 4 : 8;
+          for (let i = 0; i <= ticks; i++) {
+              xGridRanks.push(Math.round(minRank + (range * (i / ticks))));
+          }
+          xGridRanks = Array.from(new Set(xGridRanks));
+      } else {
+         // Standard charts (Rank 1-100 linear) - Default fallback
+         xGridRanks = [1, 25, 50, 75, 100];
+      }
   }
   // Filter visible within range
-  xGridRanks = xGridRanks.filter(r => r <= maxRank);
+  xGridRanks = xGridRanks.filter(r => r <= maxRank && r >= minRank);
 
   return (
     <div className="bg-slate-900/70 p-4 pb-8 rounded-lg w-full border border-slate-800">
@@ -165,6 +188,7 @@ const LineChart: React.FC<LineChartProps> = ({
                                 --color-emerald-500: #10b981;
                                 --color-amber-500: #f59e0b;
                                 --color-indigo-500: #6366f1;
+                                --color-teal-500: #14b8a6;
                             }
                             `}
                         </style>
@@ -296,7 +320,10 @@ const LineChart: React.FC<LineChartProps> = ({
                         
                         {/* Tooltip Content */}
                         <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-20 border border-slate-600">
-                            <p className="font-bold text-cyan-300 text-[10px] mb-0.5">Rank {point.rank}</p>
+                            {/* If rank > 10000 and simple numeric, it's likely an ID, so label it ID if "Event ID" is used or generic */}
+                            <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
+                                {useLinearScale && point.rank && point.rank < 10000 ? `#${point.rank}` : `Rank ${point.rank}`}
+                            </p>
                             <p className="truncate font-medium text-slate-200 mb-0.5">{data[index].label.split(' ')[1] || data[index].label}</p>
                             <p className="font-bold text-center">{valueFormatter(data[index].value)}</p>
                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>

@@ -137,16 +137,18 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
     });
   }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, sortOrder, sortType]);
 
-  const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string) => {
+  const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string, rankingAnnounceAt: string) => {
       const now = new Date();
       const start = new Date(startAt);
       const agg = new Date(aggregateAt);
       const closed = new Date(closedAt);
+      const announce = new Date(rankingAnnounceAt);
 
       if (now < start) return 'future';
       if (now >= start && now <= agg) return 'active';
-      if (now > agg && now <= closed) return 'ended';
-      return 'past';
+      if (now > agg && now < announce) return 'calculating'; // New State: Calculating
+      if (now >= announce && now <= closed) return 'ended'; // Ended but shop open?
+      return 'past'; // Completely past
   };
 
   const toggleSortOrder = () => {
@@ -332,8 +334,9 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {filteredEvents.length > 0 ? (
             filteredEvents.map(event => {
-                const status = getEventStatus(event.start_at, event.aggregate_at, event.closed_at);
-                const isClickable = status === 'past' || status === 'ended';
+                const status = getEventStatus(event.start_at, event.aggregate_at, event.closed_at, event.ranking_announce_at);
+                // Updated Logic: Only clickable if the event is fully PAST (closed).
+                const isClickable = status === 'past';
                 const duration = calculateDisplayDuration(event.start_at, event.aggregate_at);
                 
                 const details = EVENT_DETAILS[event.id] || { unit: "Unknown", type: "marathon", banner: "", storyType: "unit_event", cardType: "permanent" };
@@ -367,6 +370,11 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                             {status === 'active' && (
                                 <div className="absolute top-0 right-0 bg-cyan-600 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold z-10">
                                     活動進行中
+                                </div>
+                            )}
+                            {status === 'calculating' && (
+                                <div className="absolute top-0 right-0 bg-yellow-600 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold z-10 animate-pulse">
+                                    活動結算中...
                                 </div>
                             )}
                             {status === 'ended' && (

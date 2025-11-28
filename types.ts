@@ -81,6 +81,8 @@ export interface HisekaiApiResponse {
   name: string;
   start_at: string;
   closed_at: string;
+  aggregate_at: string;
+  ranking_announce_at: string;
   top_100_player_rankings: HisekaiRankEntry[];
 }
 

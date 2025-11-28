@@ -43,7 +43,7 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
         },
         {
             id: 'analysis',
-            title: '活動榜線分析 (Rank Analysis)',
+            title: '活動榜線排名 (Rank Ranking)',
             description: '查詢歷代活動在特定排名 (如 Top 100, Top 1000) 的最高分紀錄排行。',
             icon: (
                 <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

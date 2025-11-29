@@ -16,6 +16,7 @@ import EventComparisonView from './components/EventComparisonView';
 import RankAnalysisView from './components/RankAnalysisView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
+import ResourceEstimatorView from './components/ResourceEstimatorView';
 import HomeView from './components/HomeView';
 import { getEventColor, EVENT_DETAILS, UNIT_STYLES, getAssetUrl } from './constants';
 
@@ -54,7 +55,7 @@ const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
 };
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -620,6 +621,10 @@ const App: React.FC = () => {
 
                 {currentView === 'playerAnalysis' && (
                     <PlayerAnalysisView />
+                )}
+
+                {currentView === 'resourceEstimator' && (
+                    <ResourceEstimatorView />
                 )}
             </main>
         </div>

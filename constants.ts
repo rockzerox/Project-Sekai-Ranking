@@ -345,8 +345,6 @@ export const calculateDisplayDuration = (startAt: string, aggregateAt: string): 
     const diffMs = Math.abs(agg.getTime() - start.getTime());
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
     
-    // Check if close to integer (e.g. 11.99 -> 12, but 9.25 -> 9)
-    // Threshold 0.9 allows 21.6 hours or more to round up
     if (diffDays % 1 > 0.9) {
         return Math.ceil(diffDays);
     }
@@ -357,6 +355,20 @@ export const calculatePreciseDuration = (startAt: string, aggregateAt: string): 
     const start = new Date(startAt);
     const agg = new Date(aggregateAt);
     const diffMs = Math.abs(agg.getTime() - start.getTime());
-    const totalHours = Math.round(diffMs / (1000 * 60 * 60)); // Round to nearest hour
+    const totalHours = Math.round(diffMs / (1000 * 60 * 60)); 
     return totalHours / 24;
+};
+
+export const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string, rankingAnnounceAt: string) => {
+    const now = new Date();
+    const start = new Date(startAt);
+    const agg = new Date(aggregateAt);
+    const closed = new Date(closedAt);
+    const announce = new Date(rankingAnnounceAt);
+
+    if (now < start) return 'future';
+    if (now >= start && now <= agg) return 'active';
+    if (now > agg && now < announce) return 'calculating';
+    if (now >= announce && now <= closed) return 'ended';
+    return 'past';
 };

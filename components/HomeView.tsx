@@ -3,7 +3,7 @@ import React from 'react';
 import TrophyIcon from './icons/TrophyIcon';
 
 interface HomeViewProps {
-    setCurrentView: (view: 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis') => void;
+    setCurrentView: (view: 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator') => void;
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
@@ -73,6 +73,17 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
                 </svg>
             ),
             color: 'hover:border-violet-500 hover:shadow-violet-500/10'
+        },
+        {
+            id: 'resourceEstimator',
+            title: '預估資源計算機 (Resource Estimator)',
+            description: '依據過往活動分數預估未來活動所需的大補充罐數。',
+            icon: (
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+            ),
+            color: 'hover:border-blue-500 hover:shadow-blue-500/10'
         }
     ];
 

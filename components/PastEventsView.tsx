@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration } from '../constants';
+import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../constants';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
@@ -136,20 +136,6 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         return sortOrder === 'desc' ? b.id - a.id : a.id - b.id;
     });
   }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, sortOrder, sortType]);
-
-  const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string, rankingAnnounceAt: string) => {
-      const now = new Date();
-      const start = new Date(startAt);
-      const agg = new Date(aggregateAt);
-      const closed = new Date(closedAt);
-      const announce = new Date(rankingAnnounceAt);
-
-      if (now < start) return 'future';
-      if (now >= start && now <= agg) return 'active';
-      if (now > agg && now < announce) return 'calculating'; // New State: Calculating
-      if (now >= announce && now <= closed) return 'ended'; // Ended but shop open?
-      return 'past'; // Completely past
-  };
 
   const toggleSortOrder = () => {
       setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -335,7 +321,6 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         {filteredEvents.length > 0 ? (
             filteredEvents.map(event => {
                 const status = getEventStatus(event.start_at, event.aggregate_at, event.closed_at, event.ranking_announce_at);
-                // Updated Logic: Only clickable if the event is fully PAST (closed).
                 const isClickable = status === 'past';
                 const duration = calculateDisplayDuration(event.start_at, event.aggregate_at);
                 

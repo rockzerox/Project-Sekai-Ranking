@@ -184,6 +184,9 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
           <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
             {user.display_name}
           </p>
+          
+          {/* DISABLED INTERACTIVE PROFILE LINK */}
+          {/*
           <button
             onClick={(e) => {
                 e.stopPropagation();
@@ -195,6 +198,10 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
           >
             ID: {user.id}
           </button>
+          */}
+          <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-mono text-left w-fit">
+            ID: {user.id}
+          </span>
         </div>
 
         {/* Stats Section */}
@@ -226,9 +233,9 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
             </div>
           )}
 
-          {/* Player Profile Section */}
+          {/* Player Profile Section - DISABLED/COMMENTED OUT */}
+          {/*
           <div className={`${hideStats ? '' : 'pt-3 border-t border-slate-200 dark:border-slate-700/50'}`}>
-             {/* Loading/Error State if not loaded yet */}
              {!profileData && (
                  <div className="flex items-center gap-2 text-sm py-2">
                     {isLoadingProfile ? (
@@ -247,7 +254,6 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                  </div>
              )}
 
-             {/* Profile Data Display */}
              {profileData && (
                 <div className="space-y-4 animate-fadeIn">
                      <div className="bg-white dark:bg-slate-800/40 rounded-lg p-4 border border-slate-200 dark:border-slate-700/50 shadow-sm">
@@ -264,7 +270,6 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                              </div>
                          </div>
                          
-                         {/* Power Breakdown */}
                          <div className="border-t border-slate-100 dark:border-slate-700/50 pt-3">
                              <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">綜合力來源 (Total Power Source)</h5>
                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3 gap-x-2">
@@ -309,6 +314,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                  </div>
              )}
           </div>
+          */}
         </div>
       </div>
     </div>

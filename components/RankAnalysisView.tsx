@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, calculateDisplayDuration } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
 
 interface EventStat {
     eventId: number;
@@ -74,7 +73,6 @@ const RankTable: React.FC<RankTableProps> = ({ title, headerAction, data, valueG
                                             剩 {stat.remainingDays?.toFixed(2)} 天
                                         </span>
                                     ) : (
-                                        // For past events, use calculateDisplayDuration logic (integer)
                                         <span>{Math.round(stat.duration)} 天</span>
                                     )}
                                 </div>
@@ -97,8 +95,21 @@ const RankTable: React.FC<RankTableProps> = ({ title, headerAction, data, valueG
     </div>
 );
 
+// Helper for retry logic
+const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await fetch(url);
+            if (res.ok) return res;
+        } catch (err) {
+            if (i === retries - 1) throw err;
+        }
+        await new Promise(r => setTimeout(r, delay));
+    }
+    throw new Error(`Failed to fetch ${url} after ${retries} retries`);
+};
+
 const RankAnalysisView: React.FC = () => {
-    const [eventsToProcess, setEventsToProcess] = useState<EventSummary[]>([]);
     const [processedStats, setProcessedStats] = useState<EventStat[]>([]);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
@@ -112,196 +123,180 @@ const RankAnalysisView: React.FC = () => {
     const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
     const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
 
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    // Fetch Live Event Data
-    const fetchLiveEventStats = async (): Promise<EventStat | null> => {
-        try {
-            const [resTop, resBorder] = await Promise.all([
-                fetch('https://api.hisekai.org/event/live/top100'),
-                fetch('https://api.hisekai.org/event/live/border')
-            ]);
-
-            if (!resTop.ok) return null;
-
-            const textTop = await resTop.text();
-            const sanitizedTop = textTop.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-            const topData: HisekaiApiResponse = JSON.parse(sanitizedTop);
-
-            let borderData: HisekaiBorderApiResponse | null = null;
-            if (resBorder.ok) {
-                const textBorder = await resBorder.text();
-                const sanitizedBorder = textBorder.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                borderData = JSON.parse(sanitizedBorder);
-            }
-
-            const now = new Date();
-            const start = new Date(topData.start_at);
-            const agg = new Date(topData.aggregate_at);
-            
-            // Elapsed days for daily average calculation (Current pace)
-            const diffMs = Math.max(0, now.getTime() - start.getTime());
-            const elapsedDays = diffMs / (1000 * 60 * 60 * 24);
-            
-            // Remaining days for display
-            const remainingMs = Math.max(0, agg.getTime() - now.getTime());
-            const remainingDays = remainingMs / (1000 * 60 * 60 * 24);
-
-            // Map Top 100 rankings
-            const top1 = topData.top_100_player_rankings.find(r => r.rank === 1)?.score || 0;
-            const top10 = topData.top_100_player_rankings.find(r => r.rank === 10)?.score || 0;
-            const top50 = topData.top_100_player_rankings.find(r => r.rank === 50)?.score || 0;
-            const top100 = topData.top_100_player_rankings.find(r => r.rank === 100)?.score || 0;
-
-            const borderScores: Record<number, number> = {};
-            if (borderData && borderData.border_player_rankings) {
-                borderData.border_player_rankings.forEach(item => {
-                    borderScores[item.rank] = item.score;
-                });
-            }
-
-            return {
-                eventId: topData.id,
-                eventName: topData.name,
-                duration: elapsedDays, // Use elapsed for daily avg calculation
-                remainingDays: remainingDays,
-                isLive: true,
-                top1,
-                top10,
-                top50,
-                top100,
-                borders: borderScores
-            };
-
-        } catch (e) {
-            console.error("Failed to fetch live event stats", e);
-            return null;
-        }
-    };
-
+    // Main Fetching Logic
     useEffect(() => {
-        const fetchList = async () => {
+        let alive = true;
+
+        const runAnalysis = async () => {
             try {
-                // Fetch Past Events List
-                const response = await fetch('https://api.hisekai.org/event/list');
-                const data: EventSummary[] = await response.json();
+                // 1. Fetch Event List
+                const listRes = await fetchWithRetry('https://api.hisekai.org/event/list');
+                const listData: EventSummary[] = await listRes.json();
+                
+                if (!alive) return;
+
                 const now = new Date();
+                const closedEvents = listData.filter(e => new Date(e.closed_at) < now && !WORLD_LINK_IDS.includes(e.id))
+                                             .sort((a, b) => b.id - a.id); // Descending ID order
                 
-                const closedEvents = data.filter(e => new Date(e.closed_at) < now).sort((a, b) => b.id - a.id);
-                const generalEvents = closedEvents.filter(e => !WORLD_LINK_IDS.includes(e.id));
-                
-                setEventsToProcess(generalEvents);
-                setTotalEvents(generalEvents.length);
+                setTotalEvents(closedEvents.length + 1); // +1 for live event
 
-                // Fetch Live Event and set initial state
-                const liveStat = await fetchLiveEventStats();
-                if (liveStat) {
-                    setProcessedStats([liveStat]);
-                }
-
-            } catch (e) {
-                console.error("Failed to fetch event list", e);
-                setIsAnalyzing(false);
-            }
-        };
-        fetchList();
-
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        if (eventsToProcess.length === 0 || !isAnalyzing || isPaused) return;
-
-        const processBatch = async () => {
-            const controller = new AbortController();
-            abortControllerRef.current = controller;
-
-            const BATCH_SIZE = 5;
-            const currentBatch = eventsToProcess.slice(0, BATCH_SIZE);
-            const remaining = eventsToProcess.slice(BATCH_SIZE);
-
-            const fetchPromises = currentBatch.map(async (event) => {
+                // 2. Fetch Live Event Data
                 try {
-                    const [resTop100, resBorder] = await Promise.all([
-                        fetch(`https://api.hisekai.org/event/${event.id}/top100`, { signal: controller.signal }),
-                        fetch(`https://api.hisekai.org/event/${event.id}/border`, { signal: controller.signal })
+                    const [resTop, resBorder] = await Promise.all([
+                        fetch('https://api.hisekai.org/event/live/top100'),
+                        fetch('https://api.hisekai.org/event/live/border')
                     ]);
 
-                    let top1 = 0, top10 = 0, top50 = 0, top100 = 0;
-                    if (resTop100.ok) {
-                        const text = await resTop100.text();
-                        const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        const data: PastEventApiResponse = JSON.parse(sanitized);
-                        top1 = data.rankings?.[0]?.score || 0;
-                        top10 = data.rankings?.[9]?.score || 0;
-                        top50 = data.rankings?.[49]?.score || 0;
-                        top100 = data.rankings?.[99]?.score || 0;
-                    }
+                    if (resTop.ok && alive) {
+                        const textTop = await resTop.text();
+                        const sanitizedTop = textTop.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                        const topData: HisekaiApiResponse = JSON.parse(sanitizedTop);
 
-                    const borderScores: Record<number, number> = {};
-                    if (resBorder.ok) {
-                        const text = await resBorder.text();
-                        const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        const data: PastEventBorderApiResponse = JSON.parse(sanitized);
+                        let borderData: HisekaiBorderApiResponse | null = null;
+                        if (resBorder.ok) {
+                            const textBorder = await resBorder.text();
+                            const sanitizedBorder = textBorder.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                            borderData = JSON.parse(sanitizedBorder);
+                        }
+
+                        const start = new Date(topData.start_at);
+                        const agg = new Date(topData.aggregate_at);
                         
-                        if (data.borderRankings && Array.isArray(data.borderRankings)) {
-                            data.borderRankings.forEach(item => {
+                        const diffMs = Math.max(0, now.getTime() - start.getTime());
+                        const elapsedDays = diffMs / (1000 * 60 * 60 * 24);
+                        
+                        const remainingMs = Math.max(0, agg.getTime() - now.getTime());
+                        const remainingDays = remainingMs / (1000 * 60 * 60 * 24);
+
+                        const top1 = topData.top_100_player_rankings.find(r => r.rank === 1)?.score || 0;
+                        const top10 = topData.top_100_player_rankings.find(r => r.rank === 10)?.score || 0;
+                        const top50 = topData.top_100_player_rankings.find(r => r.rank === 50)?.score || 0;
+                        const top100 = topData.top_100_player_rankings.find(r => r.rank === 100)?.score || 0;
+
+                        const borderScores: Record<number, number> = {};
+                        if (borderData && borderData.border_player_rankings) {
+                            borderData.border_player_rankings.forEach(item => {
                                 borderScores[item.rank] = item.score;
                             });
                         }
+
+                        const liveStat: EventStat = {
+                            eventId: topData.id,
+                            eventName: topData.name,
+                            duration: elapsedDays,
+                            remainingDays: remainingDays,
+                            isLive: true,
+                            top1,
+                            top10,
+                            top50,
+                            top100,
+                            borders: borderScores
+                        };
+
+                        setProcessedStats(prev => {
+                            // Ensure no duplicates if re-run (though useEffect dependency should prevent)
+                            const filtered = prev.filter(p => p.eventId !== liveStat.eventId);
+                            return [...filtered, liveStat];
+                        });
+                    }
+                } catch (liveErr) {
+                    console.warn("Failed to fetch live event", liveErr);
+                }
+
+                // 3. Loop through Past Events in Chunks
+                const chunkSize = 5;
+                for (let i = 0; i < closedEvents.length; i += chunkSize) {
+                    if (!alive) return;
+                    
+                    // Simple pause check (polling)
+                    while (isPaused && alive) {
+                        await new Promise(r => setTimeout(r, 500));
                     }
 
-                    const duration = calculatePreciseDuration(event.start_at, event.aggregate_at);
+                    const chunk = closedEvents.slice(i, i + chunkSize);
+                    
+                    const chunkPromises = chunk.map(async (event) => {
+                        try {
+                            const [resTop100, resBorder] = await Promise.all([
+                                fetchWithRetry(`https://api.hisekai.org/event/${event.id}/top100`),
+                                fetchWithRetry(`https://api.hisekai.org/event/${event.id}/border`)
+                            ]);
 
-                    return {
-                        eventId: event.id,
-                        eventName: event.name,
-                        duration,
-                        top1,
-                        top10,
-                        top50,
-                        top100,
-                        borders: borderScores
-                    };
-                } catch (err) {
-                    if ((err as Error).name !== 'AbortError') {
-                        console.warn(`Failed to fetch event ${event.id}`, err);
-                    }
-                    return null;
+                            let top1 = 0, top10 = 0, top50 = 0, top100 = 0;
+                            if (resTop100.ok) {
+                                const text = await resTop100.text();
+                                const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                                const data: PastEventApiResponse = JSON.parse(sanitized);
+                                top1 = data.rankings?.[0]?.score || 0;
+                                top10 = data.rankings?.[9]?.score || 0;
+                                top50 = data.rankings?.[49]?.score || 0;
+                                top100 = data.rankings?.[99]?.score || 0;
+                            }
+
+                            const borderScores: Record<number, number> = {};
+                            if (resBorder.ok) {
+                                const text = await resBorder.text();
+                                const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                                const data: PastEventBorderApiResponse = JSON.parse(sanitized);
+                                
+                                if (data.borderRankings && Array.isArray(data.borderRankings)) {
+                                    data.borderRankings.forEach(item => {
+                                        borderScores[item.rank] = item.score;
+                                    });
+                                }
+                            }
+
+                            const duration = calculatePreciseDuration(event.start_at, event.aggregate_at);
+
+                            return {
+                                eventId: event.id,
+                                eventName: event.name,
+                                duration,
+                                top1,
+                                top10,
+                                top50,
+                                top100,
+                                borders: borderScores
+                            } as EventStat;
+                        } catch (err) {
+                            console.warn(`Failed to fetch event ${event.id}`, err);
+                            return null;
+                        }
+                    });
+
+                    const results = await Promise.all(chunkPromises);
+                    
+                    if (!alive) return;
+
+                    const validStats = results.filter((r): r is EventStat => r !== null);
+                    
+                    setProcessedStats(prev => {
+                        const existingIds = new Set(prev.map(p => p.eventId));
+                        const uniqueNew = validStats.filter(s => !existingIds.has(s.eventId));
+                        return [...prev, ...uniqueNew];
+                    });
+
+                    setLoadingProgress(Math.round(((i + chunk.length) / closedEvents.length) * 100));
                 }
-            });
 
-            const results = await Promise.all(fetchPromises);
-            const validResults = results.filter((r): r is EventStat => r !== null);
+                if (alive) setIsAnalyzing(false);
 
-            if (!controller.signal.aborted) {
-                setProcessedStats(prev => [...prev, ...validResults]);
-                setEventsToProcess(remaining);
-                
-                setLoadingProgress(prev => {
-                    const processedCount = totalEvents - remaining.length;
-                    return Math.round((processedCount / totalEvents) * 100);
-                });
-
-                if (remaining.length === 0) {
-                    setIsAnalyzing(false);
-                }
+            } catch (e) {
+                console.error("Analysis failed", e);
+                if (alive) setIsAnalyzing(false);
             }
         };
 
-        processBatch();
+        runAnalysis();
 
-    }, [eventsToProcess, isAnalyzing, isPaused, totalEvents]);
+        return () => { alive = false; };
+    }, [isPaused]); // Depend on isPaused to allow resume logic if needed, but here implemented via polling loop inside effect
 
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
         const getMetric = (stat: EventStat, rawScore: number) => {
             if (displayMode === 'total') return rawScore;
-            // For live event, stat.duration is elapsedDays. For past, it's total duration.
-            const days = Math.max(0.1, stat.duration); // Avoid div by zero
+            const days = Math.max(0.1, stat.duration); 
             return Math.ceil(rawScore / days);
         };
 
@@ -323,20 +318,22 @@ const RankAnalysisView: React.FC = () => {
             filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.cardType === selectedCardFilter);
         }
 
+        // Deterministic Sort: Score DESC, then Event ID DESC (Newer wins ties)
+        const stableSort = (a: EventStat, b: EventStat, valA: number, valB: number) => {
+            if (valA !== valB) return valB - valA; 
+            return b.eventId - a.eventId; 
+        };
+
         const getTop10 = (key: keyof Pick<EventStat, 'top1' | 'top10' | 'top100'>) => {
             return [...filteredStats]
-                .sort((a, b) => getMetric(b, b[key]) - getMetric(a, a[key]))
+                .sort((a, b) => stableSort(a, b, getMetric(a, a[key]), getMetric(b, b[key])))
                 .slice(0, 10);
         };
 
         const getTopBorder = (rank: number) => {
              return [...filteredStats]
                 .filter(stat => (stat.borders[rank] || 0) > 0)
-                .sort((a, b) => {
-                    const valA = getMetric(a, a.borders[rank] || 0);
-                    const valB = getMetric(b, b.borders[rank] || 0);
-                    return valB - valA;
-                })
+                .sort((a, b) => stableSort(a, b, getMetric(a, a.borders[rank] || 0), getMetric(b, b.borders[rank] || 0)))
                 .slice(0, 10);
         };
 

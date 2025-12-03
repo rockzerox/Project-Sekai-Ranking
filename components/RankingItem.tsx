@@ -8,6 +8,7 @@ interface RankingItemProps {
   entry: RankEntry;
   sortOption: SortOption;
   hideStats?: boolean;
+  aggregateAt?: string;
 }
 
 const getRankStyles = (rank: number) => {
@@ -59,13 +60,28 @@ const formatLastPlayed = (dateString: string) => {
     });
 }
 
-const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption }> = ({ entry, sortOption }) => {
+const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStats: boolean, aggregateAt?: string }> = ({ entry, sortOption, hideStats, aggregateAt }) => {
     const renderStat = (value: number, label: string) => (
         <>
             <p className="text-base sm:text-lg font-bold text-cyan-600 dark:text-cyan-400">{Math.round(value).toLocaleString()}</p>
             <p className="text-[10px] sm:text-xs text-slate-500">{label}</p>
         </>
     );
+
+    // Calculate Give Up Line if in Highlights mode (hideStats=true) and Live mode (aggregateAt provided)
+    let giveUpLine: number | null = null;
+    if (hideStats && aggregateAt && sortOption === 'score') {
+        const now = Date.now();
+        const end = new Date(aggregateAt).getTime();
+        const remainingSeconds = (end - now) / 1000;
+        
+        // Only calculate if event is still active
+        if (remainingSeconds > 0) {
+            const maxGain = (remainingSeconds / 90) * 70000;
+            const threshold = entry.score - maxGain;
+            giveUpLine = Math.max(0, Math.floor(threshold));
+        }
+    }
 
     switch(sortOption) {
         case 'lastPlayedAt':
@@ -97,11 +113,28 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption }> = ({ e
         // Default
         case 'score':
         default:
-             return renderStat(entry.score, '總分');
+             return (
+                 <div className="flex flex-col items-end">
+                     <p className="text-base sm:text-lg font-bold text-cyan-600 dark:text-cyan-400">
+                         {Math.round(entry.score).toLocaleString()}
+                     </p>
+                     <div className="flex items-center gap-1">
+                         <p className="text-[10px] sm:text-xs text-slate-500">總分</p>
+                         {giveUpLine !== null && (
+                             <span 
+                                className="text-[10px] sm:text-xs font-bold text-rose-500 dark:text-rose-400" 
+                                title="死心線: 低於此分數在理論上已無法追上此排名 (假設每90秒獲取7萬分)"
+                             >
+                                 (死心: {giveUpLine.toLocaleString()})
+                             </span>
+                         )}
+                     </div>
+                 </div>
+             );
     }
 }
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false }) => {
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [profileData, setProfileData] = useState<UserProfileResponse | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -111,6 +144,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
   const styles = getRankStyles(rank);
 
   const handleFetchProfile = async () => {
+    // Disabled logic preserved
     if (profileData || isLoadingProfile) return;
     
     setIsLoadingProfile(true);
@@ -205,8 +239,8 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
         </div>
 
         {/* Stats Section */}
-        <div className="text-right flex-shrink-0 w-20 sm:w-28">
-          <StatDisplay entry={entry} sortOption={sortOption} />
+        <div className="text-right flex-shrink-0 w-auto min-w-[5rem] sm:min-w-[7rem] px-2">
+          <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} />
         </div>
 
         {/* Expand Icon */}

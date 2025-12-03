@@ -7,9 +7,10 @@ interface RankingListProps {
   rankings: RankEntry[];
   sortOption: SortOption;
   hideStats?: boolean;
+  aggregateAt?: string;
 }
 
-const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false }) => {
+const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false, aggregateAt }) => {
   if (rankings.length === 0) {
     return (
       <div className="text-center py-20">
@@ -27,6 +28,7 @@ const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideSta
             entry={entry} 
             sortOption={sortOption} 
             hideStats={hideStats}
+            aggregateAt={aggregateAt}
         />
       ))}
     </div>

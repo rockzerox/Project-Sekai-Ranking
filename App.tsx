@@ -54,6 +54,43 @@ const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
     return <span className="font-mono text-xl sm:text-2xl font-bold text-cyan-600 dark:text-cyan-400">{timeLeft}</span>;
 };
 
+const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) => {
+    const [timeLeft, setTimeLeft] = useState('00日:00時:00分:00秒');
+
+    useEffect(() => {
+        const calculateTime = () => {
+            const now = new Date().getTime();
+            const target = new Date(targetDate).getTime();
+            const distance = target - now;
+
+            if (distance <= 0) {
+                setTimeLeft('00日:00時:00分:00秒');
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            setTimeLeft(
+                `${String(days).padStart(2, '0')}日:${String(hours).padStart(2, '0')}時:${String(minutes).padStart(2, '0')}分:${String(seconds).padStart(2, '0')}秒`
+            );
+        };
+
+        calculateTime();
+        const interval = setInterval(calculateTime, 1000);
+
+        return () => clearInterval(interval);
+    }, [targetDate]);
+
+    return (
+        <span className="font-mono text-sm sm:text-base font-bold text-slate-500 dark:text-slate-400 ml-2 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600">
+            {timeLeft}
+        </span>
+    );
+};
+
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -506,6 +543,7 @@ const App: React.FC = () => {
                 rankings={paginatedRankings} 
                 sortOption={sortOption} 
                 hideStats={shouldHideStats}
+                aggregateAt={currentView === 'live' ? liveEventTiming?.aggregateAt : undefined}
             />
             </CollapsibleSection>
         </div>
@@ -569,12 +607,17 @@ const App: React.FC = () => {
                                         />
                                     )}
                                     <div>
-                                        <h2 
-                                            className="text-xl sm:text-2xl font-bold mb-1"
-                                            style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
-                                        >
-                                            {eventName}
-                                        </h2>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h2 
+                                                className="text-xl sm:text-2xl font-bold mb-1"
+                                                style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
+                                            >
+                                                {eventName}
+                                            </h2>
+                                            {liveEventTiming && (
+                                                <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />
+                                            )}
+                                        </div>
                                         <p className="text-slate-500 dark:text-slate-400 text-sm">
                                             最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
                                         </p>

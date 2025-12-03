@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
+import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, calculateDisplayDuration } from '../constants';
 
 interface EventStat {
     eventId: number;
     eventName: string;
-    duration: number;
+    duration: number; // For past: total duration. For live: elapsed duration (for daily avg calc)
+    isLive?: boolean;
+    remainingDays?: number;
     top1: number;
     top10: number;
     top50: number;
@@ -50,17 +52,31 @@ const RankTable: React.FC<RankTableProps> = ({ title, headerAction, data, valueG
                                 {idx + 1}
                             </td>
                             <td className="px-3 py-2">
-                                <div 
-                                    className="font-medium truncate" 
-                                    title={stat.eventName}
-                                    style={{ color: getEventColor(stat.eventId) || undefined }}
-                                >
-                                    {stat.eventName}
+                                <div className="flex items-center gap-2">
+                                    <div 
+                                        className="font-medium truncate" 
+                                        title={stat.eventName}
+                                        style={{ color: getEventColor(stat.eventId) || undefined }}
+                                    >
+                                        {stat.eventName}
+                                    </div>
+                                    {stat.isLive && (
+                                        <span className="bg-cyan-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
+                                            進行中
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
                                     <span>ID: {stat.eventId}</span>
                                     <span className="w-0.5 h-0.5 bg-slate-400 rounded-full"></span>
-                                    <span>{stat.duration.toFixed(2)} 天</span>
+                                    {stat.isLive ? (
+                                        <span className="text-cyan-600 dark:text-cyan-400 font-bold">
+                                            剩 {stat.remainingDays?.toFixed(2)} 天
+                                        </span>
+                                    ) : (
+                                        // For past events, use calculateDisplayDuration logic (integer)
+                                        <span>{Math.round(stat.duration)} 天</span>
+                                    )}
                                 </div>
                             </td>
                             <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
@@ -98,17 +114,90 @@ const RankAnalysisView: React.FC = () => {
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
+    // Fetch Live Event Data
+    const fetchLiveEventStats = async (): Promise<EventStat | null> => {
+        try {
+            const [resTop, resBorder] = await Promise.all([
+                fetch('https://api.hisekai.org/event/live/top100'),
+                fetch('https://api.hisekai.org/event/live/border')
+            ]);
+
+            if (!resTop.ok) return null;
+
+            const textTop = await resTop.text();
+            const sanitizedTop = textTop.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+            const topData: HisekaiApiResponse = JSON.parse(sanitizedTop);
+
+            let borderData: HisekaiBorderApiResponse | null = null;
+            if (resBorder.ok) {
+                const textBorder = await resBorder.text();
+                const sanitizedBorder = textBorder.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                borderData = JSON.parse(sanitizedBorder);
+            }
+
+            const now = new Date();
+            const start = new Date(topData.start_at);
+            const agg = new Date(topData.aggregate_at);
+            
+            // Elapsed days for daily average calculation (Current pace)
+            const diffMs = Math.max(0, now.getTime() - start.getTime());
+            const elapsedDays = diffMs / (1000 * 60 * 60 * 24);
+            
+            // Remaining days for display
+            const remainingMs = Math.max(0, agg.getTime() - now.getTime());
+            const remainingDays = remainingMs / (1000 * 60 * 60 * 24);
+
+            // Map Top 100 rankings
+            const top1 = topData.top_100_player_rankings.find(r => r.rank === 1)?.score || 0;
+            const top10 = topData.top_100_player_rankings.find(r => r.rank === 10)?.score || 0;
+            const top50 = topData.top_100_player_rankings.find(r => r.rank === 50)?.score || 0;
+            const top100 = topData.top_100_player_rankings.find(r => r.rank === 100)?.score || 0;
+
+            const borderScores: Record<number, number> = {};
+            if (borderData && borderData.border_player_rankings) {
+                borderData.border_player_rankings.forEach(item => {
+                    borderScores[item.rank] = item.score;
+                });
+            }
+
+            return {
+                eventId: topData.id,
+                eventName: topData.name,
+                duration: elapsedDays, // Use elapsed for daily avg calculation
+                remainingDays: remainingDays,
+                isLive: true,
+                top1,
+                top10,
+                top50,
+                top100,
+                borders: borderScores
+            };
+
+        } catch (e) {
+            console.error("Failed to fetch live event stats", e);
+            return null;
+        }
+    };
+
     useEffect(() => {
         const fetchList = async () => {
             try {
+                // Fetch Past Events List
                 const response = await fetch('https://api.hisekai.org/event/list');
                 const data: EventSummary[] = await response.json();
                 const now = new Date();
                 
                 const closedEvents = data.filter(e => new Date(e.closed_at) < now).sort((a, b) => b.id - a.id);
                 const generalEvents = closedEvents.filter(e => !WORLD_LINK_IDS.includes(e.id));
+                
                 setEventsToProcess(generalEvents);
                 setTotalEvents(generalEvents.length);
+
+                // Fetch Live Event and set initial state
+                const liveStat = await fetchLiveEventStats();
+                if (liveStat) {
+                    setProcessedStats([liveStat]);
+                }
 
             } catch (e) {
                 console.error("Failed to fetch event list", e);
@@ -147,10 +236,10 @@ const RankAnalysisView: React.FC = () => {
                         const text = await resTop100.text();
                         const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
                         const data: PastEventApiResponse = JSON.parse(sanitized);
-                        top1 = data.rankings[0]?.score || 0;
-                        top10 = data.rankings[9]?.score || 0;
-                        top50 = data.rankings[49]?.score || 0;
-                        top100 = data.rankings[99]?.score || 0;
+                        top1 = data.rankings?.[0]?.score || 0;
+                        top10 = data.rankings?.[9]?.score || 0;
+                        top50 = data.rankings?.[49]?.score || 0;
+                        top100 = data.rankings?.[99]?.score || 0;
                     }
 
                     const borderScores: Record<number, number> = {};
@@ -211,7 +300,8 @@ const RankAnalysisView: React.FC = () => {
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
         const getMetric = (stat: EventStat, rawScore: number) => {
             if (displayMode === 'total') return rawScore;
-            const days = Math.max(1, stat.duration);
+            // For live event, stat.duration is elapsedDays. For past, it's total duration.
+            const days = Math.max(0.1, stat.duration); // Avoid div by zero
             return Math.ceil(rawScore / days);
         };
 
@@ -260,7 +350,7 @@ const RankAnalysisView: React.FC = () => {
 
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;
-        const days = Math.max(1, stat.duration);
+        const days = Math.max(0.1, stat.duration);
         return Math.ceil(rawScore / days);
     };
 
@@ -270,7 +360,7 @@ const RankAnalysisView: React.FC = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
                     <div>
                         <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活動榜線排名 (Rank Ranking)</h2>
-                        <p className="text-slate-500 dark:text-slate-400">分析過往活動中各個排名的最高分紀錄</p>
+                        <p className="text-slate-500 dark:text-slate-400">分析歷代及現時活動中各個排名的最高分紀錄</p>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">

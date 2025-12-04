@@ -3,7 +3,7 @@ import React from 'react';
 import TrophyIcon from './icons/TrophyIcon';
 
 interface HomeViewProps {
-    setCurrentView: (view: 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator') => void;
+    setCurrentView: (view: 'live' | 'past' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator') => void;
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
@@ -51,6 +51,17 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
                 </svg>
             ),
             color: 'hover:border-amber-500 hover:shadow-amber-500/10'
+        },
+        {
+            id: 'trend',
+            title: '活動榜線趨勢 (Rank Trend)',
+            description: '以折線圖觀察歷代活動特定排名分數隨期數變化的趨勢。',
+            icon: (
+                <svg className="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            ),
+            color: 'hover:border-teal-500 hover:shadow-teal-500/10'
         },
         {
             id: 'worldLink',

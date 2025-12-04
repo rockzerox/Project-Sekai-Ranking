@@ -14,6 +14,7 @@ import Sidebar from './components/Sidebar';
 import PastEventsView from './components/PastEventsView';
 import EventComparisonView from './components/EventComparisonView';
 import RankAnalysisView from './components/RankAnalysisView';
+import RankTrendView from './components/RankTrendView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
 import ResourceEstimatorView from './components/ResourceEstimatorView';
@@ -92,7 +93,7 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
 };
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -656,6 +657,10 @@ const App: React.FC = () => {
                 
                 {currentView === 'analysis' && (
                     <RankAnalysisView />
+                )}
+
+                {currentView === 'trend' && (
+                    <RankTrendView />
                 )}
 
                 {currentView === 'worldLink' && (

@@ -1,10 +1,12 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 
 interface ChartData {
   label: string;
   value: number;
   rank?: number;
+  isHighlighted?: boolean;
+  pointColor?: string;
+  year?: number;
 }
 
 interface LineChartProps {
@@ -26,7 +28,6 @@ const LineChart: React.FC<LineChartProps> = ({
   yAxisLabel = 'Value',
   useLinearScale = false,
 }) => {
-  // Use default formatter for axis if specific one not provided
   const axisFormatter = yAxisFormatter || valueFormatter;
   const [isMobile, setIsMobile] = useState(false);
 
@@ -41,43 +42,43 @@ const LineChart: React.FC<LineChartProps> = ({
     return <p className="text-slate-400 text-center py-10">Not enough data to draw a line chart.</p>;
   }
 
-  // 1. Sort data by rank (or index if rank missing)
+  // 1. Sort data
   const sortedData = useMemo(() => {
       return [...data].sort((a, b) => (a.rank || 0) - (b.rank || 0));
   }, [data]);
 
+  // Determine filtering status
+  const hasFiltering = useMemo(() => sortedData.some(d => d.isHighlighted === false), [sortedData]);
+
   // 2. Determine Range
   const maxScore = Math.max(...sortedData.map(d => d.value));
   const minScore = Math.min(...sortedData.map(d => d.value));
-  // Add padding to Y axis (10% top, 5% bottom)
+  
   const yDomainMin = Math.max(0, minScore - (maxScore - minScore) * 0.05);
   const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
   const yRange = yDomainMax - yDomainMin || 1;
 
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
-  // If maxRank > 100, we enable the hybrid split scale logic, unless forced linear
   const hasHighlights = !useLinearScale && maxRank > 100;
 
   // 3. Hybrid Scale Logic
-  // Split Ratio: Percentage of width dedicated to Top 100
-  // Adjusted to 75% per user request to emphasize Top 100
   const splitRatio = 75; 
 
   const getXPercent = (rank: number) => {
       if (!hasHighlights) {
-          // Simple Linear 0-100 for standard charts (or arbitrary linear if useLinearScale)
+          // Linear
           const minR = minRank;
-          // Avoid division by zero if only one point (though guarded above)
-          if (maxRank === minR) return 50;
-          return ((rank - minR) / (maxRank - minR)) * 100;
+          const range = maxRank - minR;
+          if (range === 0) return 50;
+          return ((rank - minR) / range) * 100;
       }
 
       if (rank <= 100) {
-          // Linear part (1-100 maps to 0-75%)
+          // Linear part
           return ((rank - 1) / 99) * splitRatio;
       } else {
-          // Logarithmic part (100-Max maps to 75-100%)
+          // Logarithmic part
           const logMin = Math.log(100);
           const logMax = Math.log(maxRank);
           const logVal = Math.log(rank);
@@ -102,10 +103,8 @@ const LineChart: React.FC<LineChartProps> = ({
   let dashedPathD = '';
 
   if (!hasHighlights) {
-      // Single solid line for linear mode
       solidPathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   } else {
-      // Split solid/dashed for hybrid mode
       const solidPoints = points.filter(p => (p.rank || 0) <= 100);
       const dashedPoints = points.filter(p => (p.rank || 0) >= 100);
       
@@ -119,7 +118,6 @@ const LineChart: React.FC<LineChartProps> = ({
   }
 
   // 6. Generate Grid Lines
-  // Y-Axis Grid (5 horizontal lines)
   const yGridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
       const val = yDomainMin + (yRange * ratio);
       const y = 100 - (ratio * 100);
@@ -128,11 +126,12 @@ const LineChart: React.FC<LineChartProps> = ({
 
   // X-Axis Grid
   let xGridRanks: number[] = [];
+  let yearTicks: { x: number, year: number }[] = [];
   
   if (hasHighlights) {
-      // Linear Section: 1, 10, 20... 100
+      // Linear Section
       const linearSteps = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-      // Log Section: major steps
+      // Log Section
       let logSteps = [200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
       
       if (isMobile) {
@@ -143,30 +142,34 @@ const LineChart: React.FC<LineChartProps> = ({
       xGridRanks = [...linearSteps, ...logSteps];
   } else {
       if (useLinearScale) {
-          // Dynamic uniform ticks
-          const range = maxRank - minRank;
-          const ticks = isMobile ? 4 : 8;
-          for (let i = 0; i <= ticks; i++) {
-              xGridRanks.push(Math.round(minRank + (range * (i / ticks))));
+          // Trend Mode: Modulo 9 logic
+          for (let i = minRank; i <= maxRank; i++) {
+              if (i % 9 === 0) xGridRanks.push(i);
           }
-          xGridRanks = Array.from(new Set(xGridRanks));
+          
+          // Year Ticks Logic
+          let lastYear = -1;
+          sortedData.forEach(d => {
+              if (d.year && d.year !== lastYear) {
+                  yearTicks.push({ x: getXPercent(d.rank || 0), year: d.year });
+                  lastYear = d.year;
+              }
+          });
+
       } else {
-         // Standard charts (Rank 1-100 linear) - Default fallback
          xGridRanks = [1, 25, 50, 75, 100];
       }
   }
-  // Filter visible within range
   xGridRanks = xGridRanks.filter(r => r <= maxRank && r >= minRank);
+  xGridRanks = Array.from(new Set(xGridRanks)).sort((a, b) => a - b);
 
   return (
-    <div className="bg-slate-900/70 p-4 pb-8 rounded-lg w-full border border-slate-800">
-      <div className="h-64 w-full relative">
-            {/* Y-Axis Label Title */}
+    <div className="bg-slate-900/70 p-4 pb-12 rounded-lg w-full border border-slate-800">
+      <div className="h-64 md:h-[500px] w-full relative">
             <div className="absolute -top-3 left-12 text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
                 {yAxisLabel}
             </div>
 
-            {/* Y-Axis Labels (Absolute positioning for layout) */}
             <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-[10px] text-slate-500 font-mono py-2 pointer-events-none">
                  {yGridLines.slice().reverse().map((grid, i) => (
                      <span key={i} className="truncate text-right pr-2 -mt-2">{grid.label}</span>
@@ -184,18 +187,12 @@ const LineChart: React.FC<LineChartProps> = ({
                             {`
                             :root {
                                 --color-cyan-500: #06b6d4;
-                                --color-sky-500: #0ea5e9;
-                                --color-emerald-500: #10b981;
-                                --color-amber-500: #f59e0b;
-                                --color-indigo-500: #6366f1;
-                                --color-teal-500: #14b8a6;
                             }
                             `}
                         </style>
                     </defs>
 
-                    {/* Grid Lines */}
-                    {/* Horizontal Y */}
+                    {/* Y Grid Lines */}
                     {yGridLines.map((grid, i) => (
                         <line 
                             key={`h-${i}`} 
@@ -206,7 +203,7 @@ const LineChart: React.FC<LineChartProps> = ({
                         />
                     ))}
 
-                    {/* Vertical X */}
+                    {/* X Grid Lines */}
                     {xGridRanks.map((rank, i) => {
                         const x = getXPercent(rank);
                         return (
@@ -216,13 +213,13 @@ const LineChart: React.FC<LineChartProps> = ({
                                     stroke="#334155" 
                                     strokeWidth="0.5" 
                                     vectorEffect="non-scaling-stroke"
-                                    strokeDasharray={rank === 100 && hasHighlights ? "4 4" : "none"} // Highlight split
+                                    strokeDasharray={rank === 100 && hasHighlights ? "4 4" : "none"} 
                                 />
                              </g>
                         );
                     })}
 
-                    {/* Broken Axis Indicator at Rank 100 */}
+                    {/* Broken Axis Indicator */}
                     {hasHighlights && (
                         <line 
                             x1={splitRatio} y1="0" x2={splitRatio} y2="100" 
@@ -234,13 +231,14 @@ const LineChart: React.FC<LineChartProps> = ({
                         />
                     )}
                     
-                    {/* Paths */}
+                    {/* Paths - Dimmed if filtering */}
                     <path 
                         d={solidPathD} 
                         fill="none" 
-                        stroke={`var(--color-${lineColor}-500, #06b6d4)`} 
+                        stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} 
                         strokeWidth="2" 
                         vectorEffect="non-scaling-stroke"
+                        strokeOpacity={hasFiltering ? 0.4 : 1}
                         className="drop-shadow-sm"
                     />
                     
@@ -248,27 +246,49 @@ const LineChart: React.FC<LineChartProps> = ({
                         <path 
                             d={dashedPathD} 
                             fill="none" 
-                            stroke={`var(--color-${lineColor}-500, #06b6d4)`} 
+                            stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} 
                             strokeWidth="2" 
                             strokeDasharray="3 3"
                             vectorEffect="non-scaling-stroke"
                             className="opacity-80"
                         />
                     )}
-
-                    {/* Hit Areas for Tooltips (Invisible) */}
-                    {points.map((point, index) => (
-                         <circle 
-                            key={`hit-${index}`}
-                            cx={point.x} 
-                            cy={point.y} 
-                            r="6"
-                            fill="transparent"
-                            stroke="none"
-                            className="cursor-pointer"
-                        />
-                    ))}
                 </svg>
+
+                {/* SCATTER POINTS LAYER (DOM Elements for perfect circles) */}
+                {/* Only for highlighted items if filtering is active */}
+                {hasFiltering && points.map((point, index) => {
+                    if (!point.isHighlighted) return null;
+                    return (
+                        <div 
+                            key={`dot-${index}`}
+                            className="absolute w-1.5 h-1.5 rounded-full -ml-[3px] -mt-[3px] shadow-sm pointer-events-none z-10"
+                            style={{ 
+                                left: `${point.x}%`, 
+                                top: `${point.y}%`,
+                                backgroundColor: point.pointColor || "#06b6d4"
+                            }}
+                        />
+                    );
+                })}
+
+                {/* HIT AREAS LAYER */}
+                {points.map((point, index) => (
+                     <div 
+                        key={`hit-${index}`}
+                        className="absolute w-3 h-3 -ml-[6px] -mt-[6px] rounded-full cursor-pointer z-20 hover:bg-white/10 group"
+                        style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                     >
+                        <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-30 border border-slate-600">
+                            <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
+                                {useLinearScale ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
+                            </p>
+                            <p className="truncate font-medium text-slate-200 mb-0.5">{data[index].label}</p>
+                            <p className="font-bold text-center">{valueFormatter(data[index].value)}</p>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>
+                        </div>
+                     </div>
+                ))}
             </div>
 
              {/* X-Axis Labels */}
@@ -276,15 +296,11 @@ const LineChart: React.FC<LineChartProps> = ({
                  {xGridRanks.map((rank, i) => {
                      const x = getXPercent(rank);
                      
-                     // Smart label filtering to prevent overlap
                      if (hasHighlights) {
-                        // For Top 100 Linear section
                         if (rank > 1 && rank < 100) {
                             if (isMobile) {
-                                // Mobile: Only show 1, 50, 100 in linear part
                                 if (rank !== 50) return null;
                             } else {
-                                // Desktop: Show 20, 40, 60, 80
                                 if (rank % 20 !== 0) return null; 
                             }
                         }
@@ -300,38 +316,30 @@ const LineChart: React.FC<LineChartProps> = ({
                         </div>
                      );
                  })}
-            </div>
-
-            {/* X-Axis Label Title */}
-             <div className="absolute bottom-0 right-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider transform translate-y-full mt-1">
-                {xAxisLabel}
-            </div>
-
-            {/* Tooltip Overlay */}
-            <div className="absolute left-12 right-4 top-0 bottom-6 pointer-events-none">
-                 {points.map((point, index) => (
+                 
+                 {/* Year Labels (Secondary Axis) */}
+                 {useLinearScale && yearTicks.map((tick, i) => (
                      <div 
-                        key={`tooltip-${index}`}
-                        className="absolute w-2 h-2 -ml-1 -mt-1 rounded-full pointer-events-auto group"
-                        style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                        key={`year-${i}`}
+                        className="absolute top-5 transform -translate-x-1/2 text-[10px] text-slate-400 font-bold border-l border-slate-700 pl-1"
+                        style={{ left: `${tick.x}%` }}
                      >
-                        {/* Invisible larger hit area for tooltip triggering */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-transparent"></div>
-                        
-                        {/* Tooltip Content */}
-                        <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-20 border border-slate-600">
-                            {/* If rank > 10000 and simple numeric, it's likely an ID, so label it ID if "Event ID" is used or generic */}
-                            <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
-                                {useLinearScale && point.rank && point.rank < 10000 ? `#${point.rank}` : `Rank ${point.rank}`}
-                            </p>
-                            <p className="truncate font-medium text-slate-200 mb-0.5">{data[index].label.split(' ')[1] || data[index].label}</p>
-                            <p className="font-bold text-center">{valueFormatter(data[index].value)}</p>
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>
-                        </div>
+                         {tick.year}
                      </div>
                  ))}
             </div>
+
+             <div className="absolute bottom-0 right-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider transform translate-y-full mt-1">
+                {xAxisLabel}
+            </div>
       </div>
+      
+      {/* Mobile Landscape Prompt */}
+      {isMobile && (
+          <div className="mt-4 p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs text-center rounded border border-amber-200 dark:border-amber-800">
+              建議橫向觀看以獲得最佳體驗 (Landscape mode recommended)
+          </div>
+      )}
     </div>
   );
 };

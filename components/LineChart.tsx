@@ -17,6 +17,8 @@ interface LineChartProps {
   xAxisLabel?: string;
   yAxisLabel?: string;
   useLinearScale?: boolean;
+  meanValue?: number;
+  medianValue?: number;
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -27,6 +29,8 @@ const LineChart: React.FC<LineChartProps> = ({
   xAxisLabel = 'Rank',
   yAxisLabel = 'Value',
   useLinearScale = false,
+  meanValue,
+  medianValue
 }) => {
   const axisFormatter = yAxisFormatter || valueFormatter;
   const [isMobile, setIsMobile] = useState(false);
@@ -253,6 +257,33 @@ const LineChart: React.FC<LineChartProps> = ({
                             className="opacity-80"
                         />
                     )}
+
+                    {/* Mean Line */}
+                    {meanValue !== undefined && (
+                        <g>
+                            <line 
+                                x1="0" y1={getYPercent(meanValue)} x2="100" y2={getYPercent(meanValue)} 
+                                stroke="#a855f7" 
+                                strokeWidth="1.5" 
+                                strokeDasharray="5 3"
+                                vectorEffect="non-scaling-stroke"
+                            />
+                        </g>
+                    )}
+
+                    {/* Median Line */}
+                    {medianValue !== undefined && (
+                        <g>
+                            <line 
+                                x1="0" y1={getYPercent(medianValue)} x2="100" y2={getYPercent(medianValue)} 
+                                stroke="#f59e0b" 
+                                strokeWidth="1.5" 
+                                strokeDasharray="3 2"
+                                vectorEffect="non-scaling-stroke"
+                            />
+                        </g>
+                    )}
+
                 </svg>
 
                 {/* SCATTER POINTS LAYER (DOM Elements for perfect circles) */}

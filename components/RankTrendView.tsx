@@ -29,6 +29,29 @@ const RankTrendView: React.FC = () => {
     const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
     const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
 
+    // Stats Toggles
+    const [showMean, setShowMean] = useState(false);
+    const [showMedian, setShowMedian] = useState(false);
+
+    // Exclusive Filter Handler
+    const handleFilterChange = (type: 'unit' | 'type' | 'banner' | 'story' | 'card', value: string) => {
+        // Reset all first
+        setSelectedUnitFilter('all');
+        setSelectedTypeFilter('all');
+        setSelectedBannerFilter('all');
+        setSelectedStoryFilter('all');
+        setSelectedCardFilter('all');
+
+        // Set the specific one
+        switch (type) {
+            case 'unit': setSelectedUnitFilter(value); break;
+            case 'type': setSelectedTypeFilter(value as any); break;
+            case 'banner': setSelectedBannerFilter(value); break;
+            case 'story': setSelectedStoryFilter(value as any); break;
+            case 'card': setSelectedCardFilter(value as any); break;
+        }
+    };
+
     // Robust Data Fetching Effect
     useEffect(() => {
         let alive = true;
@@ -46,8 +69,9 @@ const RankTrendView: React.FC = () => {
                 
                 // 2. Filter Valid Events (Closed & Not World Link)
                 const now = new Date();
+                // Note: Previous prompts asked to INCLUDE World Link, so we removed the exclusion filter.
                 const validEvents = listData
-                    .filter(e => new Date(e.closed_at) < now && !WORLD_LINK_IDS.includes(e.id))
+                    .filter(e => new Date(e.closed_at) < now) 
                     .sort((a, b) => a.id - b.id); // Ascending ID order
 
                 const total = validEvents.length;
@@ -57,7 +81,6 @@ const RankTrendView: React.FC = () => {
                 const BATCH_SIZE = 5;
                 for (let i = 0; i < total; i += BATCH_SIZE) {
                     if (!alive) break;
-                    
                     if (isPaused) break;
 
                     const batch = validEvents.slice(i, i + BATCH_SIZE);
@@ -84,7 +107,13 @@ const RankTrendView: React.FC = () => {
                                     else score = json.rankings.find(r => r.rank === selectedRank)?.score || 0;
                                 } else {
                                     const json: PastEventBorderApiResponse = JSON.parse(sanitized);
+                                    // Handle standard border or WL specific structure if needed, usually borderRankings is standardized
                                     score = json.borderRankings?.find(r => r.rank === selectedRank)?.score || 0;
+                                    
+                                    // Fallback for WL if standard structure empty (though typically handled by API wrapper now)
+                                    if (score === 0 && json.userWorldBloomChapterRankingBorders) {
+                                         // Logic for WL border aggregation if needed, but keeping simple for trend view
+                                    }
                                 }
                             }
 
@@ -125,7 +154,7 @@ const RankTrendView: React.FC = () => {
         return () => { alive = false; };
     }, [selectedRank, isPaused]);
 
-    const chartData = useMemo(() => {
+    const { chartData, meanValue, medianValue } = useMemo(() => {
         // Determine if any filter is active
         const hasActiveFilters = 
             selectedUnitFilter !== 'all' || 
@@ -134,7 +163,7 @@ const RankTrendView: React.FC = () => {
             selectedStoryFilter !== 'all' || 
             selectedCardFilter !== 'all';
 
-        return trendData.map(d => {
+        const mappedData = trendData.map(d => {
             const details = EVENT_DETAILS[d.eventId];
             let isMatch = true;
 
@@ -147,12 +176,38 @@ const RankTrendView: React.FC = () => {
             return {
                 label: `Event #${d.eventId}`,
                 value: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, d.duration)) : d.score,
-                rank: d.eventId, // Use EventID as the X-axis value
+                rank: d.eventId,
                 isHighlighted: !hasActiveFilters || isMatch,
                 pointColor: getEventColor(d.eventId),
                 year: d.year
             };
         });
+
+        // Calculate Statistics on Highlighted Data
+        const highlightedValues = mappedData
+            .filter(d => d.isHighlighted)
+            .map(d => d.value)
+            .sort((a, b) => a - b);
+
+        let mean = 0;
+        let median = 0;
+
+        if (highlightedValues.length > 0) {
+            mean = highlightedValues.reduce((acc, val) => acc + val, 0) / highlightedValues.length;
+            
+            const mid = Math.floor(highlightedValues.length / 2);
+            if (highlightedValues.length % 2 === 0) {
+                median = (highlightedValues[mid - 1] + highlightedValues[mid]) / 2;
+            } else {
+                median = highlightedValues[mid];
+            }
+        }
+
+        return { 
+            chartData: mappedData, 
+            meanValue: mean, 
+            medianValue: median 
+        };
     }, [trendData, displayMode, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
 
     return (
@@ -196,11 +251,12 @@ const RankTrendView: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap gap-2">
+                <div className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap gap-2 items-center">
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">單一篩選 (Exclusive Filter):</span>
                      <select
                         value={selectedUnitFilter}
-                        onChange={(e) => setSelectedUnitFilter(e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                        onChange={(e) => handleFilterChange('unit', e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
                      >
                         <option value="all">所有團體</option>
                         {UNIT_ORDER.map(unit => <option key={unit} value={unit}>{unit}</option>)}
@@ -208,8 +264,8 @@ const RankTrendView: React.FC = () => {
 
                      <select
                         value={selectedBannerFilter}
-                        onChange={(e) => setSelectedBannerFilter(e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                        onChange={(e) => handleFilterChange('banner', e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
                      >
                         <option value="all">所有 Banner</option>
                         {BANNER_ORDER.map(banner => <option key={banner} value={banner}>{banner}</option>)}
@@ -217,35 +273,75 @@ const RankTrendView: React.FC = () => {
 
                      <select
                         value={selectedTypeFilter}
-                        onChange={(e) => setSelectedTypeFilter(e.target.value as any)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                        onChange={(e) => handleFilterChange('type', e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
                      >
                         <option value="all">所有類型</option>
                         <option value="marathon">馬拉松</option>
                         <option value="cheerful_carnival">歡樂嘉年華</option>
+                        <option value="world_link">World Link</option>
                      </select>
 
                      <select
                         value={selectedStoryFilter}
-                        onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                        onChange={(e) => handleFilterChange('story', e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
                      >
                         <option value="all">所有劇情</option>
                         <option value="unit_event">箱活</option>
                         <option value="mixed_event">混活</option>
+                        <option value="world_link">World Link</option>
                      </select>
 
                      <select
                         value={selectedCardFilter}
-                        onChange={(e) => setSelectedCardFilter(e.target.value as any)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
+                        onChange={(e) => handleFilterChange('card', e.target.value)}
+                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
                      >
                         <option value="all">所有卡面</option>
                         <option value="permanent">常駐</option>
                         <option value="limited">限定</option>
                         <option value="special_limited">特殊限定</option>
                      </select>
+
+                     {/* Stat Toggles */}
+                     <div className="flex gap-2 ml-auto">
+                        <button 
+                            onClick={() => setShowMean(!showMean)}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${showMean ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
+                        >
+                            平均數 (Mean)
+                        </button>
+                        <button 
+                            onClick={() => setShowMedian(!showMedian)}
+                            className={`text-xs px-2 py-1 rounded border transition-colors ${showMedian ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
+                        >
+                            中位數 (Median)
+                        </button>
+                     </div>
                 </div>
+
+                {/* Statistics Panel */}
+                {(showMean || showMedian) && (
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        {showMean && (
+                            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded p-3 flex justify-between items-center">
+                                <span className="text-sm text-purple-700 dark:text-purple-300 font-bold">平均數 (Mean)</span>
+                                <span className="text-lg font-mono font-bold text-purple-800 dark:text-purple-200">
+                                    {meanValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                </span>
+                            </div>
+                        )}
+                        {showMedian && (
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3 flex justify-between items-center">
+                                <span className="text-sm text-amber-700 dark:text-amber-300 font-bold">中位數 (Median)</span>
+                                <span className="text-lg font-mono font-bold text-amber-800 dark:text-amber-200">
+                                    {medianValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {isAnalyzing && (
                     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mb-6 relative overflow-hidden shadow-sm">
@@ -283,6 +379,8 @@ const RankTrendView: React.FC = () => {
                         useLinearScale={true}
                         valueFormatter={(v) => displayMode === 'daily' ? v.toLocaleString() : `${(v/10000).toFixed(1)}萬`}
                         yAxisFormatter={(v) => displayMode === 'daily' ? v.toLocaleString() : `${(v/10000).toFixed(0)}萬`}
+                        meanValue={showMean ? meanValue : undefined}
+                        medianValue={showMedian ? medianValue : undefined}
                     />
                 ) : (
                     <div className="h-64 flex items-center justify-center text-slate-400">

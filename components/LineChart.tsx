@@ -21,10 +21,10 @@ interface LineChartProps {
   yAxisLabel?: string;
   meanValue?: number;
   medianValue?: number;
-  safeThreshold?: number; // Green line/zone
-  safeRankCutoff?: number; 
-  giveUpThreshold?: number; // Red line/zone
-  giveUpRankCutoff?: number;
+  safeThreshold?: number; // Green line/zone (Lower bound of safety)
+  safeRankCutoff?: number; // X-axis limit for safe zone
+  giveUpThreshold?: number; // Red line/zone (Upper bound of hopelessness)
+  giveUpRankCutoff?: number; // X-axis start for give up zone
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -75,10 +75,10 @@ const LineChart: React.FC<LineChartProps> = ({
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
   
-  // Variant Flags
+  // Variant Logic
   const isTrend = variant === 'trend';
+  const isLive = variant === 'live';
   const isHighlights = variant === 'highlights';
-  // If not Trend or Highlights, default to standard Linear (Live Top 100 / Past Top 100)
 
   // Chart Height
   const containerHeightClass = isTrend ? "h-64 md:h-[500px]" : "h-48 md:h-64"; 
@@ -93,9 +93,10 @@ const LineChart: React.FC<LineChartProps> = ({
       }
 
       if (isHighlights) {
-          // Highlights: Split-Linear (100-1000, 1000-10000)
+          // Split-Linear for Live Highlights (Linear 100-1000, Linear 1000-10000)
           // Range A: 100-1000 -> 0-50%
           // Range B: 1000-10000 -> 50-100%
+          
           if (rank <= 1000) {
               const rMin = 100; 
               const rMax = 1000;
@@ -104,7 +105,7 @@ const LineChart: React.FC<LineChartProps> = ({
               return ratio * 50;
           } else {
               const rMin = 1000;
-              const rMax = 10000; // Hard cap visual at 10000
+              const rMax = 10000; // Cap at 10000 as requested
               let ratio = (rank - rMin) / (rMax - rMin);
               ratio = Math.max(0, Math.min(1, ratio));
               return 50 + (ratio * 50);
@@ -200,26 +201,26 @@ const LineChart: React.FC<LineChartProps> = ({
                         </pattern>
                     </defs>
 
-                    {/* Safe Zone Shading */}
+                    {/* Safe Zone Shading (Rank 1 to SafeCutoff) */}
                     {safeThreshold !== undefined && safeRankCutoff !== undefined && (
                         <rect
                             x="0"
                             y="0"
                             width={getXPercent(safeRankCutoff)}
                             height={100}
-                            fill="url(#safeZonePattern)"
+                            fill="rgba(16, 185, 129, 0.2)"
                             className="transition-all duration-500"
                         />
                     )}
 
-                    {/* Give Up Zone Shading */}
+                    {/* Give Up Zone Shading (Rank GiveUpCutoff to Max) */}
                     {giveUpThreshold !== undefined && giveUpRankCutoff !== undefined && (
                         <rect
                             x={getXPercent(giveUpRankCutoff)}
                             y="0"
                             width={100 - getXPercent(giveUpRankCutoff)}
                             height={100}
-                            fill="url(#giveUpZonePattern)"
+                            fill="rgba(244, 63, 94, 0.2)"
                             className="transition-all duration-500"
                         />
                     )}
@@ -312,7 +313,9 @@ const LineChart: React.FC<LineChartProps> = ({
                                 strokeDasharray="4 2" 
                                 strokeOpacity="0.7"
                                 vectorEffect="non-scaling-stroke"
-                            />
+                            >
+                                <title>Safety Line: Score &gt; {safeThreshold.toLocaleString()}</title>
+                            </line>
                         </g>
                     )}
 
@@ -326,7 +329,9 @@ const LineChart: React.FC<LineChartProps> = ({
                                 strokeDasharray="4 2" 
                                 strokeOpacity="0.7"
                                 vectorEffect="non-scaling-stroke"
-                            />
+                            >
+                                <title>Give Up Line: Score &lt; {giveUpThreshold.toLocaleString()}</title>
+                            </line>
                         </g>
                     )}
 

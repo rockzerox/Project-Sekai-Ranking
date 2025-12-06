@@ -19,6 +19,8 @@ interface LineChartProps {
   useLinearScale?: boolean;
   meanValue?: number;
   medianValue?: number;
+  safeThreshold?: number;
+  safeRankCutoff?: number;
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -30,7 +32,9 @@ const LineChart: React.FC<LineChartProps> = ({
   yAxisLabel = 'Value',
   useLinearScale = false,
   meanValue,
-  medianValue
+  medianValue,
+  safeThreshold,
+  safeRankCutoff
 }) => {
   const axisFormatter = yAxisFormatter || valueFormatter;
   const [isMobile, setIsMobile] = useState(false);
@@ -64,30 +68,28 @@ const LineChart: React.FC<LineChartProps> = ({
 
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
-  const hasHighlights = !useLinearScale && maxRank > 100;
-
-  // 3. Hybrid Scale Logic
-  const splitRatio = 75; 
+  
+  // LOGIC CHANGE: No more hybrid scale within a single chart.
+  // If useLinearScale is TRUE, or if maxRank is small (<= 100), use Linear.
+  // If maxRank > 100, use Logarithmic (for Highlights).
+  const isLinearX = useLinearScale || maxRank <= 100;
 
   const getXPercent = (rank: number) => {
-      if (!hasHighlights) {
+      if (isLinearX) {
           // Linear
-          const minR = minRank;
-          const range = maxRank - minR;
+          const range = maxRank - minRank;
           if (range === 0) return 50;
-          return ((rank - minR) / range) * 100;
-      }
-
-      if (rank <= 100) {
-          // Linear part
-          return ((rank - 1) / 99) * splitRatio;
+          return ((rank - minRank) / range) * 100;
       } else {
-          // Logarithmic part
-          const logMin = Math.log(100);
+          // Logarithmic
+          // Ensure minRank is at least 1 to avoid log(0)
+          const safeMin = Math.max(1, minRank);
+          const logMin = Math.log(safeMin);
           const logMax = Math.log(maxRank);
-          const logVal = Math.log(rank);
-          const ratio = (logVal - logMin) / (logMax - logMin);
-          return splitRatio + (ratio * (100 - splitRatio));
+          const logVal = Math.log(Math.max(1, rank));
+          
+          if (logMax === logMin) return 50;
+          return ((logVal - logMin) / (logMax - logMin)) * 100;
       }
   };
 
@@ -103,23 +105,7 @@ const LineChart: React.FC<LineChartProps> = ({
   }));
 
   // 5. Generate Paths
-  let solidPathD = '';
-  let dashedPathD = '';
-
-  if (!hasHighlights) {
-      solidPathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  } else {
-      const solidPoints = points.filter(p => (p.rank || 0) <= 100);
-      const dashedPoints = points.filter(p => (p.rank || 0) >= 100);
-      
-      const createPath = (pts: typeof points) => {
-          if (pts.length < 2) return '';
-          return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-      };
-      
-      solidPathD = createPath(solidPoints);
-      dashedPathD = createPath(dashedPoints);
-  }
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
 
   // 6. Generate Grid Lines
   const yGridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
@@ -132,26 +118,13 @@ const LineChart: React.FC<LineChartProps> = ({
   let xGridRanks: number[] = [];
   let yearTicks: { x: number, year: number }[] = [];
   
-  if (hasHighlights) {
-      // Linear Section
-      const linearSteps = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-      // Log Section
-      let logSteps = [200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
-      
-      if (isMobile) {
-          logSteps = [1000, 5000, 10000, 50000];
-      }
-      
-      logSteps = logSteps.filter(r => r <= maxRank);
-      xGridRanks = [...linearSteps, ...logSteps];
-  } else {
+  if (isLinearX) {
       if (useLinearScale) {
-          // Trend Mode: Modulo 9 logic
+          // Trend Mode (Rank 1...N where Rank is EventID)
           for (let i = minRank; i <= maxRank; i++) {
               if (i % 9 === 0) xGridRanks.push(i);
           }
-          
-          // Year Ticks Logic
+          // Year Ticks
           let lastYear = -1;
           sortedData.forEach(d => {
               if (d.year && d.year !== lastYear) {
@@ -159,12 +132,19 @@ const LineChart: React.FC<LineChartProps> = ({
                   lastYear = d.year;
               }
           });
-
       } else {
-         xGridRanks = [1, 25, 50, 75, 100];
+          // Top 100 Mode
+          xGridRanks = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
       }
+  } else {
+      // Highlights (Logarithmic)
+      let logSteps = [100, 200, 300, 400, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+      if (isMobile) {
+          logSteps = [100, 500, 1000, 5000, 10000, 50000];
+      }
+      xGridRanks = logSteps.filter(r => r <= maxRank && r >= minRank);
   }
-  xGridRanks = xGridRanks.filter(r => r <= maxRank && r >= minRank);
+  
   xGridRanks = Array.from(new Set(xGridRanks)).sort((a, b) => a - b);
 
   return (
@@ -194,7 +174,22 @@ const LineChart: React.FC<LineChartProps> = ({
                             }
                             `}
                         </style>
+                        <pattern id="safeZonePattern" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+                            <line x1="0" y1="0" x2="0" y2="10" stroke="#10b981" strokeWidth="2" opacity="0.15" />
+                        </pattern>
                     </defs>
+
+                    {/* Safe Zone Shading (Only if props provided) */}
+                    {safeThreshold !== undefined && safeRankCutoff !== undefined && isLinearX && (
+                        <rect
+                            x="0"
+                            y="0"
+                            width={getXPercent(safeRankCutoff)}
+                            height={100} 
+                            fill="url(#safeZonePattern)"
+                            className="transition-all duration-500"
+                        />
+                    )}
 
                     {/* Y Grid Lines */}
                     {yGridLines.map((grid, i) => (
@@ -217,46 +212,22 @@ const LineChart: React.FC<LineChartProps> = ({
                                     stroke="#334155" 
                                     strokeWidth="0.5" 
                                     vectorEffect="non-scaling-stroke"
-                                    strokeDasharray={rank === 100 && hasHighlights ? "4 4" : "none"} 
                                 />
                              </g>
                         );
                     })}
-
-                    {/* Broken Axis Indicator */}
-                    {hasHighlights && (
-                        <line 
-                            x1={splitRatio} y1="0" x2={splitRatio} y2="100" 
-                            stroke="#94a3b8" 
-                            strokeWidth="1" 
-                            strokeDasharray="2 2"
-                            vectorEffect="non-scaling-stroke"
-                            opacity="0.5"
-                        />
-                    )}
                     
-                    {/* Paths - Dimmed if filtering */}
+                    {/* Path */}
                     <path 
-                        d={solidPathD} 
+                        d={pathD} 
                         fill="none" 
                         stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} 
                         strokeWidth="2" 
                         vectorEffect="non-scaling-stroke"
                         strokeOpacity={hasFiltering ? 0.4 : 1}
-                        className="drop-shadow-sm"
+                        className="drop-shadow-sm transition-all duration-300"
+                        strokeDasharray={!isLinearX ? "4 4" : "none"} // Dashed for Highlights
                     />
-                    
-                    {hasHighlights && (
-                        <path 
-                            d={dashedPathD} 
-                            fill="none" 
-                            stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} 
-                            strokeWidth="2" 
-                            strokeDasharray="3 3"
-                            vectorEffect="non-scaling-stroke"
-                            className="opacity-80"
-                        />
-                    )}
 
                     {/* Mean Line */}
                     {meanValue !== undefined && (
@@ -284,6 +255,20 @@ const LineChart: React.FC<LineChartProps> = ({
                         </g>
                     )}
 
+                    {/* Safety Line */}
+                    {safeThreshold !== undefined && (
+                        <g>
+                            <line 
+                                x1="0" y1={getYPercent(safeThreshold)} x2="100" y2={getYPercent(safeThreshold)} 
+                                stroke="#10b981" 
+                                strokeWidth="1.5" 
+                                strokeDasharray="6 2" 
+                                strokeOpacity="0.8"
+                                vectorEffect="non-scaling-stroke"
+                            />
+                        </g>
+                    )}
+
                 </svg>
 
                 {/* SCATTER POINTS LAYER (DOM Elements for perfect circles) */}
@@ -293,7 +278,7 @@ const LineChart: React.FC<LineChartProps> = ({
                     return (
                         <div 
                             key={`dot-${index}`}
-                            className="absolute w-1.5 h-1.5 rounded-full -ml-[3px] -mt-[3px] shadow-sm pointer-events-none z-10"
+                            className="absolute w-1.5 h-1.5 rounded-full -ml-[3px] -mt-[3px] shadow-sm pointer-events-none z-10 border border-white/20"
                             style={{ 
                                 left: `${point.x}%`, 
                                 top: `${point.y}%`,
@@ -310,7 +295,7 @@ const LineChart: React.FC<LineChartProps> = ({
                         className="absolute w-3 h-3 -ml-[6px] -mt-[6px] rounded-full cursor-pointer z-20 hover:bg-white/10 group"
                         style={{ left: `${point.x}%`, top: `${point.y}%` }}
                      >
-                        <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-30 border border-slate-600">
+                        <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-30 border border-slate-600 pointer-events-none">
                             <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
                                 {useLinearScale ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
                             </p>
@@ -327,15 +312,7 @@ const LineChart: React.FC<LineChartProps> = ({
                  {xGridRanks.map((rank, i) => {
                      const x = getXPercent(rank);
                      
-                     if (hasHighlights) {
-                        if (rank > 1 && rank < 100) {
-                            if (isMobile) {
-                                if (rank !== 50) return null;
-                            } else {
-                                if (rank % 20 !== 0) return null; 
-                            }
-                        }
-                     }
+                     if (!isLinearX && isMobile && ![100, 1000, 10000, 50000].includes(rank)) return null;
 
                      return (
                         <div 

@@ -71,9 +71,7 @@ const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, 
                                     <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
                                         {stat.latestName}
                                     </div>
-                                    <div className="text-xs text-slate-500 font-mono">
-                                        ID: {stat.userId}
-                                    </div>
+                                    {/* User ID removed for privacy */}
                                     
                                     {showUnitBreakdown && (
                                         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -211,10 +209,7 @@ const PlayerAnalysisView: React.FC = () => {
                             
                             // Update stats
                             newStats[userId].top100Count += 1;
-                            // Update latest name to the most recent event seen (since we process DESC, the first time we see a user is their latest name)
-                            // Wait, we process DESC? Yes: sort((a, b) => b.id - a.id) in fetchList.
-                            // So the first time we encounter a user, it's from the most recent event.
-                            // However, to be safe, we can just keep the name from the highest event ID if needed, but relying on processing order is fine here.
+                            
                             if (newStats[userId].top100Count === 1) {
                                 newStats[userId].latestName = entry.name;
                             }

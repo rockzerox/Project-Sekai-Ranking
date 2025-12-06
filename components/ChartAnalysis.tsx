@@ -123,12 +123,19 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             chartColor = 'sky';
             axisFormatter = v => Math.round(v).toString();
             break;
+        case 'last1h_score':
+            chartTitle = '1H 獲得分數分佈';
+            axisY = '分數 (Score)';
+            data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.score, rank: r.rank }));
+            chartColor = 'pink';
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
+            break;
         case 'last1h_speed':
             chartTitle = '1H 時速 (分/時)';
             axisY = '分/時 (Speed)';
             data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.speed, rank: r.rank }));
             formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
-            axisFormatter = v => Math.round(v).toString();
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
             chartColor = 'emerald';
             break;
         case 'last1h_average':
@@ -136,7 +143,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisY = '平均分 (Avg)';
             data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.average, rank: r.rank }));
             formatter = v => `${Math.round(v).toLocaleString()} pts`;
-            axisFormatter = v => Math.round(v).toString();
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
             chartColor = 'amber';
             break;
         case 'last3h_count':
@@ -146,12 +153,19 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             chartColor = 'sky';
             axisFormatter = v => Math.round(v).toString();
             break;
+        case 'last3h_score':
+            chartTitle = '3H 獲得分數分佈';
+            axisY = '分數 (Score)';
+            data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.score, rank: r.rank }));
+            chartColor = 'pink';
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
+            break;
         case 'last3h_speed':
             chartTitle = '3H 速度 (分/時)';
             axisY = '分/時 (Speed)';
             data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.speed, rank: r.rank }));
             formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
-            axisFormatter = v => Math.round(v).toString();
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
             chartColor = 'emerald';
             break;
         case 'last3h_average':
@@ -159,7 +173,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisY = '平均分 (Avg)';
             data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.average, rank: r.rank }));
             formatter = v => `${Math.round(v).toLocaleString()} pts`;
-            axisFormatter = v => Math.round(v).toString();
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
             chartColor = 'amber';
             break;
         case 'last24h_count':
@@ -169,12 +183,19 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             chartColor = 'sky';
             axisFormatter = v => Math.round(v).toString();
             break;
+        case 'last24h_score':
+            chartTitle = '24H 獲得分數分佈';
+            axisY = '分數 (Score)';
+            data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.score, rank: r.rank }));
+            chartColor = 'pink';
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
+            break;
         case 'last24h_speed':
             chartTitle = '24H 速度 (分/時)';
             axisY = '分/時 (Speed)';
             data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.speed, rank: r.rank }));
             formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
-            axisFormatter = v => Math.round(v).toString();
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
             chartColor = 'emerald';
             break;
         case 'last24h_average':
@@ -182,7 +203,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisY = '平均分 (Avg)';
             data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.average, rank: r.rank }));
             formatter = v => `${Math.round(v).toLocaleString()} pts`;
-            axisFormatter = v => Math.round(v).toString();
+            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
             chartColor = 'amber';
             break;
     }

@@ -18,6 +18,7 @@ import RankTrendView from './components/RankTrendView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
 import ResourceEstimatorView from './components/ResourceEstimatorView';
+import PlayerProfileView from './components/PlayerProfileView';
 import HomeView from './components/HomeView';
 import { getEventColor, EVENT_DETAILS, UNIT_STYLES, getAssetUrl } from './constants';
 
@@ -93,7 +94,7 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
 };
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -125,13 +126,13 @@ const App: React.FC = () => {
   const [liveEventTiming, setLiveEventTiming] = useState<{ aggregateAt: string, rankingAnnounceAt: string } | null>(null);
   
   const [isRankingsOpen, setIsRankingsOpen] = useState(true);
-  const [isChartsOpen, setIsChartsOpen] = useState(true);
+  const [isChartsOpen, setIsChartsOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
 
   // Manage Chart Collapse State based on View
   useEffect(() => {
       if (currentView === 'live') {
-          setIsChartsOpen(true);
+          setIsChartsOpen(false); // Default collapsed for live events
       } else if (currentView === 'past' && selectedEvent) {
           setIsChartsOpen(false); // Default collapsed for past events
       }
@@ -159,16 +160,19 @@ const App: React.FC = () => {
             stats: {
                 last1h: {
                     count: item.last_1h_stats?.count ?? 0,
+                    score: item.last_1h_stats?.score ?? 0,
                     speed: item.last_1h_stats?.speed ?? 0,
                     average: item.last_1h_stats?.average ?? 0,
                 },
                 last3h: {
                     count: item.last_3h_stats?.count ?? 0,
+                    score: item.last_3h_stats?.score ?? 0,
                     speed: item.last_3h_stats?.speed ?? 0,
                     average: item.last_3h_stats?.average ?? 0,
                 },
                 last24h: {
                     count: item.last_24h_stats?.count ?? 0,
+                    score: item.last_24h_stats?.score ?? 0,
                     speed: item.last_24h_stats?.speed ?? 0,
                     average: item.last_24h_stats?.average ?? 0,
                 },
@@ -219,7 +223,7 @@ const App: React.FC = () => {
           const responseData: HisekaiBorderApiResponse = JSON.parse(sanitizedData);
 
           if (responseData && Array.isArray(responseData.border_player_rankings)) {
-              const zeroStat = { count: 0, speed: 0, average: 0 };
+              const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
               const transformedRankings: RankEntry[] = responseData.border_player_rankings.map(item => ({
                   rank: item.rank,
                   score: item.score,
@@ -258,7 +262,7 @@ const App: React.FC = () => {
         const responseData: PastEventApiResponse = JSON.parse(sanitizedData);
 
         if (responseData && Array.isArray(responseData.rankings)) {
-            const zeroStat = { count: 0, speed: 0, average: 0 };
+            const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
             const transformedRankings: RankEntry[] = responseData.rankings.map(item => ({
                 rank: item.rank,
                 score: item.score,
@@ -299,7 +303,7 @@ const App: React.FC = () => {
         const responseData: PastEventBorderApiResponse = JSON.parse(sanitizedData);
 
         if (responseData && Array.isArray(responseData.borderRankings)) {
-            const zeroStat = { count: 0, speed: 0, average: 0 };
+            const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
             const transformedRankings: RankEntry[] = responseData.borderRankings.map(item => ({
                 rank: item.rank,
                 score: item.score,
@@ -380,12 +384,15 @@ const App: React.FC = () => {
                 if(!b.lastPlayedAt) return -1;
                 return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
             case 'last1h_count': return b.stats.last1h.count - a.stats.last1h.count;
+            case 'last1h_score': return b.stats.last1h.score - a.stats.last1h.score;
             case 'last1h_speed': return b.stats.last1h.speed - a.stats.last1h.speed;
             case 'last1h_average': return b.stats.last1h.average - a.stats.last1h.average;
             case 'last3h_count': return b.stats.last3h.count - a.stats.last3h.count;
+            case 'last3h_score': return b.stats.last3h.score - a.stats.last3h.score;
             case 'last3h_speed': return b.stats.last3h.speed - a.stats.last3h.speed;
             case 'last3h_average': return b.stats.last3h.average - a.stats.last3h.average;
             case 'last24h_count': return b.stats.last24h.count - a.stats.last24h.count;
+            case 'last24h_score': return b.stats.last24h.score - a.stats.last24h.score;
             case 'last24h_speed': return b.stats.last24h.speed - a.stats.last24h.speed;
             case 'last24h_average': return b.stats.last24h.average - a.stats.last24h.average;
             case 'score':
@@ -673,6 +680,10 @@ const App: React.FC = () => {
 
                 {currentView === 'resourceEstimator' && (
                     <ResourceEstimatorView />
+                )}
+
+                {currentView === 'playerProfile' && (
+                    <PlayerProfileView />
                 )}
             </main>
         </div>

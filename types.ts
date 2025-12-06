@@ -10,6 +10,7 @@ export interface User {
 
 interface StatDetail {
   count: number;
+  score: number; // New field
   speed: number;
   average: number;
 }
@@ -30,12 +31,15 @@ export type SortOption =
   | 'score'
   | 'lastPlayedAt'
   | 'last1h_count'
+  | 'last1h_score' // New
   | 'last1h_speed'
   | 'last1h_average'
   | 'last3h_count'
+  | 'last3h_score' // New
   | 'last3h_speed'
   | 'last3h_average'
   | 'last24h_count'
+  | 'last24h_score' // New
   | 'last24h_speed'
   | 'last24h_average';
 
@@ -59,6 +63,7 @@ interface LastPlayerInfo {
 
 interface Stats {
   count: number;
+  score: number; // New field from API
   speed: number;
   average: number;
 }
@@ -93,6 +98,11 @@ export interface MusicDifficultyStats {
   allPerfect: number;
 }
 
+export interface UserCharacter {
+  characterId: number;
+  characterRank: number;
+}
+
 // Represents the user profile response
 export interface UserProfileResponse {
   user: {
@@ -110,6 +120,7 @@ export interface UserProfileResponse {
     mysekaiGateLevelBonus: number;
   };
   userMusicDifficultyClearCount: MusicDifficultyStats[];
+  userCharacters?: UserCharacter[];
 }
 
 // Represents a past event summary

@@ -9,32 +9,38 @@ interface ChartData {
   year?: number;
 }
 
+type ChartVariant = 'live' | 'trend' | 'highlights' | 'default';
+
 interface LineChartProps {
   data: ChartData[];
+  variant?: ChartVariant;
   lineColor?: string;
   valueFormatter?: (value: number) => string;
   yAxisFormatter?: (value: number) => string;
   xAxisLabel?: string;
   yAxisLabel?: string;
-  useLinearScale?: boolean;
   meanValue?: number;
   medianValue?: number;
-  safeThreshold?: number;
-  safeRankCutoff?: number;
+  safeThreshold?: number; // Green line/zone
+  safeRankCutoff?: number; 
+  giveUpThreshold?: number; // Red line/zone
+  giveUpRankCutoff?: number;
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
   data, 
+  variant = 'default',
   lineColor = 'cyan', 
   valueFormatter = (v) => v.toLocaleString(),
   yAxisFormatter,
   xAxisLabel = 'Rank',
   yAxisLabel = 'Value',
-  useLinearScale = false,
   meanValue,
   medianValue,
   safeThreshold,
-  safeRankCutoff
+  safeRankCutoff,
+  giveUpThreshold,
+  giveUpRankCutoff
 }) => {
   const axisFormatter = yAxisFormatter || valueFormatter;
   const [isMobile, setIsMobile] = useState(false);
@@ -69,28 +75,46 @@ const LineChart: React.FC<LineChartProps> = ({
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
   
-  // LOGIC CHANGE: No more hybrid scale within a single chart.
-  // If useLinearScale is TRUE, or if maxRank is small (<= 100), use Linear.
-  // If maxRank > 100, use Logarithmic (for Highlights).
-  const isLinearX = useLinearScale || maxRank <= 100;
+  // Variant Flags
+  const isTrend = variant === 'trend';
+  const isHighlights = variant === 'highlights';
+  // If not Trend or Highlights, default to standard Linear (Live Top 100 / Past Top 100)
 
+  // Chart Height
+  const containerHeightClass = isTrend ? "h-64 md:h-[500px]" : "h-48 md:h-64"; 
+
+  // Axis Logic
   const getXPercent = (rank: number) => {
-      if (isLinearX) {
-          // Linear
+      if (isTrend) {
+          // Trend: Linear 1..EventID
           const range = maxRank - minRank;
           if (range === 0) return 50;
           return ((rank - minRank) / range) * 100;
-      } else {
-          // Logarithmic
-          // Ensure minRank is at least 1 to avoid log(0)
-          const safeMin = Math.max(1, minRank);
-          const logMin = Math.log(safeMin);
-          const logMax = Math.log(maxRank);
-          const logVal = Math.log(Math.max(1, rank));
-          
-          if (logMax === logMin) return 50;
-          return ((logVal - logMin) / (logMax - logMin)) * 100;
       }
+
+      if (isHighlights) {
+          // Highlights: Split-Linear (100-1000, 1000-10000)
+          // Range A: 100-1000 -> 0-50%
+          // Range B: 1000-10000 -> 50-100%
+          if (rank <= 1000) {
+              const rMin = 100; 
+              const rMax = 1000;
+              let ratio = (rank - rMin) / (rMax - rMin);
+              ratio = Math.max(0, Math.min(1, ratio));
+              return ratio * 50;
+          } else {
+              const rMin = 1000;
+              const rMax = 10000; // Hard cap visual at 10000
+              let ratio = (rank - rMin) / (rMax - rMin);
+              ratio = Math.max(0, Math.min(1, ratio));
+              return 50 + (ratio * 50);
+          }
+      }
+
+      // Default (Live Top 100 / Past): Standard Linear 1-100
+      const range = maxRank - minRank;
+      if (range === 0) return 50;
+      return ((rank - minRank) / range) * 100;
   };
 
   const getYPercent = (score: number) => {
@@ -118,38 +142,32 @@ const LineChart: React.FC<LineChartProps> = ({
   let xGridRanks: number[] = [];
   let yearTicks: { x: number, year: number }[] = [];
   
-  if (isLinearX) {
-      if (useLinearScale) {
-          // Trend Mode (Rank 1...N where Rank is EventID)
-          for (let i = minRank; i <= maxRank; i++) {
-              if (i % 9 === 0) xGridRanks.push(i);
+  if (isTrend) {
+      for (let i = minRank; i <= maxRank; i++) {
+          if (i % 9 === 0) xGridRanks.push(i);
+      }
+      let lastYear = -1;
+      sortedData.forEach(d => {
+          if (d.year && d.year !== lastYear) {
+              yearTicks.push({ x: getXPercent(d.rank || 0), year: d.year });
+              lastYear = d.year;
           }
-          // Year Ticks
-          let lastYear = -1;
-          sortedData.forEach(d => {
-              if (d.year && d.year !== lastYear) {
-                  yearTicks.push({ x: getXPercent(d.rank || 0), year: d.year });
-                  lastYear = d.year;
-              }
-          });
-      } else {
-          // Top 100 Mode
-          xGridRanks = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+      });
+  } else if (isHighlights) {
+      xGridRanks = [100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+      if (isMobile) {
+          xGridRanks = [100, 500, 1000, 5000, 10000];
       }
   } else {
-      // Highlights (Logarithmic)
-      let logSteps = [100, 200, 300, 400, 500, 1000, 2000, 5000, 10000, 20000, 50000];
-      if (isMobile) {
-          logSteps = [100, 500, 1000, 5000, 10000, 50000];
-      }
-      xGridRanks = logSteps.filter(r => r <= maxRank && r >= minRank);
+      xGridRanks = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
   }
   
+  xGridRanks = xGridRanks.filter(r => r <= maxRank && r >= minRank);
   xGridRanks = Array.from(new Set(xGridRanks)).sort((a, b) => a - b);
 
   return (
     <div className="bg-slate-900/70 p-4 pb-12 rounded-lg w-full border border-slate-800">
-      <div className="h-64 md:h-[500px] w-full relative">
+      <div className={`${containerHeightClass} w-full relative transition-all duration-300`}>
             <div className="absolute -top-3 left-12 text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
                 {yAxisLabel}
             </div>
@@ -177,16 +195,31 @@ const LineChart: React.FC<LineChartProps> = ({
                         <pattern id="safeZonePattern" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
                             <line x1="0" y1="0" x2="0" y2="10" stroke="#10b981" strokeWidth="2" opacity="0.15" />
                         </pattern>
+                        <pattern id="giveUpZonePattern" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(-45)">
+                            <line x1="0" y1="0" x2="0" y2="10" stroke="#f43f5e" strokeWidth="2" opacity="0.15" />
+                        </pattern>
                     </defs>
 
-                    {/* Safe Zone Shading (Only if props provided) */}
-                    {safeThreshold !== undefined && safeRankCutoff !== undefined && isLinearX && (
+                    {/* Safe Zone Shading */}
+                    {safeThreshold !== undefined && safeRankCutoff !== undefined && (
                         <rect
                             x="0"
                             y="0"
                             width={getXPercent(safeRankCutoff)}
-                            height={100} 
+                            height={100}
                             fill="url(#safeZonePattern)"
+                            className="transition-all duration-500"
+                        />
+                    )}
+
+                    {/* Give Up Zone Shading */}
+                    {giveUpThreshold !== undefined && giveUpRankCutoff !== undefined && (
+                        <rect
+                            x={getXPercent(giveUpRankCutoff)}
+                            y="0"
+                            width={100 - getXPercent(giveUpRankCutoff)}
+                            height={100}
+                            fill="url(#giveUpZonePattern)"
                             className="transition-all duration-500"
                         />
                     )}
@@ -199,6 +232,7 @@ const LineChart: React.FC<LineChartProps> = ({
                             stroke="#334155" 
                             strokeWidth="0.5" 
                             vectorEffect="non-scaling-stroke"
+                            strokeOpacity="0.2"
                         />
                     ))}
 
@@ -212,21 +246,34 @@ const LineChart: React.FC<LineChartProps> = ({
                                     stroke="#334155" 
                                     strokeWidth="0.5" 
                                     vectorEffect="non-scaling-stroke"
+                                    strokeOpacity="0.2"
                                 />
                              </g>
                         );
                     })}
+
+                    {/* Split Axis Divider for Highlights */}
+                    {isHighlights && (
+                        <line 
+                            x1="50" y1="0" x2="50" y2="100" 
+                            stroke="#94a3b8" 
+                            strokeWidth="1" 
+                            strokeDasharray="4 4"
+                            vectorEffect="non-scaling-stroke"
+                            opacity="0.5"
+                        />
+                    )}
                     
                     {/* Path */}
                     <path 
                         d={pathD} 
                         fill="none" 
                         stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} 
-                        strokeWidth="2" 
+                        strokeWidth={isTrend ? 1.5 : 2} 
                         vectorEffect="non-scaling-stroke"
                         strokeOpacity={hasFiltering ? 0.4 : 1}
                         className="drop-shadow-sm transition-all duration-300"
-                        strokeDasharray={!isLinearX ? "4 4" : "none"} // Dashed for Highlights
+                        strokeDasharray={isHighlights ? "4 4" : "none"} // Dash for highlights
                     />
 
                     {/* Mean Line */}
@@ -261,9 +308,23 @@ const LineChart: React.FC<LineChartProps> = ({
                             <line 
                                 x1="0" y1={getYPercent(safeThreshold)} x2="100" y2={getYPercent(safeThreshold)} 
                                 stroke="#10b981" 
-                                strokeWidth="1.5" 
-                                strokeDasharray="6 2" 
-                                strokeOpacity="0.8"
+                                strokeWidth="1" 
+                                strokeDasharray="4 2" 
+                                strokeOpacity="0.7"
+                                vectorEffect="non-scaling-stroke"
+                            />
+                        </g>
+                    )}
+
+                    {/* Give Up Line */}
+                    {giveUpThreshold !== undefined && (
+                        <g>
+                            <line 
+                                x1="0" y1={getYPercent(giveUpThreshold)} x2="100" y2={getYPercent(giveUpThreshold)} 
+                                stroke="#f43f5e" 
+                                strokeWidth="1" 
+                                strokeDasharray="4 2" 
+                                strokeOpacity="0.7"
                                 vectorEffect="non-scaling-stroke"
                             />
                         </g>
@@ -271,8 +332,7 @@ const LineChart: React.FC<LineChartProps> = ({
 
                 </svg>
 
-                {/* SCATTER POINTS LAYER (DOM Elements for perfect circles) */}
-                {/* Only for highlighted items if filtering is active */}
+                {/* SCATTER POINTS */}
                 {hasFiltering && points.map((point, index) => {
                     if (!point.isHighlighted) return null;
                     return (
@@ -288,7 +348,7 @@ const LineChart: React.FC<LineChartProps> = ({
                     );
                 })}
 
-                {/* HIT AREAS LAYER */}
+                {/* HIT AREAS */}
                 {points.map((point, index) => (
                      <div 
                         key={`hit-${index}`}
@@ -297,7 +357,7 @@ const LineChart: React.FC<LineChartProps> = ({
                      >
                         <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-30 border border-slate-600 pointer-events-none">
                             <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
-                                {useLinearScale ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
+                                {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
                             </p>
                             <p className="truncate font-medium text-slate-200 mb-0.5">{data[index].label}</p>
                             <p className="font-bold text-center">{valueFormatter(data[index].value)}</p>
@@ -312,7 +372,10 @@ const LineChart: React.FC<LineChartProps> = ({
                  {xGridRanks.map((rank, i) => {
                      const x = getXPercent(rank);
                      
-                     if (!isLinearX && isMobile && ![100, 1000, 10000, 50000].includes(rank)) return null;
+                     // Optimization for mobile labels
+                     if (isMobile && isHighlights) {
+                         if (![100, 1000, 10000, 50000].includes(rank)) return null;
+                     }
 
                      return (
                         <div 
@@ -325,8 +388,8 @@ const LineChart: React.FC<LineChartProps> = ({
                      );
                  })}
                  
-                 {/* Year Labels (Secondary Axis) */}
-                 {useLinearScale && yearTicks.map((tick, i) => (
+                 {/* Year Labels */}
+                 {isTrend && yearTicks.map((tick, i) => (
                      <div 
                         key={`year-${i}`}
                         className="absolute top-5 transform -translate-x-1/2 text-[10px] text-slate-400 font-bold border-l border-slate-700 pl-1"
@@ -342,7 +405,6 @@ const LineChart: React.FC<LineChartProps> = ({
             </div>
       </div>
       
-      {/* Mobile Landscape Prompt */}
       {isMobile && (
           <div className="mt-4 p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs text-center rounded border border-amber-200 dark:border-amber-800">
               建議橫向觀看以獲得最佳體驗 (Landscape mode recommended)

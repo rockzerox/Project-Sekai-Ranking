@@ -67,9 +67,9 @@ const RankTrendView: React.FC = () => {
                 if (!alive) return;
                 const listData: EventSummary[] = await listRes.json();
                 
-                // 2. Filter Valid Events (Closed & Not World Link)
+                // 2. Filter Valid Events (Closed)
+                // Note: World Link IS included now as requested
                 const now = new Date();
-                // Note: Previous prompts asked to INCLUDE World Link, so we removed the exclusion filter.
                 const validEvents = listData
                     .filter(e => new Date(e.closed_at) < now) 
                     .sort((a, b) => a.id - b.id); // Ascending ID order
@@ -105,15 +105,12 @@ const RankTrendView: React.FC = () => {
                                     else if (selectedRank === 10) score = json.rankings?.[9]?.score || 0;
                                     else if (selectedRank === 100) score = json.rankings?.[99]?.score || 0;
                                     else score = json.rankings.find(r => r.rank === selectedRank)?.score || 0;
+                                    
+                                    // WL Top 100 fallback if standard structure empty (usually standard exists for WL top 100)
                                 } else {
                                     const json: PastEventBorderApiResponse = JSON.parse(sanitized);
-                                    // Handle standard border or WL specific structure if needed, usually borderRankings is standardized
                                     score = json.borderRankings?.find(r => r.rank === selectedRank)?.score || 0;
-                                    
-                                    // Fallback for WL if standard structure empty (though typically handled by API wrapper now)
-                                    if (score === 0 && json.userWorldBloomChapterRankingBorders) {
-                                         // Logic for WL border aggregation if needed, but keeping simple for trend view
-                                    }
+                                    // WL Border fallback if needed (usually handled by API consistency)
                                 }
                             }
 
@@ -174,7 +171,7 @@ const RankTrendView: React.FC = () => {
             if (selectedCardFilter !== 'all' && details?.cardType !== selectedCardFilter) isMatch = false;
 
             return {
-                label: `Event #${d.eventId}`,
+                label: `${d.eventName}`, // UPDATED: Use Event Name in tooltip
                 value: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, d.duration)) : d.score,
                 rank: d.eventId,
                 isHighlighted: !hasActiveFilters || isMatch,
@@ -373,10 +370,10 @@ const RankTrendView: React.FC = () => {
                 {trendData.length > 0 ? (
                     <LineChart 
                         data={chartData}
+                        variant="trend" 
                         lineColor="teal"
                         xAxisLabel="Event ID"
                         yAxisLabel={displayMode === 'total' ? "Score" : "Daily Avg"}
-                        useLinearScale={true}
                         valueFormatter={(v) => displayMode === 'daily' ? v.toLocaleString() : `${(v/10000).toFixed(1)}萬`}
                         yAxisFormatter={(v) => displayMode === 'daily' ? v.toLocaleString() : `${(v/10000).toFixed(0)}萬`}
                         meanValue={showMean ? meanValue : undefined}

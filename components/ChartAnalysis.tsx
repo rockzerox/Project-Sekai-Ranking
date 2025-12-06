@@ -20,6 +20,9 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   
   const [borderData, setBorderData] = useState<BorderItem[]>([]);
   const [liveAggregateAt, setLiveAggregateAt] = useState<string | null>(null);
+  
+  // Selected Rank for Highlights Safety calculation (Default T200)
+  const [selectedHighlightRank, setSelectedHighlightRank] = useState<number>(200);
 
   // Fetch border data when viewing Score distribution
   useEffect(() => {
@@ -30,7 +33,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         }
 
         try {
-            // 1. Fetch Border Data
+            // 1. Fetch Border Data if needed (Highlights or Past Events)
             if (isHighlights) {
                 const url = eventId 
                     ? `https://api.hisekai.org/event/${eventId}/border`
@@ -59,7 +62,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             }
 
             // 2. Fetch Live Event Timing (For Safety Calculation) if Live Mode
-            if (!eventId && !isHighlights) {
+            if (!eventId) {
                 const resTop = await fetch('https://api.hisekai.org/event/live/top100');
                 if (resTop.ok) {
                     const textTop = await resTop.text();
@@ -78,7 +81,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   }, [sortOption, eventId, isHighlights]);
 
 
-  const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, safeRankCutoff } = useMemo(() => {
+  const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant } = useMemo(() => {
     let data: { label: string, value: number, rank?: number }[] = [];
     let chartTitle = '';
     let formatter = (v: number) => Math.round(v).toLocaleString();
@@ -87,7 +90,10 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     let axisY = 'Value';
     
     let calculatedSafeThreshold: number | undefined = undefined;
+    let calculatedGiveUpThreshold: number | undefined = undefined;
     let calculatedSafeRankCutoff: number | undefined = undefined;
+    let calculatedGiveUpRankCutoff: number | undefined = undefined;
+    let variant: 'live' | 'highlights' | 'default' = 'default';
 
     // Base Data: Top 100 sorted by Rank
     const sourceData = [...rankings].sort((a, b) => a.rank - b.rank);
@@ -98,13 +104,57 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisY = '分數 (Score)';
             
             if (isHighlights) {
-                // Show ONLY Highlights
-                data = borderData.map(b => ({
-                    label: `#${b.rank} ${b.name || 'Player'}`,
-                    value: b.score,
-                    rank: b.rank
-                })).sort((a, b) => (a.rank || 0) - (b.rank || 0));
+                variant = 'highlights';
+                // Show ONLY Highlights, Filter <= 10000 for Chart clarity
+                data = borderData
+                    .filter(b => b.rank <= 10000)
+                    .map(b => ({
+                        label: `#${b.rank} ${b.name || 'Player'}`,
+                        value: b.score,
+                        rank: b.rank
+                    }))
+                    .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+
+                // Live Event Highlights: Calculate Safe/GiveUp for SELECTED RANK
+                if (!eventId && liveAggregateAt) {
+                    const now = Date.now();
+                    const end = new Date(liveAggregateAt).getTime();
+                    const remainingSeconds = (end - now) / 1000;
+
+                    if (remainingSeconds > 0) {
+                        const maxGain = (remainingSeconds / 100) * 68000;
+                        const rankScore = borderData.find(b => b.rank === selectedHighlightRank)?.score || 0;
+                        
+                        if (rankScore > 0) {
+                            calculatedSafeThreshold = rankScore + maxGain;
+                            calculatedGiveUpThreshold = Math.max(0, rankScore - maxGain);
+
+                            // Interpolation Logic
+                            const firstUnsafeIdx = data.findIndex(d => d.value <= (calculatedSafeThreshold as number));
+                            if (firstUnsafeIdx === -1) calculatedSafeRankCutoff = 10000;
+                            else if (firstUnsafeIdx === 0) calculatedSafeRankCutoff = 0;
+                            else {
+                                const d1 = data[firstUnsafeIdx - 1];
+                                const d2 = data[firstUnsafeIdx];
+                                const ratio = (calculatedSafeThreshold! - d1.value) / (d2.value - d1.value);
+                                calculatedSafeRankCutoff = d1.rank! + (d2.rank! - d1.rank!) * ratio;
+                            }
+
+                            const firstGiveUpIdx = data.findIndex(d => d.value < (calculatedGiveUpThreshold as number));
+                            if (firstGiveUpIdx === -1) calculatedGiveUpRankCutoff = 10001; 
+                            else if (firstGiveUpIdx === 0) calculatedGiveUpRankCutoff = 0;
+                            else {
+                                const d1 = data[firstGiveUpIdx - 1];
+                                const d2 = data[firstGiveUpIdx];
+                                const ratio = (calculatedGiveUpThreshold! - d1.value) / (d2.value - d1.value);
+                                calculatedGiveUpRankCutoff = d1.rank! + (d2.rank! - d1.rank!) * ratio;
+                            }
+                        }
+                    }
+                }
+
             } else {
+                variant = 'live'; // Top 100
                 // Show ONLY Top 100
                 data = sourceData.map(r => ({ 
                     label: `#${r.rank} ${r.user.display_name}`, 
@@ -112,7 +162,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     rank: r.rank
                 }));
 
-                // Calculate Safety Zone (Only for Live Event Top 100)
+                // Live Event Top 100: Calculate Safe Line for Rank 100
                 if (!eventId && liveAggregateAt && data.length > 0) {
                     const now = Date.now();
                     const end = new Date(liveAggregateAt).getTime();
@@ -120,31 +170,17 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
                     if (remainingSeconds > 0) {
                         const maxGain = (remainingSeconds / 100) * 68000;
-                        // Using Rank 100 score as the reference base
-                        const rank100Score = data[data.length - 1]?.value || 0;
+                        const rank100Score = data[data.length - 1]?.value || 0; 
                         calculatedSafeThreshold = rank100Score + maxGain;
 
-                        // Find cutoff: The last rank that is SAFE (Score > Threshold)
-                        // Iterate from Rank 1 downwards
-                        const cutoffItem = data.find(d => d.value < (calculatedSafeThreshold as number));
-                        // If all are safe (unlikely), cutoff is 100. If none, 0.
-                        // Actually, findLastIndex logic:
-                        // Safe: Score > Threshold.
-                        // We want the boundary.
-                        // Example: Rank 50 is 200k (Safe > 150k), Rank 51 is 140k (Unsafe). Cutoff is 50.
-                        
-                        // Since data is sorted by Rank 1..100 (High Score to Low Score)
-                        // We find the first item that is *below* the threshold. The one before it is the last safe rank.
-                        const firstUnsafeIndex = data.findIndex(d => d.value <= (calculatedSafeThreshold as number));
-                        
-                        if (firstUnsafeIndex === -1) {
-                            // All are safe (e.g. threshold is very low)
-                            calculatedSafeRankCutoff = 100;
-                        } else if (firstUnsafeIndex === 0) {
-                            // None are safe
-                            calculatedSafeRankCutoff = 0;
-                        } else {
-                            calculatedSafeRankCutoff = data[firstUnsafeIndex - 1].rank;
+                        const firstUnsafeIdx = data.findIndex(d => d.value <= (calculatedSafeThreshold as number));
+                        if (firstUnsafeIdx === -1) calculatedSafeRankCutoff = 100;
+                        else if (firstUnsafeIdx === 0) calculatedSafeRankCutoff = 0;
+                        else {
+                             const d1 = data[firstUnsafeIdx - 1];
+                             const d2 = data[firstUnsafeIdx];
+                             const ratio = (calculatedSafeThreshold! - d1.value) / (d2.value - d1.value);
+                             calculatedSafeRankCutoff = d1.rank! + (d2.rank! - d1.rank!) * ratio;
                         }
                     }
                 }
@@ -154,111 +190,23 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(0)}萬` : v.toLocaleString();
             break;
         
-        // Other cases remain mostly same, but respecting isHighlights to separate views
         case 'lastPlayedAt':
-            chartTitle = '最後上線時間 (分鐘前)';
-            axisY = '分鐘 (Mins Ago)';
+            chartTitle = '最後上線時間';
+            axisY = '分鐘 (Mins)';
             const now = Date.now();
             data = isHighlights ? [] : sourceData.map(r => ({ 
-                label: `#${r.rank} ${r.user.display_name}`, 
+                label: `#${r.rank}`, 
                 value: Math.max(0, (now - new Date(r.lastPlayedAt).getTime()) / 60000),
                 rank: r.rank
             }));
-            formatter = v => `${Math.round(v)} 分鐘前`;
-            axisFormatter = v => Math.round(v).toString();
             chartColor = 'indigo';
             break;
-        case 'last1h_count':
-            chartTitle = '1H 遊玩次數分佈';
-            axisY = '次數 (Count)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.count, rank: r.rank }));
-            chartColor = 'sky';
-            axisFormatter = v => Math.round(v).toString();
-            break;
-        // ... (Repeat pattern for other stats, preventing highlights from showing irrelevant data or mixing)
-        case 'last1h_score':
-            chartTitle = '1H 獲得分數分佈';
-            axisY = '分數 (Score)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.score, rank: r.rank }));
-            chartColor = 'pink';
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            break;
-        case 'last1h_speed':
-            chartTitle = '1H 時速 (分/時)';
-            axisY = '分/時 (Speed)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.speed, rank: r.rank }));
-            formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            chartColor = 'emerald';
-            break;
-        case 'last1h_average':
-            chartTitle = '1H 平均分';
-            axisY = '平均分 (Avg)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last1h.average, rank: r.rank }));
-            formatter = v => `${Math.round(v).toLocaleString()} pts`;
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            chartColor = 'amber';
-            break;
-        case 'last3h_count':
-            chartTitle = '3H 遊玩次數分佈';
-            axisY = '次數 (Count)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.count, rank: r.rank }));
-            chartColor = 'sky';
-            axisFormatter = v => Math.round(v).toString();
-            break;
-        case 'last3h_score':
-            chartTitle = '3H 獲得分數分佈';
-            axisY = '分數 (Score)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.score, rank: r.rank }));
-            chartColor = 'pink';
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            break;
-        case 'last3h_speed':
-            chartTitle = '3H 速度 (分/時)';
-            axisY = '分/時 (Speed)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.speed, rank: r.rank }));
-            formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            chartColor = 'emerald';
-            break;
-        case 'last3h_average':
-            chartTitle = '3H 平均分';
-            axisY = '平均分 (Avg)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last3h.average, rank: r.rank }));
-            formatter = v => `${Math.round(v).toLocaleString()} pts`;
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            chartColor = 'amber';
-            break;
-        case 'last24h_count':
-            chartTitle = '24H 遊玩次數分佈';
-            axisY = '次數 (Count)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.count, rank: r.rank }));
-            chartColor = 'sky';
-            axisFormatter = v => Math.round(v).toString();
-            break;
-        case 'last24h_score':
-            chartTitle = '24H 獲得分數分佈';
-            axisY = '分數 (Score)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.score, rank: r.rank }));
-            chartColor = 'pink';
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            break;
-        case 'last24h_speed':
-            chartTitle = '24H 速度 (分/時)';
-            axisY = '分/時 (Speed)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.speed, rank: r.rank }));
-            formatter = v => `${Math.round(v).toLocaleString()} pts/hr`;
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            chartColor = 'emerald';
-            break;
-        case 'last24h_average':
-            chartTitle = '24H 平均分';
-            axisY = '平均分 (Avg)';
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.stats.last24h.average, rank: r.rank }));
-            formatter = v => `${Math.round(v).toLocaleString()} pts`;
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(1)}萬` : v.toLocaleString();
-            chartColor = 'amber';
-            break;
+        default:
+            data = isHighlights ? [] : sourceData.map(r => ({ 
+                label: `#${r.rank}`, 
+                value: (r.stats as any)[sortOption.split('_')[0]]?.[sortOption.split('_')[1]] || 0,
+                rank: r.rank
+            }));
     }
 
     return { 
@@ -269,20 +217,39 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         color: chartColor, 
         yLabel: axisY,
         safeThreshold: calculatedSafeThreshold,
-        safeRankCutoff: calculatedSafeRankCutoff
+        giveUpThreshold: calculatedGiveUpThreshold,
+        safeRankCutoff: calculatedSafeRankCutoff,
+        giveUpRankCutoff: calculatedGiveUpRankCutoff,
+        chartVariant: variant
     };
 
-  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt]);
+  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank]);
 
   return (
     <div className="space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <h3 className="text-md font-semibold text-slate-200 text-center md:text-left">{title}</h3>
+            
+            {/* Rank Toggles for Live Highlights */}
+            {isHighlights && !eventId && sortOption === 'score' && (
+                <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
+                    {[200, 300, 400, 500, 1000].map(r => (
+                        <button
+                            key={r}
+                            onClick={() => setSelectedHighlightRank(r)}
+                            className={`px-2 py-1 text-xs font-bold rounded ${selectedHighlightRank === r ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            T{r}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
 
         {chartData.length > 0 ? (
             <LineChart
                 data={chartData}
+                variant={chartVariant}
                 lineColor={color}
                 valueFormatter={valueFormatter}
                 yAxisFormatter={yAxisFormatter}
@@ -290,12 +257,12 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 yAxisLabel={yLabel}
                 safeThreshold={safeThreshold}
                 safeRankCutoff={safeRankCutoff}
+                giveUpThreshold={giveUpThreshold}
+                giveUpRankCutoff={giveUpRankCutoff}
             />
         ) : (
              <div className="text-center py-10">
-                <p className="text-slate-400">
-                   暫無資料顯示 (No Data)
-                </p>
+                <p className="text-slate-400">暫無資料顯示</p>
             </div>
         )}
     </div>

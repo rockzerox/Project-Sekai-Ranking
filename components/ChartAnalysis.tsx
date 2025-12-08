@@ -23,6 +23,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   const [borderData, setBorderData] = useState<BorderItem[]>([]);
   const [liveAggregateAt, setLiveAggregateAt] = useState<string | null>(null);
   const [t100Score, setT100Score] = useState<number>(0);
+  const [t100SafeCount, setT100SafeCount] = useState<number | null>(null);
   
   // Selected Rank for Highlights Safety calculation (Default T200)
   const [selectedHighlightRank, setSelectedHighlightRank] = useState<number>(200);
@@ -76,6 +77,19 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     // Store T100 score for calculation purposes
                     const r100 = topData.top_100_player_rankings.find(r => r.rank === 100);
                     if (r100) setT100Score(r100.score);
+
+                    // Calculate precise T100 safety slots
+                    const now = Date.now();
+                    const end = new Date(topData.aggregate_at).getTime();
+                    const remainingSeconds = (end - now) / 1000;
+                    if (remainingSeconds > 0) {
+                        const maxGain = (remainingSeconds / 100) * 68000;
+                        const safeThreshold = (r100?.score || 0) + maxGain;
+                        const safeCount = topData.top_100_player_rankings.filter(r => r.score > safeThreshold).length;
+                        setT100SafeCount(safeCount);
+                    } else {
+                        setT100SafeCount(100); // Event ended, all fixed? or 0? irrelevant as calculations stop.
+                    }
                 }
             }
 
@@ -107,53 +121,28 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     const sourceData = [...rankings].sort((a, b) => a.rank - b.rank);
 
     // Helper: Log-Log Inverse Cosine Interpolation
-    // We visualize using Cosine Interpolation in Log-Log space. 
-    // We must invert this to find the exact Rank cutoff.
     const findCutoffRank = (dataPoints: { value: number, rank?: number }[], threshold: number, maxRankFallback: number) => {
-        // Since the curve is monotonic descending:
-        // Safe Zone: People with Score > Threshold.
-        // Give Up Zone: People with Score < Threshold.
-
-        // Find the index where scores dip below threshold
         const firstUnsafeIdx = dataPoints.findIndex(d => d.value <= threshold);
         
-        if (firstUnsafeIdx === -1) return maxRankFallback; // Everyone is safe/above threshold (or threshold is super low)
-        if (firstUnsafeIdx === 0) return 0; // Everyone is unsafe/below threshold (or threshold is super high)
+        if (firstUnsafeIdx === -1) return maxRankFallback; 
+        if (firstUnsafeIdx === 0) return 0; 
 
-        const d1 = dataPoints[firstUnsafeIdx - 1]; // Score > Threshold
-        const d2 = dataPoints[firstUnsafeIdx];     // Score <= Threshold
+        const d1 = dataPoints[firstUnsafeIdx - 1]; 
+        const d2 = dataPoints[firstUnsafeIdx];     
         
-        // Safety check for Log calculation
         if (d1.value > 0 && d2.value > 0 && threshold > 0 && d1.rank && d2.rank) {
              const lnY = Math.log(threshold);
              const lnY1 = Math.log(d1.value);
              const lnY2 = Math.log(d2.value);
              
-             // Calculate curved progress t_curved based on Log values
-             // lnY = lnY1 + (lnY2 - lnY1) * t_curved
-             // t_curved = (lnY - lnY1) / (lnY2 - lnY1)
-             // Note: lnY2 < lnY1 because score is decreasing.
              const t_curved = (lnY - lnY1) / (lnY2 - lnY1);
-             
-             // Clamp to 0-1 to avoid acos errors if threshold is slightly out of bounds due to float precision
              const t_curved_clamped = Math.max(0, Math.min(1, t_curved));
 
-             // Invert Cosine Interpolation: 
-             // Formula used in LineChart: t_curved_val = (1 - cos(t_linear * PI)) / 2
-             // Let y = t_curved_clamped
-             // y = (1 - cos(x * PI)) / 2
-             // 2y = 1 - cos(x * PI)
-             // cos(x * PI) = 1 - 2y
-             // x * PI = acos(1 - 2y)
-             // x (t_linear) = acos(1 - 2y) / PI
-             
              const t_linear = Math.acos(1 - 2 * t_curved_clamped) / Math.PI;
 
-             // Linear Interpolation for Rank
              return d1.rank + (d2.rank - d1.rank) * t_linear;
 
         } else {
-             // Fallback to Linear Interpolation if values are 0 or missing ranks
              const ratio = (threshold - d1.value) / (d2.value - d1.value);
              return (d1.rank || 0) + ((d2.rank || 0) - (d1.rank || 0)) * ratio;
         }
@@ -166,7 +155,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             
             if (isHighlights) {
                 variant = 'highlights';
-                // Show ONLY Highlights, Filter <= 10000 for Chart clarity and > 0 to prevent log errors
                 data = borderData
                     .filter(b => b.rank <= 10000 && b.score > 0)
                     .map(b => ({
@@ -196,6 +184,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                             calculatedSafeThreshold = rankScore + maxGain;
                             calculatedGiveUpThreshold = Math.max(0, rankScore - maxGain);
 
+                            // Note: For T100 in highlights, cutoff might be < 100, which findCutoffRank handles as 0
                             calculatedSafeRankCutoff = findCutoffRank(data, calculatedSafeThreshold, 10000);
                             calculatedGiveUpRankCutoff = findCutoffRank(data, calculatedGiveUpThreshold, 10001);
                         }
@@ -204,14 +193,12 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
             } else {
                 variant = 'live'; // Top 100
-                // Show ONLY Top 100
                 data = sourceData.map(r => ({ 
                     label: `#${r.rank} ${r.user.display_name}`, 
                     value: r.score,
                     rank: r.rank
                 }));
 
-                // Live Event Top 100: Calculate Safe Line for Rank 100
                 if (!eventId && liveAggregateAt && data.length > 0) {
                     const now = Date.now();
                     const end = new Date(liveAggregateAt).getTime();
@@ -219,14 +206,11 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
                     if (remainingSeconds > 0) {
                         const maxGain = (remainingSeconds / 100) * 68000;
-                        // Use exact Rank 100 score, or 0 if rank 100 not populated yet
                         const rank100Score = data.find(r => r.rank === 100)?.value || 0; 
                         calculatedSafeThreshold = rank100Score + maxGain;
 
                         calculatedSafeRankCutoff = findCutoffRank(data, calculatedSafeThreshold, 100);
 
-                        // Calculate remaining available slots in Top 100
-                        // Slots = 100 - (Number of people currently above the Safe Line)
                         const safelySecuredCount = data.filter(r => r.value > calculatedSafeThreshold!).length;
                         calculatedRemainingSlots = Math.max(0, 100 - safelySecuredCount);
                     }
@@ -273,31 +257,93 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
   }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score]);
 
+  // Derive Dashboard Stats for Highlights
+  const dashboardStats = useMemo(() => {
+    // Check undefined only, allow 0
+    if (!isHighlights || safeRankCutoff === undefined || giveUpRankCutoff === undefined) return null;
+    
+    const safe = Math.floor(safeRankCutoff);
+    const giveUp = Math.ceil(giveUpRankCutoff);
+    const battleSize = Math.max(0, giveUp - safe);
+
+    return { safe, giveUp, battleSize };
+  }, [isHighlights, safeRankCutoff, giveUpRankCutoff]);
+
   return (
     <div className="space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <h3 className="text-md font-semibold text-slate-200 text-center md:text-left">{title}</h3>
-            
-            {/* Live Top 100 Remaining Slots Display */}
-            {!isHighlights && !eventId && sortOption === 'score' && remainingSafeSlots !== undefined && (
-                 <div 
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-sm transition-all animate-fadeIn bg-emerald-900/20 border-emerald-500/30 text-emerald-400"
-                    title={`目前有 ${100 - remainingSafeSlots} 人分數已超越安全線，剩餘 ${remainingSafeSlots} 個名額可供爭奪`}
-                 >
-                    <CrownIcon className="w-4 h-4 text-emerald-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider">T100 剩餘名額:</span>
-                    <span className="text-sm font-mono font-black">{remainingSafeSlots}</span>
-                 </div>
-            )}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 w-full lg:w-auto">
+                <h3 className="text-md font-semibold text-slate-200 whitespace-nowrap">{title}</h3>
 
+                {/* --- Compact Dashboard Badges --- */}
+                
+                {/* 1. Live Top 100 Remaining Slots */}
+                {!isHighlights && !eventId && sortOption === 'score' && remainingSafeSlots !== undefined && (
+                     <div 
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400 animate-fadeIn"
+                        title={`目前有 ${100 - remainingSafeSlots} 人分數已超越安全線，剩餘 ${remainingSafeSlots} 個名額可供爭奪`}
+                     >
+                        <CrownIcon className="w-3.5 h-3.5" />
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">T100 剩餘名額:</span>
+                        <span className="text-xs sm:text-sm font-mono font-black">{remainingSafeSlots}</span>
+                     </div>
+                )}
+
+                {/* 2. Highlights Dashboard */}
+                {dashboardStats && !eventId && (
+                    <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+                        {/* Special Logic for T100: Use Precise Slot Calculation if available */}
+                        {selectedHighlightRank === 100 && t100SafeCount !== null ? (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400">
+                                <CrownIcon className="w-3.5 h-3.5" />
+                                <span className="text-[10px] sm:text-xs font-bold">T100 剩餘名額:</span>
+                                <span className="text-xs sm:text-sm font-mono font-black">{Math.max(0, 100 - t100SafeCount)}</span>
+                            </div>
+                        ) : (
+                            /* Standard Estimation for T200+ */
+                            <>
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400" title="推估安全圈：排名高於此名次理論上安全">
+                                    <span className="text-[10px] font-bold">✅ 安全:</span>
+                                    <span className="text-xs font-mono font-bold">{dashboardStats.safe > 0 ? `Top ${dashboardStats.safe}` : '—'}</span>
+                                </div>
+                                
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded border bg-amber-900/20 border-amber-500/30 text-amber-400" title="激戰區間：安全線與死心線之間的灰色地帶人數">
+                                    <span className="text-[10px] font-bold">⚔️ 激戰:</span>
+                                    <span className="text-xs font-mono font-bold">{dashboardStats.battleSize > 0 ? dashboardStats.battleSize : '—'}</span>
+                                </div>
+
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded border bg-rose-900/20 border-rose-500/30 text-rose-400" title="推估死心線：排名低於此名次理論上無法追上">
+                                    <span className="text-[10px] font-bold">⛔ 死心:</span>
+                                    <span className="text-xs font-mono font-bold">{dashboardStats.giveUp < 10000 ? `Rank ${dashboardStats.giveUp}+` : '10000+'}</span>
+                                </div>
+                                
+                                {/* Friendly Disclaimer for Young Players */}
+                                <div 
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-500/90 cursor-help group relative"
+                                >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    <span className="text-[10px] font-bold">數值為推測僅供參考</span>
+                                    
+                                    {/* Tooltip */}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-2 bg-slate-800 text-white text-xs rounded-lg shadow-xl border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center leading-relaxed">
+                                        因為官方只公布特定名次的分數，中間的名次是系統『推算』出來的，實際分數可能會不一樣，請不要完全依賴它來壓線喔！
+                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-600"></div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+            
             {/* Rank Toggles for Live Highlights */}
             {isHighlights && !eventId && sortOption === 'score' && (
-                <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
+                <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 self-start lg:self-auto">
                     {[100, 200, 300, 400, 500, 1000].map(r => (
                         <button
                             key={r}
                             onClick={() => setSelectedHighlightRank(r)}
-                            className={`px-2 py-1 text-xs font-bold rounded ${selectedHighlightRank === r ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                            className={`px-2 py-1 text-xs font-bold rounded transition-colors ${selectedHighlightRank === r ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
                         >
                             T{r}
                         </button>
@@ -305,7 +351,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 </div>
             )}
         </div>
-
+        
         {chartData.length > 0 ? (
             <LineChart
                 data={chartData}

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
 
 interface ChartData {
@@ -52,14 +53,20 @@ const LineChart: React.FC<LineChartProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  if (!data || data.length < 2) {
-    return <p className="text-slate-400 text-center py-10">Not enough data to draw a line chart.</p>;
-  }
-
   // 1. Sort data
   const sortedData = useMemo(() => {
+      // For Highlights, explicitly filter out rank > 10000 and score <= 0 to allow safe log calc
+      if (variant === 'highlights') {
+          return [...data]
+              .filter(d => (d.rank || 0) <= 10000 && d.value > 0)
+              .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+      }
       return [...data].sort((a, b) => (a.rank || 0) - (b.rank || 0));
-  }, [data]);
+  }, [data, variant]);
+
+  if (!sortedData || sortedData.length < 2) {
+    return <p className="text-slate-400 text-center py-10">Not enough data to draw a chart.</p>;
+  }
 
   // Determine filtering status
   const hasFiltering = useMemo(() => sortedData.some(d => d.isHighlighted === false), [sortedData]);
@@ -72,12 +79,14 @@ const LineChart: React.FC<LineChartProps> = ({
   const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
   const yRange = yDomainMax - yDomainMin || 1;
 
+  // Determine if Safe Line is visible within current chart domain
+  const isSafeLineVisible = safeThreshold !== undefined && safeThreshold <= yDomainMax;
+
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
   
   // Variant Logic
   const isTrend = variant === 'trend';
-  const isLive = variant === 'live';
   const isHighlights = variant === 'highlights';
 
   // Chart Height
@@ -105,7 +114,7 @@ const LineChart: React.FC<LineChartProps> = ({
               return ratio * 50;
           } else {
               const rMin = 1000;
-              const rMax = 10000; // Cap at 10000 as requested
+              const rMax = 10000; // Cap at 10000
               let ratio = (rank - rMin) / (rMax - rMin);
               ratio = Math.max(0, Math.min(1, ratio));
               return 50 + (ratio * 50);
@@ -122,15 +131,68 @@ const LineChart: React.FC<LineChartProps> = ({
       return 100 - ((score - yDomainMin) / yRange) * 100;
   };
 
-  // 4. Generate Points
+  // 4. Generate Points for Tooltips/Dots
   const points = sortedData.map(d => ({
       x: getXPercent(d.rank || 0),
       y: getYPercent(d.value),
       ...d
   }));
 
-  // 5. Generate Paths
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  // 5. Generate Path (with Interpolation if Highlights)
+  const pathD = useMemo(() => {
+      if (isHighlights) {
+          let path = "";
+          
+          for (let i = 0; i < sortedData.length - 1; i++) {
+              const p1 = sortedData[i];
+              const p2 = sortedData[i+1];
+              
+              if (i === 0) {
+                  path += `M ${getXPercent(p1.rank!)} ${getYPercent(p1.value)}`;
+              }
+
+              // Interpolation Steps between anchors
+              // We simulate the "Tiering Congestion" using Cosine Interpolation in Log-Log space.
+              // This creates an S-curve: Flat at the start/end (congestion), Steep in the middle (gap).
+              const steps = 30; 
+
+              for (let j = 1; j <= steps; j++) {
+                  const t_linear = j / steps; // 0 to 1
+                  
+                  // Cosine Interpolation: Map t to a curve that eases in and out
+                  // This naturally simulates the +/- 10% congestion at borders
+                  const t_curved = (1 - Math.cos(t_linear * Math.PI)) / 2;
+                  
+                  // Linear Interpolation for Rank (X)
+                  const currentRank = p1.rank! + (p2.rank! - p1.rank!) * t_linear;
+
+                  // Score Interpolation (Y)
+                  let interpolatedScore;
+                  if (p1.value <= 0 || p2.value <= 0) {
+                       interpolatedScore = p1.value + (p2.value - p1.value) * t_curved;
+                  } else {
+                       const lnY1 = Math.log(p1.value);
+                       const lnY2 = Math.log(p2.value);
+                       
+                       // Apply the CURVED t to the value interpolation
+                       const lnY = lnY1 + (lnY2 - lnY1) * t_curved;
+                       
+                       interpolatedScore = Math.exp(lnY);
+                  }
+
+                  const xPx = getXPercent(currentRank);
+                  const yPx = getYPercent(interpolatedScore);
+                  
+                  path += ` L ${xPx} ${yPx}`;
+              }
+          }
+          return path;
+
+      } else {
+          // Standard Linear Path
+          return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      }
+  }, [sortedData, isHighlights, points]); // Re-calc if data changes
 
   // 6. Generate Grid Lines
   const yGridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
@@ -201,8 +263,8 @@ const LineChart: React.FC<LineChartProps> = ({
                         </pattern>
                     </defs>
 
-                    {/* Safe Zone Shading (Rank 1 to SafeCutoff) */}
-                    {safeThreshold !== undefined && safeRankCutoff !== undefined && (
+                    {/* Safe Zone Shading (Rank 1 to SafeCutoff) - Only if visible in chart */}
+                    {isSafeLineVisible && safeThreshold !== undefined && safeRankCutoff !== undefined && (
                         <rect
                             x="0"
                             y="0"
@@ -274,7 +336,8 @@ const LineChart: React.FC<LineChartProps> = ({
                         vectorEffect="non-scaling-stroke"
                         strokeOpacity={hasFiltering ? 0.4 : 1}
                         className="drop-shadow-sm transition-all duration-300"
-                        strokeDasharray={isHighlights ? "4 4" : "none"} // Dash for highlights
+                        // Solid line for highlights now as requested
+                        strokeDasharray="none" 
                     />
 
                     {/* Mean Line */}
@@ -303,8 +366,8 @@ const LineChart: React.FC<LineChartProps> = ({
                         </g>
                     )}
 
-                    {/* Safety Line */}
-                    {safeThreshold !== undefined && (
+                    {/* Safety Line - Only if visible */}
+                    {isSafeLineVisible && safeThreshold !== undefined && (
                         <g>
                             <line 
                                 x1="0" y1={getYPercent(safeThreshold)} x2="100" y2={getYPercent(safeThreshold)} 
@@ -364,8 +427,8 @@ const LineChart: React.FC<LineChartProps> = ({
                             <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
                                 {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
                             </p>
-                            <p className="truncate font-medium text-slate-200 mb-0.5">{data[index].label}</p>
-                            <p className="font-bold text-center">{valueFormatter(data[index].value)}</p>
+                            <p className="truncate font-medium text-slate-200 mb-0.5">{data[index]?.label}</p>
+                            <p className="font-bold text-center">{valueFormatter(data[index]?.value || 0)}</p>
                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>
                         </div>
                      </div>
@@ -379,7 +442,7 @@ const LineChart: React.FC<LineChartProps> = ({
                      
                      // Optimization for mobile labels
                      if (isMobile && isHighlights) {
-                         if (![100, 1000, 10000, 50000].includes(rank)) return null;
+                         if (![100, 1000, 10000].includes(rank)) return null;
                      }
 
                      return (

@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { RankEntry, SortOption, HisekaiBorderApiResponse, PastEventBorderApiResponse, HisekaiApiResponse } from '../types';
 import LineChart from './LineChart';
+import CrownIcon from './icons/CrownIcon';
 
 interface ChartAnalysisProps {
   rankings: RankEntry[];
@@ -20,6 +22,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   
   const [borderData, setBorderData] = useState<BorderItem[]>([]);
   const [liveAggregateAt, setLiveAggregateAt] = useState<string | null>(null);
+  const [t100Score, setT100Score] = useState<number>(0);
   
   // Selected Rank for Highlights Safety calculation (Default T200)
   const [selectedHighlightRank, setSelectedHighlightRank] = useState<number>(200);
@@ -69,6 +72,10 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     const sanitizedTop = textTop.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
                     const topData: HisekaiApiResponse = JSON.parse(sanitizedTop);
                     setLiveAggregateAt(topData.aggregate_at);
+
+                    // Store T100 score for calculation purposes
+                    const r100 = topData.top_100_player_rankings.find(r => r.rank === 100);
+                    if (r100) setT100Score(r100.score);
                 }
             }
 
@@ -81,7 +88,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   }, [sortOption, eventId, isHighlights]);
 
 
-  const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant } = useMemo(() => {
+  const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant, remainingSafeSlots } = useMemo(() => {
     let data: { label: string, value: number, rank?: number }[] = [];
     let chartTitle = '';
     let formatter = (v: number) => Math.round(v).toLocaleString();
@@ -93,10 +100,64 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     let calculatedGiveUpThreshold: number | undefined = undefined;
     let calculatedSafeRankCutoff: number | undefined = undefined;
     let calculatedGiveUpRankCutoff: number | undefined = undefined;
+    let calculatedRemainingSlots: number | undefined = undefined;
     let variant: 'live' | 'highlights' | 'default' = 'default';
 
     // Base Data: Top 100 sorted by Rank
     const sourceData = [...rankings].sort((a, b) => a.rank - b.rank);
+
+    // Helper: Log-Log Inverse Cosine Interpolation
+    // We visualize using Cosine Interpolation in Log-Log space. 
+    // We must invert this to find the exact Rank cutoff.
+    const findCutoffRank = (dataPoints: { value: number, rank?: number }[], threshold: number, maxRankFallback: number) => {
+        // Since the curve is monotonic descending:
+        // Safe Zone: People with Score > Threshold.
+        // Give Up Zone: People with Score < Threshold.
+
+        // Find the index where scores dip below threshold
+        const firstUnsafeIdx = dataPoints.findIndex(d => d.value <= threshold);
+        
+        if (firstUnsafeIdx === -1) return maxRankFallback; // Everyone is safe/above threshold (or threshold is super low)
+        if (firstUnsafeIdx === 0) return 0; // Everyone is unsafe/below threshold (or threshold is super high)
+
+        const d1 = dataPoints[firstUnsafeIdx - 1]; // Score > Threshold
+        const d2 = dataPoints[firstUnsafeIdx];     // Score <= Threshold
+        
+        // Safety check for Log calculation
+        if (d1.value > 0 && d2.value > 0 && threshold > 0 && d1.rank && d2.rank) {
+             const lnY = Math.log(threshold);
+             const lnY1 = Math.log(d1.value);
+             const lnY2 = Math.log(d2.value);
+             
+             // Calculate curved progress t_curved based on Log values
+             // lnY = lnY1 + (lnY2 - lnY1) * t_curved
+             // t_curved = (lnY - lnY1) / (lnY2 - lnY1)
+             // Note: lnY2 < lnY1 because score is decreasing.
+             const t_curved = (lnY - lnY1) / (lnY2 - lnY1);
+             
+             // Clamp to 0-1 to avoid acos errors if threshold is slightly out of bounds due to float precision
+             const t_curved_clamped = Math.max(0, Math.min(1, t_curved));
+
+             // Invert Cosine Interpolation: 
+             // Formula used in LineChart: t_curved_val = (1 - cos(t_linear * PI)) / 2
+             // Let y = t_curved_clamped
+             // y = (1 - cos(x * PI)) / 2
+             // 2y = 1 - cos(x * PI)
+             // cos(x * PI) = 1 - 2y
+             // x * PI = acos(1 - 2y)
+             // x (t_linear) = acos(1 - 2y) / PI
+             
+             const t_linear = Math.acos(1 - 2 * t_curved_clamped) / Math.PI;
+
+             // Linear Interpolation for Rank
+             return d1.rank + (d2.rank - d1.rank) * t_linear;
+
+        } else {
+             // Fallback to Linear Interpolation if values are 0 or missing ranks
+             const ratio = (threshold - d1.value) / (d2.value - d1.value);
+             return (d1.rank || 0) + ((d2.rank || 0) - (d1.rank || 0)) * ratio;
+        }
+    };
 
     switch(sortOption) {
         case 'score':
@@ -105,9 +166,9 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             
             if (isHighlights) {
                 variant = 'highlights';
-                // Show ONLY Highlights, Filter <= 10000 for Chart clarity
+                // Show ONLY Highlights, Filter <= 10000 for Chart clarity and > 0 to prevent log errors
                 data = borderData
-                    .filter(b => b.rank <= 10000)
+                    .filter(b => b.rank <= 10000 && b.score > 0)
                     .map(b => ({
                         label: `#${b.rank} ${b.name || 'Player'}`,
                         value: b.score,
@@ -123,32 +184,20 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
                     if (remainingSeconds > 0) {
                         const maxGain = (remainingSeconds / 100) * 68000;
-                        const rankScore = borderData.find(b => b.rank === selectedHighlightRank)?.score || 0;
+                        
+                        let rankScore = 0;
+                        if (selectedHighlightRank === 100) {
+                            rankScore = t100Score;
+                        } else {
+                            rankScore = borderData.find(b => b.rank === selectedHighlightRank)?.score || 0;
+                        }
                         
                         if (rankScore > 0) {
                             calculatedSafeThreshold = rankScore + maxGain;
                             calculatedGiveUpThreshold = Math.max(0, rankScore - maxGain);
 
-                            // Interpolation Logic
-                            const firstUnsafeIdx = data.findIndex(d => d.value <= (calculatedSafeThreshold as number));
-                            if (firstUnsafeIdx === -1) calculatedSafeRankCutoff = 10000;
-                            else if (firstUnsafeIdx === 0) calculatedSafeRankCutoff = 0;
-                            else {
-                                const d1 = data[firstUnsafeIdx - 1];
-                                const d2 = data[firstUnsafeIdx];
-                                const ratio = (calculatedSafeThreshold! - d1.value) / (d2.value - d1.value);
-                                calculatedSafeRankCutoff = d1.rank! + (d2.rank! - d1.rank!) * ratio;
-                            }
-
-                            const firstGiveUpIdx = data.findIndex(d => d.value < (calculatedGiveUpThreshold as number));
-                            if (firstGiveUpIdx === -1) calculatedGiveUpRankCutoff = 10001; 
-                            else if (firstGiveUpIdx === 0) calculatedGiveUpRankCutoff = 0;
-                            else {
-                                const d1 = data[firstGiveUpIdx - 1];
-                                const d2 = data[firstGiveUpIdx];
-                                const ratio = (calculatedGiveUpThreshold! - d1.value) / (d2.value - d1.value);
-                                calculatedGiveUpRankCutoff = d1.rank! + (d2.rank! - d1.rank!) * ratio;
-                            }
+                            calculatedSafeRankCutoff = findCutoffRank(data, calculatedSafeThreshold, 10000);
+                            calculatedGiveUpRankCutoff = findCutoffRank(data, calculatedGiveUpThreshold, 10001);
                         }
                     }
                 }
@@ -170,18 +219,16 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
                     if (remainingSeconds > 0) {
                         const maxGain = (remainingSeconds / 100) * 68000;
-                        const rank100Score = data[data.length - 1]?.value || 0; 
+                        // Use exact Rank 100 score, or 0 if rank 100 not populated yet
+                        const rank100Score = data.find(r => r.rank === 100)?.value || 0; 
                         calculatedSafeThreshold = rank100Score + maxGain;
 
-                        const firstUnsafeIdx = data.findIndex(d => d.value <= (calculatedSafeThreshold as number));
-                        if (firstUnsafeIdx === -1) calculatedSafeRankCutoff = 100;
-                        else if (firstUnsafeIdx === 0) calculatedSafeRankCutoff = 0;
-                        else {
-                             const d1 = data[firstUnsafeIdx - 1];
-                             const d2 = data[firstUnsafeIdx];
-                             const ratio = (calculatedSafeThreshold! - d1.value) / (d2.value - d1.value);
-                             calculatedSafeRankCutoff = d1.rank! + (d2.rank! - d1.rank!) * ratio;
-                        }
+                        calculatedSafeRankCutoff = findCutoffRank(data, calculatedSafeThreshold, 100);
+
+                        // Calculate remaining available slots in Top 100
+                        // Slots = 100 - (Number of people currently above the Safe Line)
+                        const safelySecuredCount = data.filter(r => r.value > calculatedSafeThreshold!).length;
+                        calculatedRemainingSlots = Math.max(0, 100 - safelySecuredCount);
                     }
                 }
             }
@@ -220,20 +267,33 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         giveUpThreshold: calculatedGiveUpThreshold,
         safeRankCutoff: calculatedSafeRankCutoff,
         giveUpRankCutoff: calculatedGiveUpRankCutoff,
-        chartVariant: variant
+        chartVariant: variant,
+        remainingSafeSlots: calculatedRemainingSlots
     };
 
-  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank]);
+  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score]);
 
   return (
     <div className="space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <h3 className="text-md font-semibold text-slate-200 text-center md:text-left">{title}</h3>
             
+            {/* Live Top 100 Remaining Slots Display */}
+            {!isHighlights && !eventId && sortOption === 'score' && remainingSafeSlots !== undefined && (
+                 <div 
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border shadow-sm transition-all animate-fadeIn bg-emerald-900/20 border-emerald-500/30 text-emerald-400"
+                    title={`目前有 ${100 - remainingSafeSlots} 人分數已超越安全線，剩餘 ${remainingSafeSlots} 個名額可供爭奪`}
+                 >
+                    <CrownIcon className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider">T100 剩餘名額:</span>
+                    <span className="text-sm font-mono font-black">{remainingSafeSlots}</span>
+                 </div>
+            )}
+
             {/* Rank Toggles for Live Highlights */}
             {isHighlights && !eventId && sortOption === 'score' && (
                 <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
-                    {[200, 300, 400, 500, 1000].map(r => (
+                    {[100, 200, 300, 400, 500, 1000].map(r => (
                         <button
                             key={r}
                             onClick={() => setSelectedHighlightRank(r)}

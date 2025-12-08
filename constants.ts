@@ -185,7 +185,7 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     90: { unit: "Mix", type: "cheerful_carnival", banner: "日野森志步", storyType: "mixed_event", cardType: "limited" },
     91: { unit: "Leo/need", type: "marathon", banner: "天馬咲希", storyType: "unit_event", cardType: "permanent" },
     92: { unit: "MORE MORE JUMP!", type: "marathon", banner: "桃井愛莉", storyType: "unit_event", cardType: "permanent" },
-    93: { unit: "25點，Nightcord見。見", type: "cheerful_carnival", banner: "曉山瑞希", storyType: "unit_event", cardType: "limited" },
+    93: { unit: "25點，Nightcord見。", type: "cheerful_carnival", banner: "曉山瑞希", storyType: "unit_event", cardType: "limited" },
     94: { unit: "Mix", type: "marathon", banner: "桐谷遙", storyType: "mixed_event", cardType: "permanent" },
     95: { unit: "Wonderlands × Showtime", type: "marathon", banner: "草薙寧寧", storyType: "unit_event", cardType: "permanent" },
     96: { unit: "Mix", type: "cheerful_carnival", banner: "望月穗波", storyType: "mixed_event", cardType: "limited" },

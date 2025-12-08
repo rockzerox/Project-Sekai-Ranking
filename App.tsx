@@ -126,15 +126,15 @@ const App: React.FC = () => {
   const [liveEventTiming, setLiveEventTiming] = useState<{ aggregateAt: string, rankingAnnounceAt: string } | null>(null);
   
   const [isRankingsOpen, setIsRankingsOpen] = useState(true);
-  const [isChartsOpen, setIsChartsOpen] = useState(false);
+  const [isChartsOpen, setIsChartsOpen] = useState(true); // Default Open
   const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
 
   // Manage Chart Collapse State based on View
   useEffect(() => {
       if (currentView === 'live') {
-          setIsChartsOpen(false); // Default collapsed for live events
+          setIsChartsOpen(true); // Default open for live events
       } else if (currentView === 'past' && selectedEvent) {
-          setIsChartsOpen(false); // Default collapsed for past events
+          setIsChartsOpen(true); // Default open for past events
       }
   }, [currentView, selectedEvent]);
 

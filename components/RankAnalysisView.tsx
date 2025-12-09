@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
@@ -163,10 +164,17 @@ const RankAnalysisView: React.FC = () => {
                         const start = new Date(topData.start_at);
                         const agg = new Date(topData.aggregate_at);
                         
-                        const diffMs = Math.max(0, now.getTime() - start.getTime());
-                        const elapsedDays = diffMs / (1000 * 60 * 60 * 24);
-                        
+                        // Check if event is still active (before aggregation)
                         const remainingMs = Math.max(0, agg.getTime() - now.getTime());
+                        const isStillActive = remainingMs > 0;
+                        
+                        // Duration Logic:
+                        // If active: duration = now - start (Elapsed)
+                        // If ended: duration = agg - start (Total)
+                        const durationEnd = isStillActive ? now : agg;
+                        const durationMs = Math.max(0, durationEnd.getTime() - start.getTime());
+                        const durationDays = durationMs / (1000 * 60 * 60 * 24);
+                        
                         const remainingDays = remainingMs / (1000 * 60 * 60 * 24);
 
                         const top1 = topData.top_100_player_rankings.find(r => r.rank === 1)?.score || 0;
@@ -184,9 +192,9 @@ const RankAnalysisView: React.FC = () => {
                         const liveStat: EventStat = {
                             eventId: topData.id,
                             eventName: topData.name,
-                            duration: elapsedDays,
+                            duration: durationDays,
                             remainingDays: remainingDays,
-                            isLive: true,
+                            isLive: isStillActive, // Updated dynamic flag
                             top1,
                             top10,
                             top50,

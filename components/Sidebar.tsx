@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
            </div>
            {!isCollapsed && (
              <h1 className="font-bold text-xl text-slate-900 dark:text-white tracking-tight whitespace-nowrap overflow-hidden animate-fadeIn">
-               Hisekai TW
+               Hi Sekai TW
              </h1>
            )}
         </div>
@@ -191,16 +191,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
             <div className="p-4 border-t border-slate-200 dark:border-slate-700 md:border-t-0 bg-slate-50 dark:bg-slate-900/30">
                 <div className="text-xs text-slate-500 dark:text-slate-500 text-center space-y-1">
-                    <p>Unofficial Viewer</p>
+                    <p>非官方粉絲製作網站</p>
                     <p>
-                        Data by{' '}
+                        Data provided by{' '}
                         <a 
-                            href="https://docs.hisekai.org/zh/docs" 
+                            href="https://hisekai.org" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-cyan-600 dark:text-cyan-400 hover:underline transition-colors"
                         >
-                            Hisekai API
+                            Hi Sekai API
                         </a>
                     </p>
                 </div>

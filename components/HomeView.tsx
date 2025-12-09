@@ -116,7 +116,7 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
                     <TrophyIcon className="w-16 h-16 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
-                    歡迎來到 Hisekai TW 排名資訊站
+                    歡迎來到 Hi Sekai TW 排名資訊站
                 </h1>
                 <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
                     提供 Project Sekai 台服最完整的排名數據查詢、歷代活動存檔以及多維度的數據分析工具。
@@ -146,7 +146,17 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
             </div>
             
             <div className="mt-16 text-center text-sm text-slate-400 dark:text-slate-500">
-                <p>非官方粉絲製作網站 • Data powered by Hisekai API</p>
+                <p>
+                    非官方粉絲製作網站 • Data provided by{' '}
+                    <a 
+                        href="https://hisekai.org" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hover:text-cyan-500 transition-colors underline decoration-dotted underline-offset-2"
+                    >
+                        Hi Sekai API
+                    </a>
+                </p>
             </div>
         </div>
     );

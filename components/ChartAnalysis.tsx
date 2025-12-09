@@ -37,8 +37,11 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         }
 
         try {
-            // 1. Fetch Border Data if needed (Highlights or Past Events)
-            if (isHighlights) {
+            // 1. Fetch Border Data if needed (Highlights or Past Events OR Live T100 for Chaser Calc)
+            // We fetch border data for Live Top 100 as well to calculate T100 Chasers (ranks > 100)
+            const shouldFetchBorder = isHighlights || (!eventId && sortOption === 'score');
+            
+            if (shouldFetchBorder) {
                 const url = eventId 
                     ? `https://api.hisekai.org/event/${eventId}/border`
                     : `https://api.hisekai.org/event/live/border`;
@@ -102,7 +105,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   }, [sortOption, eventId, isHighlights]);
 
 
-  const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant, remainingSafeSlots } = useMemo(() => {
+  const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant, remainingSafeSlots, t100ExtendedStats } = useMemo(() => {
     let data: { label: string, value: number, rank?: number }[] = [];
     let chartTitle = '';
     let formatter = (v: number) => Math.round(v).toLocaleString();
@@ -115,6 +118,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     let calculatedSafeRankCutoff: number | undefined = undefined;
     let calculatedGiveUpRankCutoff: number | undefined = undefined;
     let calculatedRemainingSlots: number | undefined = undefined;
+    let calculatedT100Extended: { chasers: number, giveUpRank: number } | null = null;
     let variant: 'live' | 'highlights' | 'default' = 'default';
 
     // Base Data: Top 100 sorted by Rank
@@ -147,6 +151,41 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
              return (d1.rank || 0) + ((d2.rank || 0) - (d1.rank || 0)) * ratio;
         }
     };
+
+    // New: Calculate T100 GiveUp Rank and Chasers
+    if (!eventId && liveAggregateAt && t100Score > 0) {
+        const now = Date.now();
+        const end = new Date(liveAggregateAt).getTime();
+        const sec = (end - now) / 1000;
+        
+        if (sec > 0) {
+            const maxGain = (sec / 100) * 68000;
+            const giveUpScore = t100Score - maxGain;
+
+            // Prepare interpolation data: T100 + Borders
+            const interpolationPoints: { rank: number, value: number }[] = [];
+            interpolationPoints.push({ rank: 100, value: t100Score });
+            
+            borderData.forEach(b => {
+                if (b.rank > 100 && b.score > 0) {
+                    interpolationPoints.push({ rank: b.rank, value: b.score });
+                }
+            });
+            interpolationPoints.sort((a,b) => a.rank - b.rank);
+
+            if (interpolationPoints.length >= 2) {
+                const giveUpRank = findCutoffRank(interpolationPoints, giveUpScore, 10001);
+                // If score is negative or too low, rank might be extrapolated or clamped.
+                // Assuming normal conditions:
+                if (giveUpRank > 100) {
+                    calculatedT100Extended = {
+                        chasers: Math.max(0, Math.floor(giveUpRank) - 100),
+                        giveUpRank: Math.ceil(giveUpRank)
+                    };
+                }
+            }
+        }
+    }
 
     switch(sortOption) {
         case 'score':
@@ -252,7 +291,8 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         safeRankCutoff: calculatedSafeRankCutoff,
         giveUpRankCutoff: calculatedGiveUpRankCutoff,
         chartVariant: variant,
-        remainingSafeSlots: calculatedRemainingSlots
+        remainingSafeSlots: calculatedRemainingSlots,
+        t100ExtendedStats: calculatedT100Extended
     };
 
   }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score]);
@@ -277,15 +317,34 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
                 {/* --- Compact Dashboard Badges --- */}
                 
-                {/* 1. Live Top 100 Remaining Slots */}
+                {/* 1. Live Top 100 Stats (Remaining + Chasers) */}
                 {!isHighlights && !eventId && sortOption === 'score' && remainingSafeSlots !== undefined && (
-                     <div 
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400 animate-fadeIn"
-                        title={`目前有 ${100 - remainingSafeSlots} 人分數已超越安全線，剩餘 ${remainingSafeSlots} 個名額可供爭奪`}
-                     >
-                        <CrownIcon className="w-3.5 h-3.5" />
-                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">T100 剩餘名額:</span>
-                        <span className="text-xs sm:text-sm font-mono font-black">{remainingSafeSlots}</span>
+                     <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+                        {/* Remaining Slots (Precise) */}
+                        <div 
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400"
+                            title={`目前有 ${100 - remainingSafeSlots} 人分數已超越安全線，剩餘 ${remainingSafeSlots} 個名額可供爭奪`}
+                        >
+                            <CrownIcon className="w-3.5 h-3.5" />
+                            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">T100 剩餘:</span>
+                            <span className="text-xs sm:text-sm font-mono font-black">{remainingSafeSlots} 名</span>
+                        </div>
+                        
+                        {/* Potential Chasers (Estimated) */}
+                        {t100ExtendedStats && (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-amber-900/20 border-amber-500/30 text-amber-400" title="推估理論上仍有機會追上 T100 的人數">
+                                <span className="text-[10px] sm:text-xs font-bold">[推估] ⚔️ 潛在追擊:</span>
+                                <span className="text-xs sm:text-sm font-mono font-black">~{t100ExtendedStats.chasers} 人</span>
+                            </div>
+                        )}
+                        
+                        {/* Give Up Rank (Estimated) */}
+                        {t100ExtendedStats && (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-rose-900/20 border-rose-500/30 text-rose-400" title="推估 T100 的死心排名">
+                                <span className="text-[10px] sm:text-xs font-bold">[推估] ⛔ T100 死心線:</span>
+                                <span className="text-xs sm:text-sm font-mono font-black">Rank {t100ExtendedStats.giveUpRank}+</span>
+                            </div>
+                        )}
                      </div>
                 )}
 
@@ -293,12 +352,33 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 {dashboardStats && !eventId && (
                     <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
                         {/* Special Logic for T100: Use Precise Slot Calculation if available */}
-                        {selectedHighlightRank === 100 && t100SafeCount !== null ? (
-                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400">
-                                <CrownIcon className="w-3.5 h-3.5" />
-                                <span className="text-[10px] sm:text-xs font-bold">T100 剩餘名額:</span>
-                                <span className="text-xs sm:text-sm font-mono font-black">{Math.max(0, 100 - t100SafeCount)}</span>
-                            </div>
+                        {selectedHighlightRank === 100 ? (
+                            <>
+                                {/* Remaining (Precise) */}
+                                {t100SafeCount !== null && (
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400">
+                                        <CrownIcon className="w-3.5 h-3.5" />
+                                        <span className="text-[10px] sm:text-xs font-bold">T100 剩餘:</span>
+                                        <span className="text-xs sm:text-sm font-mono font-black">{Math.max(0, 100 - t100SafeCount)} 名</span>
+                                    </div>
+                                )}
+                                
+                                {/* Chasers (Estimated) */}
+                                {t100ExtendedStats && (
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-amber-900/20 border-amber-500/30 text-amber-400" title="推估理論上仍有機會追上 T100 的人數">
+                                        <span className="text-[10px] sm:text-xs font-bold">[推估] ⚔️ 潛在追擊:</span>
+                                        <span className="text-xs sm:text-sm font-mono font-black">~{t100ExtendedStats.chasers} 人</span>
+                                    </div>
+                                )}
+
+                                {/* Give Up Rank (Estimated) */}
+                                {t100ExtendedStats && (
+                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-rose-900/20 border-rose-500/30 text-rose-400" title="推估 T100 的死心排名">
+                                        <span className="text-[10px] sm:text-xs font-bold">[推估] ⛔ T100 死心線:</span>
+                                        <span className="text-xs sm:text-sm font-mono font-black">Rank {t100ExtendedStats.giveUpRank}+</span>
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             /* Standard Estimation for T200+ */
                             <>

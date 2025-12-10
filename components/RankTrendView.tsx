@@ -1,7 +1,10 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LineChart from './LineChart';
 import { WORLD_LINK_IDS, calculatePreciseDuration, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER, getEventColor } from '../constants';
+import Select from './ui/Select';
+import Button from './ui/Button';
 
 interface TrendDataPoint {
     eventId: number;
@@ -68,7 +71,6 @@ const RankTrendView: React.FC = () => {
                 const listData: EventSummary[] = await listRes.json();
                 
                 // 2. Filter Valid Events (Closed)
-                // Note: World Link IS included now as requested
                 const now = new Date();
                 const validEvents = listData
                     .filter(e => new Date(e.closed_at) < now) 
@@ -105,12 +107,9 @@ const RankTrendView: React.FC = () => {
                                     else if (selectedRank === 10) score = json.rankings?.[9]?.score || 0;
                                     else if (selectedRank === 100) score = json.rankings?.[99]?.score || 0;
                                     else score = json.rankings.find(r => r.rank === selectedRank)?.score || 0;
-                                    
-                                    // WL Top 100 fallback if standard structure empty (usually standard exists for WL top 100)
                                 } else {
                                     const json: PastEventBorderApiResponse = JSON.parse(sanitized);
                                     score = json.borderRankings?.find(r => r.rank === selectedRank)?.score || 0;
-                                    // WL Border fallback if needed (usually handled by API consistency)
                                 }
                             }
 
@@ -152,7 +151,6 @@ const RankTrendView: React.FC = () => {
     }, [selectedRank, isPaused]);
 
     const { chartData, meanValue, medianValue } = useMemo(() => {
-        // Determine if any filter is active
         const hasActiveFilters = 
             selectedUnitFilter !== 'all' || 
             selectedTypeFilter !== 'all' || 
@@ -171,7 +169,7 @@ const RankTrendView: React.FC = () => {
             if (selectedCardFilter !== 'all' && details?.cardType !== selectedCardFilter) isMatch = false;
 
             return {
-                label: `${d.eventName}`, // UPDATED: Use Event Name in tooltip
+                label: `${d.eventName}`,
                 value: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, d.duration)) : d.score,
                 rank: d.eventId,
                 isHighlighted: !hasActiveFilters || isMatch,
@@ -180,7 +178,6 @@ const RankTrendView: React.FC = () => {
             };
         });
 
-        // Calculate Statistics on Highlighted Data
         const highlightedValues = mappedData
             .filter(d => d.isHighlighted)
             .map(d => d.value)
@@ -191,7 +188,6 @@ const RankTrendView: React.FC = () => {
 
         if (highlightedValues.length > 0) {
             mean = highlightedValues.reduce((acc, val) => acc + val, 0) / highlightedValues.length;
-            
             const mid = Math.floor(highlightedValues.length / 2);
             if (highlightedValues.length % 2 === 0) {
                 median = (highlightedValues[mid - 1] + highlightedValues[mid]) / 2;
@@ -200,11 +196,7 @@ const RankTrendView: React.FC = () => {
             }
         }
 
-        return { 
-            chartData: mappedData, 
-            meanValue: mean, 
-            medianValue: median 
-        };
+        return { chartData: mappedData, meanValue: mean, medianValue: median };
     }, [trendData, displayMode, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
 
     return (
@@ -218,107 +210,114 @@ const RankTrendView: React.FC = () => {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-slate-600 dark:text-slate-300 font-bold">排名 (Rank):</span>
-                            <select 
-                                value={selectedRank} 
-                                onChange={(e) => setSelectedRank(Number(e.target.value))}
-                                className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-bold py-2 px-3 rounded border border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-teal-500 outline-none cursor-pointer"
-                            >
-                                {RANK_OPTIONS.map(rank => (
-                                    <option key={rank} value={rank}>Top {rank}</option>
-                                ))}
-                            </select>
+                            <span className="text-sm text-slate-600 dark:text-slate-300 font-bold whitespace-nowrap">排名 (Rank):</span>
+                            <Select
+                                className="py-2"
+                                value={selectedRank}
+                                onChange={(val) => setSelectedRank(Number(val))}
+                                options={RANK_OPTIONS.map(rank => ({ value: rank, label: `Top ${rank}` }))}
+                            />
                         </div>
 
                         <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm">
-                            <button
+                            <Button
+                                size="sm"
+                                variant={displayMode === 'total' ? 'primary' : 'ghost'}
                                 onClick={() => setDisplayMode('total')}
-                                className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${displayMode === 'total' ? 'bg-cyan-500 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                             >
                                 總分
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={displayMode === 'daily' ? 'danger' : 'ghost'}
+                                className={displayMode === 'daily' ? 'bg-pink-500 hover:bg-pink-600 focus:ring-pink-500' : ''}
                                 onClick={() => setDisplayMode('daily')}
-                                className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${displayMode === 'daily' ? 'bg-pink-500 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                             >
                                 日均
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
 
-                {/* Filters */}
                 <div className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 mb-6 flex flex-wrap gap-2 items-center">
-                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">單一篩選 (Exclusive Filter):</span>
-                     <select
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">單一篩選:</span>
+                     
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedUnitFilter}
-                        onChange={(e) => handleFilterChange('unit', e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-                     >
-                        <option value="all">所有團體</option>
-                        {UNIT_ORDER.map(unit => <option key={unit} value={unit}>{unit}</option>)}
-                     </select>
+                        onChange={(val) => handleFilterChange('unit', val)}
+                        options={[
+                            { value: 'all', label: '所有團體' },
+                            ...UNIT_ORDER.map(u => ({ value: u, label: u }))
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedBannerFilter}
-                        onChange={(e) => handleFilterChange('banner', e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-                     >
-                        <option value="all">所有 Banner</option>
-                        {BANNER_ORDER.map(banner => <option key={banner} value={banner}>{banner}</option>)}
-                     </select>
+                        onChange={(val) => handleFilterChange('banner', val)}
+                        options={[
+                            { value: 'all', label: '所有 Banner' },
+                            ...BANNER_ORDER.map(b => ({ value: b, label: b }))
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedTypeFilter}
-                        onChange={(e) => handleFilterChange('type', e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-                     >
-                        <option value="all">所有類型</option>
-                        <option value="marathon">馬拉松</option>
-                        <option value="cheerful_carnival">歡樂嘉年華</option>
-                        <option value="world_link">World Link</option>
-                     </select>
+                        onChange={(val) => handleFilterChange('type', val)}
+                        options={[
+                            { value: 'all', label: '所有類型' },
+                            { value: 'marathon', label: '馬拉松' },
+                            { value: 'cheerful_carnival', label: '歡樂嘉年華' },
+                            { value: 'world_link', label: 'World Link' }
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedStoryFilter}
-                        onChange={(e) => handleFilterChange('story', e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-                     >
-                        <option value="all">所有劇情</option>
-                        <option value="unit_event">箱活</option>
-                        <option value="mixed_event">混活</option>
-                        <option value="world_link">World Link</option>
-                     </select>
+                        onChange={(val) => handleFilterChange('story', val)}
+                        options={[
+                            { value: 'all', label: '所有劇情' },
+                            { value: 'unit_event', label: '箱活' },
+                            { value: 'mixed_event', label: '混活' },
+                            { value: 'world_link', label: 'World Link' }
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedCardFilter}
-                        onChange={(e) => handleFilterChange('card', e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-cyan-500"
-                     >
-                        <option value="all">所有卡面</option>
-                        <option value="permanent">常駐</option>
-                        <option value="limited">限定</option>
-                        <option value="special_limited">特殊限定</option>
-                     </select>
+                        onChange={(val) => handleFilterChange('card', val)}
+                        options={[
+                            { value: 'all', label: '所有卡面' },
+                            { value: 'permanent', label: '常駐' },
+                            { value: 'limited', label: '限定' },
+                            { value: 'special_limited', label: '特殊限定' }
+                        ]}
+                     />
 
-                     {/* Stat Toggles */}
                      <div className="flex gap-2 ml-auto">
-                        <button 
+                        <Button
+                            size="sm"
+                            variant={showMean ? 'outline' : 'ghost'}
+                            className={showMean ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300' : ''}
                             onClick={() => setShowMean(!showMean)}
-                            className={`text-xs px-2 py-1 rounded border transition-colors ${showMean ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
                         >
-                            平均數 (Mean)
-                        </button>
-                        <button 
+                            平均數
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={showMedian ? 'outline' : 'ghost'}
+                            className={showMedian ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300' : ''}
                             onClick={() => setShowMedian(!showMedian)}
-                            className={`text-xs px-2 py-1 rounded border transition-colors ${showMedian ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
                         >
-                            中位數 (Median)
-                        </button>
+                            中位數
+                        </Button>
                      </div>
                 </div>
 
-                {/* Statistics Panel */}
                 {(showMean || showMedian) && (
                     <div className="grid grid-cols-2 gap-4 mb-6">
                         {showMean && (
@@ -356,12 +355,14 @@ const RankTrendView: React.FC = () => {
                                 style={{ width: `${loadingProgress}%` }}
                             ></div>
                         </div>
-                         <button 
+                         <Button 
+                            size="sm"
+                            variant="secondary"
                             onClick={() => setIsPaused(!isPaused)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-2 py-1 rounded border border-slate-300 dark:border-transparent"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 z-20"
                          >
                              {isPaused ? "繼續" : "暫停"}
-                         </button>
+                         </Button>
                     </div>
                 )}
             </div>

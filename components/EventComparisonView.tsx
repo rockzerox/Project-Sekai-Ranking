@@ -4,6 +4,8 @@ import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
+import Select from './ui/Select';
+import Button from './ui/Button';
 
 interface SimpleRankData {
     rank: number;
@@ -381,35 +383,31 @@ const EventComparisonView: React.FC = () => {
                     <span>📊 綜合分析 (Comprehensive Analysis)</span>
                     <div className="flex gap-2">
                         <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm mr-2">
-                            <button
+                            <Button
+                                size="sm"
+                                variant={displayMode === 'total' ? 'primary' : 'ghost'}
                                 onClick={() => setDisplayMode('total')}
-                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${
-                                    displayMode === 'total' 
-                                    ? 'bg-cyan-500 text-white shadow' 
-                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
                             >
                                 總分
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={displayMode === 'daily' ? 'danger' : 'ghost'}
                                 onClick={() => setDisplayMode('daily')}
-                                className={`px-3 py-1 text-xs font-bold rounded transition-colors ${
-                                    displayMode === 'daily' 
-                                    ? 'bg-pink-500 text-white shadow' 
-                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
+                                className={displayMode === 'daily' ? 'bg-pink-500 hover:bg-pink-600 focus:ring-pink-500' : ''}
                             >
                                 日均
-                            </button>
+                            </Button>
                         </div>
 
                         {zoomSpan < 0.99 && (
-                            <button 
+                            <Button 
+                                size="sm"
+                                variant="secondary"
                                 onClick={resetZoom}
-                                className="text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 transition-colors"
                             >
                                 重置縮放
-                            </button>
+                            </Button>
                         )}
                     </div>
                 </h3>
@@ -571,101 +569,96 @@ const EventComparisonView: React.FC = () => {
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                     <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            活動 1 (Base Event)
-                        </label>
-                        <select 
+                        <Select
+                            label="活動 1 (Base Event)"
                             value={selectedId1}
-                            onChange={(e) => setSelectedId1(e.target.value)}
-                            className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                        >
-                            <option value="">選擇活動...</option>
-                            {filteredEvents.map(e => (
-                                <option key={e.id} value={e.id} style={{ color: getEventColor(e.id) }}>
-                                    #{e.id} {e.name}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={setSelectedId1}
+                            options={[
+                                { value: '', label: '選擇活動...' },
+                                ...filteredEvents.map(e => ({
+                                    value: e.id,
+                                    label: `#${e.id} ${e.name}`,
+                                    style: { color: getEventColor(e.id) }
+                                }))
+                            ]}
+                        />
                     </div>
 
                     <div className="lg:col-span-2">
-                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                            活動 2 (Comparison)
-                        </label>
-                        <select 
-                             value={selectedId2}
-                             onChange={(e) => setSelectedId2(e.target.value)}
-                             className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-pink-500 outline-none"
-                        >
-                            <option value="">選擇活動...</option>
-                            {filteredEvents.map(e => (
-                                <option key={e.id} value={e.id} style={{ color: getEventColor(e.id) }}>
-                                    #{e.id} {e.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Select
+                            label="活動 2 (Comparison)"
+                            value={selectedId2}
+                            onChange={setSelectedId2}
+                            options={[
+                                { value: '', label: '選擇活動...' },
+                                ...filteredEvents.map(e => ({
+                                    value: e.id,
+                                    label: `#${e.id} ${e.name}`,
+                                    style: { color: getEventColor(e.id) }
+                                }))
+                            ]}
+                        />
                     </div>
 
                     <div className="lg:col-span-1">
-                        <button
-                            onClick={handleCompare}
+                        <Button
+                            variant="gradient"
+                            fullWidth
                             disabled={isComparing || !selectedId1 || !selectedId2}
-                            className={`w-full py-2 px-4 rounded font-bold text-white transition-all ${
-                                isComparing || !selectedId1 || !selectedId2 
-                                ? 'bg-slate-400 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-cyan-500 to-pink-500 hover:opacity-90 shadow-md'
-                            }`}
+                            onClick={handleCompare}
+                            isLoading={isComparing}
                         >
                             {isComparing ? '分析中...' : '開始比較'}
-                        </button>
+                        </Button>
                     </div>
                  </div>
 
                  <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
-                     <span className="text-sm text-slate-500">篩選列表:</span>
-                     <select
+                     <span className="text-sm text-slate-500 mr-2">篩選列表:</span>
+                     
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedUnitFilter}
-                        onChange={(e) => setSelectedUnitFilter(e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
-                     >
-                        <option value="all">所有團體</option>
-                        {UNIT_ORDER.map(unit => (
-                            <option key={unit} value={unit}>{unit}</option>
-                        ))}
-                     </select>
+                        onChange={setSelectedUnitFilter}
+                        options={[
+                            { value: 'all', label: '所有團體' },
+                            ...UNIT_ORDER.map(unit => ({ value: unit, label: unit }))
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedBannerFilter}
-                        onChange={(e) => setSelectedBannerFilter(e.target.value)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
-                     >
-                        <option value="all">所有 Banner</option>
-                        {BANNER_ORDER.map(banner => (
-                            <option key={banner} value={banner}>{banner}</option>
-                        ))}
-                     </select>
+                        onChange={setSelectedBannerFilter}
+                        options={[
+                            { value: 'all', label: '所有 Banner' },
+                            ...BANNER_ORDER.map(banner => ({ value: banner, label: banner }))
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedStoryFilter}
-                        onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
-                     >
-                        <option value="all">所有劇情 (All Stories)</option>
-                        <option value="unit_event">箱活</option>
-                        <option value="mixed_event">混活</option>
-                        <option value="world_link">World Link</option>
-                     </select>
+                        onChange={(val) => setSelectedStoryFilter(val as any)}
+                        options={[
+                            { value: 'all', label: '所有劇情' },
+                            { value: 'unit_event', label: '箱活' },
+                            { value: 'mixed_event', label: '混活' },
+                            { value: 'world_link', label: 'World Link' }
+                        ]}
+                     />
 
-                     <select
+                     <Select
+                        className="py-1.5 text-xs"
                         value={selectedCardFilter}
-                        onChange={(e) => setSelectedCardFilter(e.target.value as any)}
-                        className="text-sm p-1.5 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white outline-none"
-                     >
-                        <option value="all">所有卡面 (All Cards)</option>
-                        <option value="permanent">常駐</option>
-                        <option value="limited">限定</option>
-                        <option value="special_limited">特殊限定</option>
-                     </select>
+                        onChange={(val) => setSelectedCardFilter(val as any)}
+                        options={[
+                            { value: 'all', label: '所有卡面' },
+                            { value: 'permanent', label: '常駐' },
+                            { value: 'limited', label: '限定' },
+                            { value: 'special_limited', label: '特殊限定' }
+                        ]}
+                     />
                  </div>
             </div>
 

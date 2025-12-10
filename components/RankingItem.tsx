@@ -155,6 +155,17 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
   // If in highlights mode (hideStats is true), item is not clickable
   const isClickable = !hideStats;
 
+  const handleToggle = () => {
+      if (isClickable) setIsExpanded(!isExpanded);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          setIsExpanded(!isExpanded);
+      }
+  };
+
   const renderStatDetail = (label: string, value: string | number) => (
     <div className="flex justify-between items-baseline text-sm py-1.5 border-b border-slate-200 dark:border-slate-700/50 last:border-b-0">
       <span className="text-slate-500 dark:text-slate-400">{label}</span>
@@ -179,8 +190,11 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
       className={`border rounded-lg transition-all duration-300 overflow-hidden ${styles.container}`}
     >
       <div
-        onClick={() => isClickable && setIsExpanded(!isExpanded)}
-        className={`w-full flex items-center p-2 sm:p-3 text-left transition-colors ${isClickable ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer' : ''}`}
+        role={isClickable ? "button" : undefined}
+        tabIndex={isClickable ? 0 : -1}
+        onClick={handleToggle}
+        onKeyDown={handleKeyDown}
+        className={`w-full flex items-center p-2 sm:p-3 text-left transition-colors outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500/50 ${isClickable ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer' : ''}`}
         aria-expanded={isExpanded}
         aria-controls={`details-${user.id}`}
       >
@@ -238,12 +252,6 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                     <DetailStatCard title="過去 24 小時" stat={stats.last24h} />
                 </div>
               )}
-              
-              {/* Player Profile Details disabled and hidden 
-              <div className="mt-4 border-t border-slate-200 dark:border-slate-700/50 pt-4">
-                 // ... Original profile rendering code preserved in comments ...
-              </div>
-              */}
             </div>
           </div>
       )}
@@ -251,4 +259,4 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
   );
 };
 
-export default RankingItem;
+export default React.memo(RankingItem);

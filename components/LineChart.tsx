@@ -482,4 +482,4 @@ const LineChart: React.FC<LineChartProps> = ({
   );
 };
 
-export default LineChart;
+export default React.memo(LineChart);

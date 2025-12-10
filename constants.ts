@@ -1,24 +1,58 @@
 
 export const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140, 163];
 
-export const UNIT_COLORS: Record<string, string> = {
-    "Leo/need": "#4455DD",
-    "MORE MORE JUMP!": "#88DD44",
-    "Vivid BAD SQUAD": "#EE1166",
-    "Wonderlands × Showtime": "#FF9900",
-    "25點，Nightcord見。": "#884499",
-    "Virtual Singer": "#71717A",
-    "Mix": "#64748B"
-};
+// --- 1. Unified Unit Configuration ---
 
-export const UNIT_STYLES: Record<string, string> = {
-    "Leo/need": "bg-[#4455DD] text-white border-transparent",
-    "MORE MORE JUMP!": "bg-[#88DD44] text-white border-transparent",
-    "Vivid BAD SQUAD": "bg-[#EE1166] text-white border-transparent",
-    "Wonderlands × Showtime": "bg-[#FF9900] text-white border-transparent",
-    "25點，Nightcord見。": "bg-[#884499] text-white border-transparent",
-    "Virtual Singer": "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-600 dark:border-slate-300",
-    "Mix": "bg-slate-500 text-white border-transparent"
+interface UnitConfig {
+    color: string;
+    style: string;
+    filename: string;
+    abbr: string; // Moved from PlayerAnalysisView
+}
+
+export const UNITS: Record<string, UnitConfig> = {
+    "Leo/need": {
+        color: "#4455DD",
+        style: "bg-[#4455DD] text-white border-transparent",
+        filename: "LN_logo",
+        abbr: "L/n"
+    },
+    "MORE MORE JUMP!": {
+        color: "#88DD44",
+        style: "bg-[#88DD44] text-white border-transparent",
+        filename: "MMJ_logo",
+        abbr: "MMJ"
+    },
+    "Vivid BAD SQUAD": {
+        color: "#EE1166",
+        style: "bg-[#EE1166] text-white border-transparent",
+        filename: "VBS_logo",
+        abbr: "VBS"
+    },
+    "Wonderlands × Showtime": {
+        color: "#FF9900",
+        style: "bg-[#FF9900] text-white border-transparent",
+        filename: "WS_logo",
+        abbr: "WxS"
+    },
+    "25點，Nightcord見。": {
+        color: "#884499",
+        style: "bg-[#884499] text-white border-transparent",
+        filename: "25_logo",
+        abbr: "25時"
+    },
+    "Virtual Singer": {
+        color: "#71717A",
+        style: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-600 dark:border-slate-300",
+        filename: "VS_logo",
+        abbr: "VS"
+    },
+    "Mix": {
+        color: "#64748B",
+        style: "bg-slate-500 text-white border-transparent",
+        filename: "", // Mix usually has no specific logo asset in this context
+        abbr: "Mix"
+    }
 };
 
 export const UNIT_ORDER = [
@@ -30,6 +64,42 @@ export const UNIT_ORDER = [
     "25點，Nightcord見。",
     "Mix"
 ];
+
+// --- 2. Unified Character Configuration ---
+
+interface CharacterConfig {
+    color: string;
+    filename: string;
+}
+
+export const CHARACTERS: Record<string, CharacterConfig> = {
+    "朝比奈真冬": { color: "#8888CC", filename: "Mafuyu" },
+    "曉山瑞希":   { color: "#DDAACC", filename: "Mizuki" },
+    "東雲繪名":   { color: "#CCAA88", filename: "Ena" },
+    "宵崎奏":     { color: "#BB6688", filename: "Kanade" },
+    "東雲彰人":   { color: "#FF7722", filename: "Akito" },
+    "青柳冬彌":   { color: "#0077DD", filename: "Toya" },
+    "白石杏":     { color: "#00BBDD", filename: "An" },
+    "小豆澤心羽": { color: "#FF6699", filename: "Kohane" },
+    "神代類":     { color: "#BB88EE", filename: "Rui" },
+    "草薙寧寧":   { color: "#33DD99", filename: "Nene" },
+    "鳳笑夢":     { color: "#FF66BB", filename: "Emu" },
+    "天馬司":     { color: "#FFBB00", filename: "Tsukasa" },
+    "桃井愛莉":   { color: "#FFAACC", filename: "Airi" },
+    "桐谷遙":     { color: "#99CCFF", filename: "Haruka" },
+    "日野森雫":   { color: "#99EEDD", filename: "Shizuku" },
+    "花里實乃理": { color: "#FFCCAA", filename: "Minori" },
+    "天馬咲希":   { color: "#FFDD44", filename: "Saki" },
+    "望月穗波":   { color: "#EE6666", filename: "Honami" },
+    "日野森志步": { color: "#BBDD22", filename: "Shiho" },
+    "星乃一歌":   { color: "#33AAEE", filename: "Ichika" },
+    "巡音流歌":   { color: "#FFBBCC", filename: "Luka" },
+    "鏡音鈴":     { color: "#FFCC11", filename: "Rin" },
+    "MEIKO":      { color: "#DD4444", filename: "Meiko" },
+    "鏡音連":     { color: "#FFEE11", filename: "Len" },
+    "KAITO":      { color: "#3366CC", filename: "Kaito" },
+    "初音未來":   { color: "#33CCBB", filename: "Miku" }
+};
 
 export const BANNER_ORDER = [
     // Leo/need
@@ -45,35 +115,6 @@ export const BANNER_ORDER = [
     // VS
     "初音未來"
 ];
-
-export const CHAR_INFO: Record<string, string> = {
-    "朝比奈真冬": "#8888CC",
-    "曉山瑞希": "#DDAACC",
-    "東雲繪名": "#CCAA88",
-    "宵崎奏": "#BB6688",
-    "東雲彰人": "#FF7722",
-    "青柳冬彌": "#0077DD",
-    "白石杏": "#00BBDD",
-    "小豆澤心羽": "#FF6699",
-    "神代類": "#BB88EE",
-    "草薙寧寧": "#33DD99",
-    "鳳笑夢": "#FF66BB",
-    "天馬司": "#FFBB00",
-    "桃井愛莉": "#FFAACC",
-    "桐谷遙": "#99CCFF",
-    "日野森雫": "#99EEDD",
-    "花里實乃理": "#FFCCAA",
-    "天馬咲希": "#FFDD44",
-    "望月穗波": "#EE6666",
-    "日野森志步": "#BBDD22",
-    "星乃一歌": "#33AAEE",
-    "巡音流歌": "#FFBBCC",
-    "鏡音鈴": "#FFCC11",
-    "MEIKO": "#DD4444",
-    "鏡音連": "#FFEE11",
-    "KAITO": "#3366CC",
-    "初音未來": "#33CCBB"
-};
 
 export const EVENT_CHAPTER_ORDER: Record<number, string[]> = {
     112: ["朝比奈真冬", "曉山瑞希", "東雲繪名", "宵崎奏"],
@@ -92,6 +133,7 @@ export interface EventDetail {
     cardType: 'permanent' | 'limited' | 'special_limited';
 }
 
+// ... existing EVENT_DETAILS map ...
 export const EVENT_DETAILS: Record<number, EventDetail> = {
     1: { unit: "Leo/need", type: "marathon", banner: "天馬咲希", storyType: "unit_event", cardType: "permanent" },
     2: { unit: "25點，Nightcord見。", type: "marathon", banner: "朝比奈真冬", storyType: "unit_event", cardType: "permanent" },
@@ -267,12 +309,14 @@ export const getEventColor = (eventId: number): string => {
     const details = EVENT_DETAILS[eventId];
     if (!details) return '';
 
-    if (CHAR_INFO[details.banner]) {
-        return CHAR_INFO[details.banner];
+    // Check Character color first (for banner)
+    if (CHARACTERS[details.banner]) {
+        return CHARACTERS[details.banner].color;
     }
 
-    if (UNIT_COLORS[details.unit]) {
-        return UNIT_COLORS[details.unit];
+    // Check Unit color
+    if (UNITS[details.unit]) {
+        return UNITS[details.unit].color;
     }
 
     return '';
@@ -281,56 +325,17 @@ export const getEventColor = (eventId: number): string => {
 // New Image Constants
 const BASE_IMAGE_URL = "https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking";
 
-export const CHARACTER_FILENAME_MAP: Record<string, string> = {
-    "朝比奈真冬": "Mafuyu",
-    "曉山瑞希": "Mizuki",
-    "東雲繪名": "Ena",
-    "宵崎奏": "Kanade",
-    "東雲彰人": "Akito",
-    "青柳冬彌": "Toya",
-    "白石杏": "An",
-    "小豆澤心羽": "Kohane",
-    "神代類": "Rui",
-    "草薙寧寧": "Nene",
-    "鳳笑夢": "Emu",
-    "天馬司": "Tsukasa",
-    "桃井愛莉": "Airi",
-    "桐谷遙": "Haruka",
-    "日野森雫": "Shizuku",
-    "花里實乃理": "Minori",
-    "天馬咲希": "Saki",
-    "望月穗波": "Honami",
-    "日野森志步": "Shiho",
-    "星乃一歌": "Ichika",
-    "巡音流歌": "Luka",
-    "鏡音鈴": "Rin",
-    "MEIKO": "Meiko",
-    "鏡音連": "Len",
-    "KAITO": "Kaito",
-    "初音未來": "Miku"
-};
-
-export const UNIT_FILENAME_MAP: Record<string, string> = {
-    "Virtual Singer": "VS_logo",
-    "Leo/need": "LN_logo",
-    "MORE MORE JUMP!": "MMJ_logo",
-    "Vivid BAD SQUAD": "VBS_logo",
-    "Wonderlands × Showtime": "WS_logo",
-    "25點，Nightcord見。": "25_logo"
-};
-
 export const getAssetUrl = (name: string, type: 'character' | 'unit' | 'event'): string | null => {
     if (type === 'event') {
         return `${BASE_IMAGE_URL}/event_logo/${name}.png`;
     }
 
-    let filename = '';
     if (type === 'character') {
-        filename = CHARACTER_FILENAME_MAP[name];
+        const filename = CHARACTERS[name]?.filename;
         if (!filename) return null;
         return `${BASE_IMAGE_URL}/Chibi/${filename}.png`;
     } else if (type === 'unit') {
-        filename = UNIT_FILENAME_MAP[name];
+        const filename = UNITS[name]?.filename;
         if (!filename) return null;
         return `${BASE_IMAGE_URL}/logo/${filename}.png`;
     }

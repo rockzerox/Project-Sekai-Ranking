@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
-import CrownIcon from './icons/CrownIcon';
-import { EVENT_DETAILS, UNIT_STYLES, UNIT_ORDER } from '../constants';
+import { EVENT_DETAILS, UNITS, UNIT_ORDER } from '../constants';
+import DashboardTable from './ui/DashboardTable';
+import Select from './ui/Select';
 
 interface PlayerStat {
     userId: string;
@@ -12,103 +13,7 @@ interface PlayerStat {
     unitCounts: Record<string, number>; // Key: Unit Name, Value: count
 }
 
-interface RankingTableProps {
-    title: string;
-    headerAction?: React.ReactNode;
-    data: PlayerStat[];
-    valueGetter: (stat: PlayerStat) => number;
-    color: string;
-    rankLabel: string;
-    showUnitBreakdown?: boolean;
-    totalCount?: number;
-}
-
 const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140, 163];
-
-const UNIT_ABBR: Record<string, string> = {
-    "Leo/need": "L/n",
-    "MORE MORE JUMP!": "MMJ",
-    "Vivid BAD SQUAD": "VBS",
-    "Wonderlands × Showtime": "WxS",
-    "25點,nightcord見": "25時",
-    "Virtual Singer": "VS",
-    "Mix": "Mix"
-};
-
-const RankingTable: React.FC<RankingTableProps> = ({ title, headerAction, data, valueGetter, color, rankLabel, showUnitBreakdown = false, totalCount }) => (
-    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
-        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center flex-shrink-0 min-h-[56px]`}>
-            <div className="flex items-center flex-1 min-w-0 mr-2 mb-2 sm:mb-0">
-                <div className="flex flex-col">
-                    <h3 className={`font-bold ${color.replace('bg-', 'text-')} truncate mr-2`}>{title}</h3>
-                    {totalCount !== undefined && (
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
-                            共 {totalCount.toLocaleString()} 位玩家
-                        </span>
-                    )}
-                </div>
-                {headerAction}
-            </div>
-            <CrownIcon className={`w-5 h-5 ${color.replace('bg-', 'text-')} flex-shrink-0 hidden sm:block`} />
-        </div>
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
-            <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 uppercase sticky top-0 z-10">
-                    <tr>
-                        <th className="px-3 py-2 w-10">#</th>
-                        <th className="px-3 py-2">玩家 (Player)</th>
-                        <th className="px-3 py-2 text-right">{rankLabel}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.map((stat, idx) => {
-                         return (
-                            <tr key={stat.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                    {idx + 1}
-                                </td>
-                                <td className="px-3 py-2">
-                                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
-                                        {stat.latestName}
-                                    </div>
-                                    {/* User ID removed for privacy */}
-                                    
-                                    {showUnitBreakdown && (
-                                        <div className="flex flex-wrap gap-1 mt-1.5">
-                                            {UNIT_ORDER.map(unit => {
-                                                const count = stat.unitCounts[unit] || 0;
-                                                if (count === 0) return null;
-                                                return (
-                                                    <span 
-                                                        key={unit} 
-                                                        className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold ${UNIT_STYLES[unit]}`}
-                                                        title={`${unit}: ${count} 次`}
-                                                    >
-                                                        {UNIT_ABBR[unit]}: {count}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white align-top pt-3">
-                                    {valueGetter(stat)} 次
-                                </td>
-                            </tr>
-                        );
-                    })}
-                    {data.length === 0 && (
-                        <tr>
-                            <td colSpan={3} className="px-3 py-4 text-center text-slate-500">
-                                暫無資料 (No Data)
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
 
 const PlayerAnalysisView: React.FC = () => {
     const [eventsToProcess, setEventsToProcess] = useState<EventSummary[]>([]);
@@ -267,6 +172,43 @@ const PlayerAnalysisView: React.FC = () => {
         };
     }, [playerStats, selectedSpecificRank]);
 
+    const renderRow = (stat: PlayerStat, idx: number, value: number, showUnits: boolean) => (
+        <tr key={stat.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                {idx + 1}
+            </td>
+            <td className="px-3 py-2">
+                <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={stat.latestName}>
+                    {stat.latestName}
+                </div>
+                {/* User ID removed for privacy */}
+                
+                {showUnits && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                        {UNIT_ORDER.map(unit => {
+                            const count = stat.unitCounts[unit] || 0;
+                            if (count === 0) return null;
+                            const unitStyle = UNITS[unit]?.style || "";
+                            const unitAbbr = UNITS[unit]?.abbr || unit;
+                            return (
+                                <span 
+                                    key={unit} 
+                                    className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold ${unitStyle}`}
+                                    title={`${unit}: ${count} 次`}
+                                >
+                                    {unitAbbr}: {count}
+                                </span>
+                            );
+                        })}
+                    </div>
+                )}
+            </td>
+            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white align-top pt-3">
+                {value} 次
+            </td>
+        </tr>
+    );
+
     return (
         <div className="w-full py-4 animate-fadeIn">
              <div className="mb-6">
@@ -301,37 +243,40 @@ const PlayerAnalysisView: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* Table 1: Most Frequent Top 100 */}
-                <RankingTable 
+                <DashboardTable 
                     title="前百常客 (Top 100 Frequency)"
-                    rankLabel="上榜次數"
+                    subtitle={`共 ${totalPlayersTop100.toLocaleString()} 位玩家`}
+                    columns={[
+                        { header: '#', className: 'w-10' },
+                        { header: '玩家 (Player)' },
+                        { header: '上榜次數', className: 'text-right' }
+                    ]}
                     data={topFrequent100}
-                    valueGetter={(stat) => stat.top100Count}
+                    renderRow={(stat, idx) => renderRow(stat, idx, stat.top100Count, true)}
                     color="bg-cyan-500"
-                    showUnitBreakdown={true}
-                    totalCount={totalPlayersTop100}
                 />
 
                 {/* Table 2: Specific Rank Frequency */}
-                <RankingTable 
+                <DashboardTable 
                     title={`Top ${selectedSpecificRank} 常客`}
-                    rankLabel="獲得次數"
+                    subtitle={`共 ${totalPlayersSpecific.toLocaleString()} 位玩家`}
                     headerAction={
-                         <select 
-                            value={selectedSpecificRank} 
-                            onChange={(e) => setSelectedSpecificRank(Number(e.target.value))}
+                         <Select
+                            value={selectedSpecificRank}
+                            onChange={(val) => setSelectedSpecificRank(Number(val))}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold py-1 px-1 rounded border border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-pink-500 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 ml-2"
-                        >
-                            {Array.from({ length: 10 }, (_, i) => i + 1).map(rank => (
-                                <option key={rank} value={rank}>Rank {rank}</option>
-                            ))}
-                        </select>
+                            className="text-xs py-1"
+                            options={Array.from({ length: 10 }, (_, i) => i + 1).map(rank => ({ value: rank, label: `Rank ${rank}` }))}
+                        />
                     }
+                    columns={[
+                        { header: '#', className: 'w-10' },
+                        { header: '玩家 (Player)' },
+                        { header: '獲得次數', className: 'text-right' }
+                    ]}
                     data={topFrequentSpecific}
-                    valueGetter={(stat) => stat.rankSpecificCounts[selectedSpecificRank] || 0}
+                    renderRow={(stat, idx) => renderRow(stat, idx, stat.rankSpecificCounts[selectedSpecificRank] || 0, true)}
                     color="bg-pink-500"
-                    showUnitBreakdown={true}
-                    totalCount={totalPlayersSpecific}
                 />
             </div>
         </div>

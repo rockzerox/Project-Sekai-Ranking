@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PastEventApiResponse, PastEventBorderApiResponse, WorldBloomChapter, WorldBloomChapterBorder } from '../types';
-import CrownIcon from './icons/CrownIcon';
 import CollapsibleSection from './CollapsibleSection';
-import { CHAR_INFO, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, getAssetUrl } from '../constants';
+import { CHARACTERS, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, getAssetUrl } from '../constants';
+import DashboardTable from './ui/DashboardTable';
+import Select from './ui/Select';
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
@@ -224,72 +225,6 @@ const GlobalScoreChart: React.FC<{
     );
 };
 
-const RankTable: React.FC<{
-    title: string;
-    headerAction?: React.ReactNode;
-    data: AggregatedCharStat[];
-    valueGetter: (stat: AggregatedCharStat) => number;
-    color: string;
-}> = ({ title, headerAction, data, valueGetter, color }) => (
-    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
-        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0 min-h-[56px]`}>
-            <div className="flex items-center flex-1 min-w-0 mr-2">
-                <h3 className={`font-bold ${color.replace('bg-', 'text-')} truncate mr-2`}>{title}</h3>
-                {headerAction}
-            </div>
-            <CrownIcon className={`w-5 h-5 ${color.replace('bg-', 'text-')} flex-shrink-0`} />
-        </div>
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
-            <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 uppercase sticky top-0 z-10">
-                    <tr>
-                        <th className="px-3 py-2 w-10">#</th>
-                        <th className="px-3 py-2">角色 (Character)</th>
-                        <th className="px-3 py-2 text-right">分數 (Score)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.map((stat, idx) => (
-                        <tr key={`${stat.eventId}-${stat.charName}`} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                {idx + 1}
-                            </td>
-                            <td className="px-3 py-2">
-                                <div className="flex items-center gap-2">
-                                    <div 
-                                        className="w-2 h-8 rounded-sm flex-shrink-0" 
-                                        style={{ backgroundColor: stat.color }}
-                                    ></div>
-                                    <div className="min-w-0">
-                                        <div 
-                                            className="font-bold truncate" 
-                                            title={stat.charName}
-                                            style={{ color: stat.color }}
-                                        >
-                                            {stat.charName}
-                                        </div>
-                                        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                                            <span>Event #{stat.eventId}</span>
-                                            {stat.chapterOrder > 0 && (
-                                                <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1 rounded text-[9px] font-bold">
-                                                    Ch.{stat.chapterOrder}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white font-medium">
-                                {valueGetter(stat).toLocaleString()}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
-
 const WorldLinkView: React.FC = () => {
     const [aggregatedData, setAggregatedData] = useState<AggregatedCharStat[]>([]);
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -362,7 +297,7 @@ const WorldLinkView: React.FC = () => {
 
                         tempStats.push({
                             charName,
-                            color: CHAR_INFO[charName] || '#999',
+                            color: CHARACTERS[charName]?.color || '#999',
                             eventId,
                             top1: getScore(1),
                             top10: getScore(10),
@@ -398,6 +333,48 @@ const WorldLinkView: React.FC = () => {
     const getBorderList = (rank: number) => {
         return [...aggregatedData].sort((a, b) => getValue(b, b.borders[rank] || 0) - getValue(a, a.borders[rank] || 0));
     };
+
+    const renderRow = (stat: AggregatedCharStat, idx: number, value: number) => (
+        <tr key={`${stat.eventId}-${stat.charName}`} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                {idx + 1}
+            </td>
+            <td className="px-3 py-2">
+                <div className="flex items-center gap-2">
+                    <div 
+                        className="w-2 h-8 rounded-sm flex-shrink-0" 
+                        style={{ backgroundColor: stat.color }}
+                    ></div>
+                    <div className="min-w-0">
+                        <div 
+                            className="font-bold truncate" 
+                            title={stat.charName}
+                            style={{ color: stat.color }}
+                        >
+                            {stat.charName}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                            <span>Event #{stat.eventId}</span>
+                            {stat.chapterOrder > 0 && (
+                                <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1 rounded text-[9px] font-bold">
+                                    Ch.{stat.chapterOrder}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white font-medium">
+                {value.toLocaleString()}
+            </td>
+        </tr>
+    );
+
+    const columns = [
+        { header: '#', className: 'w-10' },
+        { header: '角色 (Character)' },
+        { header: '分數 (Score)', className: 'text-right' }
+    ];
 
     return (
         <div className="w-full animate-fadeIn py-4">
@@ -493,25 +470,23 @@ const WorldLinkView: React.FC = () => {
                         {chartViewMode === 'activity' && (
                              <div className="flex items-center gap-2">
                                 <label className="text-sm text-slate-500 dark:text-slate-400 font-medium">排名基準:</label>
-                                <select
+                                <Select
                                     value={typeof chartMetric === 'string' ? chartMetric : chartMetric.toString()}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
+                                    onChange={(val) => {
                                         if (['top1', 'top10', 'top100'].includes(val)) {
                                             setChartMetric(val as MetricType);
                                         } else {
                                             setChartMetric(Number(val));
                                         }
                                     }}
-                                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold py-1.5 px-2 rounded border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-cyan-500 outline-none cursor-pointer"
-                                >
-                                    <option value="top1">Top 1</option>
-                                    <option value="top10">Top 10</option>
-                                    <option value="top100">Top 100</option>
-                                    {BORDER_OPTIONS.map(rank => (
-                                        <option key={rank} value={rank}>T{rank}</option>
-                                    ))}
-                                </select>
+                                    className="text-xs py-1.5"
+                                    options={[
+                                        { value: 'top1', label: 'Top 1' },
+                                        { value: 'top10', label: 'Top 10' },
+                                        { value: 'top100', label: 'Top 100' },
+                                        ...BORDER_OPTIONS.map(rank => ({ value: rank, label: `T${rank}` }))
+                                    ]}
+                                />
                             </div>
                         )}
                     </div>
@@ -533,40 +508,41 @@ const WorldLinkView: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                <RankTable 
+                <DashboardTable 
                     title={`Top 1 ${displayMode === 'daily' ? '(日均)' : '(最高分)'}`}
                     data={getSortedList('top1')} 
-                    valueGetter={d => getValue(d, d.top1)} 
+                    columns={columns}
+                    renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.top1))} 
                     color="bg-yellow-500" 
                 />
-                <RankTable 
+                <DashboardTable 
                     title={`Top 10 ${displayMode === 'daily' ? '(日均)' : ''}`}
                     data={getSortedList('top10')} 
-                    valueGetter={d => getValue(d, d.top10)} 
+                    columns={columns}
+                    renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.top10))} 
                     color="bg-purple-500" 
                 />
-                <RankTable 
+                <DashboardTable 
                     title={`Top 100 ${displayMode === 'daily' ? '(日均)' : ''}`}
                     data={getSortedList('top100')} 
-                    valueGetter={d => getValue(d, d.top100)} 
+                    columns={columns}
+                    renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.top100))} 
                     color="bg-cyan-500" 
                 />
-                <RankTable 
+                <DashboardTable 
                     title={`Highlights T${selectedBorderRank} ${displayMode === 'daily' ? '(日均)' : ''}`}
                     headerAction={
-                         <select 
+                         <Select
                             value={selectedBorderRank} 
-                            onChange={(e) => setSelectedBorderRank(Number(e.target.value))}
+                            onChange={(val) => setSelectedBorderRank(Number(val))}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold py-1 px-1 rounded border border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-teal-500 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
-                        >
-                            {BORDER_OPTIONS.map(rank => (
-                                <option key={rank} value={rank}>T{rank}</option>
-                            ))}
-                        </select>
+                            className="text-xs py-1"
+                            options={BORDER_OPTIONS.map(rank => ({ value: rank, label: `T${rank}` }))}
+                        />
                     }
                     data={getBorderList(selectedBorderRank)} 
-                    valueGetter={d => getValue(d, d.borders[selectedBorderRank] || 0)} 
+                    columns={columns}
+                    renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.borders[selectedBorderRank] || 0))} 
                     color="bg-teal-500" 
                 />
             </div>

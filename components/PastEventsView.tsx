@@ -1,18 +1,17 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { EventSummary } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, UNIT_STYLES, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../constants';
+import { EVENT_DETAILS, UNITS, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../constants';
+import { useEventList } from '../hooks/useEventList';
+import Select from './ui/Select';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
 }
 
 const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
-  const [events, setEvents] = useState<EventSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { events, isLoading, error } = useEventList();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Default year will be set after data load
@@ -27,42 +26,23 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   const [sortType, setSortType] = useState<'id' | 'duration'>('id');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
+  // Set default year when events load
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch('https://api.hisekai.org/event/list');
-        if (!response.ok) {
-          throw new Error('Failed to fetch event list');
-        }
-        const data: EventSummary[] = await response.json();
-        
-        const sortedData = data.sort((a, b) => b.id - a.id);
-        setEvents(sortedData);
-        
-        // Prioritize setting the default year to the current year if exists
+      if (events.length > 0 && selectedYear === 'all') {
         const currentYear = new Date().getFullYear();
-        const hasCurrentYear = sortedData.some(e => new Date(e.start_at).getFullYear() === currentYear);
+        const hasCurrentYear = events.some(e => new Date(e.start_at).getFullYear() === currentYear);
 
         if (hasCurrentYear) {
             setSelectedYear(currentYear);
-        } else if (sortedData.length > 0) {
+        } else {
             // Fallback to the latest available year
-            const latestYear = new Date(sortedData[0].start_at).getFullYear();
+            const latestYear = new Date(events[0].start_at).getFullYear();
             if (!isNaN(latestYear)) {
                 setSelectedYear(latestYear);
             }
         }
-        
-      } catch (err) {
-        setError('無法載入過往活動。');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    fetchEvents();
-  }, []);
+  }, [events]);
 
   const years = useMemo(() => {
     const uniqueYears = new Set<number>();
@@ -77,7 +57,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
 
   const filteredEvents = useMemo(() => {
     // 1. Global Filter (Applies to ALL events first)
-    let currentEvents = events;
+    let currentEvents = [...events];
 
     // Search Filter
     if (searchTerm.trim() !== '') {
@@ -189,9 +169,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
 
       <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 pb-1">
         <button
-            onClick={() => {
-                setSelectedYear('all');
-            }}
+            onClick={() => setSelectedYear('all')}
             className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${
                 selectedYear === 'all'
                 ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 border-cyan-500'
@@ -203,9 +181,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         {years.map(year => (
           <button
             key={year}
-            onClick={() => {
-                setSelectedYear(year);
-            }}
+            onClick={() => setSelectedYear(year)}
             className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${
               selectedYear === year
                 ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 border-cyan-500'
@@ -260,60 +236,61 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                  </button>
              </div>
 
-             <select
+             <Select
                 value={selectedUnitFilter}
-                onChange={(e) => setSelectedUnitFilter(e.target.value)}
-                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[140px]"
-             >
-                <option value="all">所有團體 (All Units)</option>
-                {UNIT_ORDER.map(unit => (
-                    <option key={unit} value={unit}>{unit}</option>
-                ))}
-             </select>
+                onChange={setSelectedUnitFilter}
+                containerClassName="min-w-[140px]"
+                options={[
+                    { value: 'all', label: '所有團體 (All Units)' },
+                    ...UNIT_ORDER.map(unit => ({ value: unit, label: unit }))
+                ]}
+             />
 
-             <select
+             <Select
                 value={selectedTypeFilter}
-                onChange={(e) => setSelectedTypeFilter(e.target.value as any)}
-                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[140px]"
-             >
-                <option value="all">所有類型 (All Types)</option>
-                <option value="marathon">馬拉松</option>
-                <option value="cheerful_carnival">歡樂嘉年華</option>
-                <option value="world_link">World Link</option>
-             </select>
+                onChange={(val) => setSelectedTypeFilter(val as any)}
+                containerClassName="min-w-[140px]"
+                options={[
+                    { value: 'all', label: '所有類型 (All Types)' },
+                    { value: 'marathon', label: '馬拉松' },
+                    { value: 'cheerful_carnival', label: '歡樂嘉年華' },
+                    { value: 'world_link', label: 'World Link' }
+                ]}
+             />
 
-             <select
+             <Select
                 value={selectedBannerFilter}
-                onChange={(e) => setSelectedBannerFilter(e.target.value)}
-                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[140px]"
-             >
-                <option value="all">所有 Banner</option>
-                {BANNER_ORDER.map(banner => (
-                    <option key={banner} value={banner}>{banner}</option>
-                ))}
-             </select>
+                onChange={setSelectedBannerFilter}
+                containerClassName="min-w-[140px]"
+                options={[
+                    { value: 'all', label: '所有 Banner' },
+                    ...BANNER_ORDER.map(banner => ({ value: banner, label: banner }))
+                ]}
+             />
 
-             <select
+             <Select
                 value={selectedStoryFilter}
-                onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
-                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[120px]"
-             >
-                <option value="all">所有劇情 (All Stories)</option>
-                <option value="unit_event">箱活</option>
-                <option value="mixed_event">混活</option>
-                <option value="world_link">World Link</option>
-             </select>
+                onChange={(val) => setSelectedStoryFilter(val as any)}
+                containerClassName="min-w-[120px]"
+                options={[
+                    { value: 'all', label: '所有劇情 (All Stories)' },
+                    { value: 'unit_event', label: '箱活' },
+                    { value: 'mixed_event', label: '混活' },
+                    { value: 'world_link', label: 'World Link' }
+                ]}
+             />
 
-             <select
+             <Select
                 value={selectedCardFilter}
-                onChange={(e) => setSelectedCardFilter(e.target.value as any)}
-                className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 outline-none min-w-[120px]"
-             >
-                <option value="all">所有卡面 (All Cards)</option>
-                <option value="permanent">常駐</option>
-                <option value="limited">限定</option>
-                <option value="special_limited">特殊限定</option>
-             </select>
+                onChange={(val) => setSelectedCardFilter(val as any)}
+                containerClassName="min-w-[120px]"
+                options={[
+                    { value: 'all', label: '所有卡面 (All Cards)' },
+                    { value: 'permanent', label: '常駐' },
+                    { value: 'limited', label: '限定' },
+                    { value: 'special_limited', label: '特殊限定' }
+                ]}
+             />
           </div>
       </div>
 
@@ -330,7 +307,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 const storyLabel = getStoryTypeLabel(details.storyType);
                 const cardLabel = getCardTypeLabel(details.cardType);
                 
-                const unitStyle = UNIT_STYLES[unitLabel] || "bg-slate-500 text-white";
+                const unitStyle = UNITS[unitLabel]?.style || "bg-slate-500 text-white";
                 const cardStyle = getCardTypeStyle(details.cardType);
                 const eventColor = getEventColor(event.id);
                 

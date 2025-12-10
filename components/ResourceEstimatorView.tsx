@@ -3,6 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import CollapsibleSection from './CollapsibleSection';
 import { calculatePreciseDuration, calculateDisplayDuration, WORLD_LINK_IDS, getEventStatus, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER } from '../constants';
+import Select from './ui/Select';
+import Button from './ui/Button';
+import Input from './ui/Input';
+import Card from './ui/Card';
 
 const MULTIPLIERS = [1, 5, 10, 15, 20, 25, 27, 29, 31, 33, 35];
 const ENERGY_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -26,7 +30,7 @@ const ResourceEstimatorView: React.FC = () => {
     const [selectedRank, setSelectedRank] = useState<number>(1000);
     const [selectedFutureEventId, setSelectedFutureEventId] = useState<number | ''>('');
     
-    const [inputS, setInputS] = useState<number>(15000);
+    const [inputS, setInputS] = useState<string>('15000');
     const [inputL, setInputL] = useState<number>(5);
     const [targetL, setTargetL] = useState<number>(5);
 
@@ -177,7 +181,7 @@ const ResourceEstimatorView: React.FC = () => {
         const B_d = futureEventDuration;
         const L_use = targetL;
         const L_input = inputL;
-        const S_input = inputS;
+        const S_input = parseInt(inputS) || 1;
 
         const S_adjusted = S_input * (MULTIPLIERS[L_use] / MULTIPLIERS[L_input]);
         const X_B = X * (B_d / A_d);
@@ -219,80 +223,69 @@ const ResourceEstimatorView: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Configuration Card */}
-                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-6 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">
-                        1. 設定基準 (Baseline)
-                    </h3>
-                    
+                <Card title="1. 設定基準 (Baseline)">
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-2">
-                             <select
+                             <Select
+                                className="text-xs"
                                 value={pastUnitFilter}
-                                onChange={(e) => setPastUnitFilter(e.target.value)}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs outline-none"
-                             >
-                                <option value="all">所有團體</option>
-                                {UNIT_ORDER.map(u => <option key={u} value={u}>{u}</option>)}
-                             </select>
-                             <select
+                                onChange={setPastUnitFilter}
+                                options={[
+                                    { value: 'all', label: '所有團體' },
+                                    ...UNIT_ORDER.map(u => ({ value: u, label: u }))
+                                ]}
+                             />
+                             <Select
+                                className="text-xs"
                                 value={pastBannerFilter}
-                                onChange={(e) => setPastBannerFilter(e.target.value)}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs outline-none"
-                             >
-                                <option value="all">所有 Banner</option>
-                                {BANNER_ORDER.map(b => <option key={b} value={b}>{b}</option>)}
-                             </select>
-                             <select
+                                onChange={setPastBannerFilter}
+                                options={[
+                                    { value: 'all', label: '所有 Banner' },
+                                    ...BANNER_ORDER.map(b => ({ value: b, label: b }))
+                                ]}
+                             />
+                             <Select
+                                className="text-xs"
                                 value={pastStoryFilter}
-                                onChange={(e) => setPastStoryFilter(e.target.value as any)}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs outline-none"
-                             >
-                                <option value="all">所有劇情</option>
-                                <option value="unit_event">箱活</option>
-                                <option value="mixed_event">混活</option>
-                             </select>
-                             <select
+                                onChange={(val) => setPastStoryFilter(val as any)}
+                                options={[
+                                    { value: 'all', label: '所有劇情' },
+                                    { value: 'unit_event', label: '箱活' },
+                                    { value: 'mixed_event', label: '混活' }
+                                ]}
+                             />
+                             <Select
+                                className="text-xs"
                                 value={pastCardFilter}
-                                onChange={(e) => setPastCardFilter(e.target.value as any)}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs outline-none"
-                             >
-                                <option value="all">所有卡面</option>
-                                <option value="permanent">常駐</option>
-                                <option value="limited">限定</option>
-                                <option value="special_limited">特殊限定</option>
-                             </select>
+                                onChange={(val) => setPastCardFilter(val as any)}
+                                options={[
+                                    { value: 'all', label: '所有卡面' },
+                                    { value: 'permanent', label: '常駐' },
+                                    { value: 'limited', label: '限定' },
+                                    { value: 'special_limited', label: '特殊限定' }
+                                ]}
+                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                選擇參考活動 (Past Event)
-                            </label>
-                            <select 
-                                value={selectedPastEventId}
-                                onChange={(e) => setSelectedPastEventId(Number(e.target.value))}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                            >
-                                <option value="">請選擇...</option>
-                                {pastEventsList.map(e => (
-                                    <option key={e.id} value={e.id}>#{e.id} {e.name} ({calculateDisplayDuration(e.start_at, e.aggregate_at)}日)</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="選擇參考活動 (Past Event)"
+                            value={selectedPastEventId}
+                            onChange={(val) => setSelectedPastEventId(Number(val))}
+                            options={[
+                                { value: '', label: '請選擇...' },
+                                ...pastEventsList.map(e => ({
+                                    value: e.id,
+                                    label: `[${e.id}] ${e.name} (${calculateDisplayDuration(e.start_at, e.aggregate_at)}日)`
+                                }))
+                            ]}
+                        />
 
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                參考排名 (Rank Target)
-                            </label>
-                            <select 
-                                value={selectedRank}
-                                onChange={(e) => setSelectedRank(Number(e.target.value))}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none"
-                            >
-                                {RANK_OPTIONS.map(r => (
-                                    <option key={r} value={r}>Top {r}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="參考排名 (Rank Target)"
+                            value={selectedRank}
+                            onChange={(val) => setSelectedRank(Number(val))}
+                            options={RANK_OPTIONS.map(r => ({ value: r, label: `Top ${r}` }))}
+                        />
 
                         {selectedPastEventId !== '' && (
                             <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded text-sm flex justify-between items-center">
@@ -315,86 +308,56 @@ const ResourceEstimatorView: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                </Card>
 
                 {/* Target Card */}
-                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-6 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">
-                        2. 設定目標 (Target)
-                    </h3>
-
+                <Card title="2. 設定目標 (Target)">
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                選擇未來活動/目標長度 (Future Event)
-                            </label>
-                            <select 
-                                value={selectedFutureEventId}
-                                onChange={(e) => setSelectedFutureEventId(Number(e.target.value))}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-pink-500 outline-none"
-                            >
-                                <option value="">請選擇...</option>
-                                {futureEventsList.map(e => {
+                        <Select
+                            label="選擇未來活動/目標長度 (Future Event)"
+                            value={selectedFutureEventId}
+                            onChange={(val) => setSelectedFutureEventId(Number(val))}
+                            options={[
+                                { value: '', label: '請選擇...' },
+                                ...futureEventsList.map(e => {
                                     const status = getEventStatus(e.start_at, e.aggregate_at, e.closed_at, e.ranking_announce_at);
-                                    const label = status === 'future' ? '[未來]' : '[進行中]';
-                                    return (
-                                        <option key={e.id} value={e.id}>
-                                            {label} #{e.id} {e.name}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
+                                    const labelPrefix = status === 'future' ? '[未來]' : '[進行中]';
+                                    return {
+                                        value: e.id,
+                                        label: `${labelPrefix} #${e.id} ${e.name}`
+                                    };
+                                })
+                            ]}
+                        />
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                    每場得分 (S)
-                                </label>
-                                <input 
-                                    type="number" 
-                                    value={inputS}
-                                    onChange={(e) => setInputS(Math.max(1, Number(e.target.value)))}
-                                    className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-pink-500 outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                    使用體力 (L Input)
-                                </label>
-                                <select 
-                                    value={inputL}
-                                    onChange={(e) => setInputL(Number(e.target.value))}
-                                    className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-pink-500 outline-none"
-                                >
-                                    {ENERGY_OPTIONS.map(v => (
-                                        <option key={v} value={v}>{v}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <Input
+                                label="每場得分 (S)"
+                                type="number"
+                                value={inputS}
+                                onChange={(val) => setInputS(val)}
+                            />
+                            
+                            <Select
+                                label="使用體力 (L Input)"
+                                value={inputL}
+                                onChange={(val) => setInputL(Number(val))}
+                                options={ENERGY_OPTIONS}
+                            />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                衝榜預設體力 (Target L)
-                            </label>
-                            <select 
-                                value={targetL}
-                                onChange={(e) => setTargetL(Number(e.target.value))}
-                                className="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-pink-500 outline-none"
-                            >
-                                {ENERGY_OPTIONS.map(v => (
-                                    <option key={v} value={v}>{v}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <Select
+                            label="衝榜預設體力 (Target L)"
+                            value={targetL}
+                            onChange={(val) => setTargetL(Number(val))}
+                            options={ENERGY_OPTIONS}
+                        />
 
                         {selectedFutureEventId !== '' && (
                             <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded text-sm flex justify-between items-center">
                                 <span className="text-slate-500">目標天數 (Bd):</span>
                                 <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
                                     {futureEventDuration.toFixed(2)} 天
-                                    {/* Helper text for dynamic duration */}
                                     {events.find(e => e.id === Number(selectedFutureEventId)) && 
                                      ['active', 'calculating'].includes(getEventStatus(
                                          events.find(e => e.id === Number(selectedFutureEventId))!.start_at,
@@ -406,27 +369,24 @@ const ResourceEstimatorView: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                </Card>
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                <button
+                <Button
+                    variant="gradient"
+                    fullWidth
                     onClick={calculateResources}
                     disabled={!pastEventScore || !selectedFutureEventId}
-                    className={`flex-1 py-3 px-6 rounded-lg font-bold text-white shadow-lg transition-all ${
-                        !pastEventScore || !selectedFutureEventId
-                        ? 'bg-slate-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 hover:shadow-cyan-500/20'
-                    }`}
                 >
                     計算預估資源
-                </button>
-                <button
+                </Button>
+                <Button
+                    variant="secondary"
                     onClick={resetInputs}
-                    className="px-6 py-3 rounded-lg font-bold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                 >
                     重做評估
-                </button>
+                </Button>
             </div>
 
             {result && (

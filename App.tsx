@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { RankEntry, HisekaiApiResponse, SortOption, PastEventApiResponse, HisekaiBorderApiResponse, PastEventBorderApiResponse } from './types';
+import { SortOption } from './types';
 import SearchBar from './components/SearchBar';
 import RankingList from './components/RankingList';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -20,13 +20,12 @@ import WorldLinkView from './components/WorldLinkView';
 import ResourceEstimatorView from './components/ResourceEstimatorView';
 import PlayerProfileView from './components/PlayerProfileView';
 import HomeView from './components/HomeView';
-import { getEventColor, EVENT_DETAILS, UNIT_STYLES, getAssetUrl } from './constants';
+import ErrorBoundary from './components/ErrorBoundary';
+import ScrollToTop from './components/ui/ScrollToTop';
+import { getEventColor, EVENT_DETAILS, UNITS, getAssetUrl } from './constants';
+import { useRankings } from './hooks/useRankings';
 
-const API_URL = 'https://api.hisekai.org/event/live/top100';
-const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
 const ITEMS_PER_PAGE = 20;
-
-const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
     const [timeLeft, setTimeLeft] = useState('');
@@ -101,6 +100,25 @@ const App: React.FC = () => {
   
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
+  // Use Custom Hook for Ranking Logic
+  const {
+      rankings,
+      setRankings,
+      isLoading,
+      error,
+      eventName,
+      liveEventId,
+      liveEventTiming,
+      lastUpdated,
+      cachedLiveRankings,
+      cachedPastRankings,
+      fetchLiveRankings,
+      fetchBorderRankings,
+      fetchPastRankings,
+      fetchPastBorderRankings,
+      setEventName
+  } = useRankings();
+
   useEffect(() => {
       if (theme === 'dark') {
           document.documentElement.classList.add('dark');
@@ -113,17 +131,8 @@ const App: React.FC = () => {
       setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  const [rankings, setRankings] = useState<RankEntry[]>([]);
-  const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]);
-  const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('score');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [eventName, setEventName] = useState('Hisekai Live TW Rankings');
-  const [liveEventId, setLiveEventId] = useState<number | null>(null);
-  const [liveEventTiming, setLiveEventTiming] = useState<{ aggregateAt: string, rankingAnnounceAt: string } | null>(null);
   
   const [isRankingsOpen, setIsRankingsOpen] = useState(true);
   const [isChartsOpen, setIsChartsOpen] = useState(true); // Default Open
@@ -138,205 +147,17 @@ const App: React.FC = () => {
       }
   }, [currentView, selectedEvent]);
 
-  const fetchLiveRankings = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(API_URL);
-        if (!response.ok) {
-          throw new Error(`API request failed with status: ${response.status}`);
-        }
-        
-        const textData = await response.text();
-        const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-        
-        const responseData: HisekaiApiResponse = JSON.parse(sanitizedData);
-
-        if (responseData && Array.isArray(responseData.top_100_player_rankings)) {
-          const transformedRankings: RankEntry[] = responseData.top_100_player_rankings.map(item => ({
-            rank: item.rank,
-            score: item.score,
-            lastPlayedAt: item.last_played_at,
-            stats: {
-                last1h: {
-                    count: item.last_1h_stats?.count ?? 0,
-                    score: item.last_1h_stats?.score ?? 0,
-                    speed: item.last_1h_stats?.speed ?? 0,
-                    average: item.last_1h_stats?.average ?? 0,
-                },
-                last3h: {
-                    count: item.last_3h_stats?.count ?? 0,
-                    score: item.last_3h_stats?.score ?? 0,
-                    speed: item.last_3h_stats?.speed ?? 0,
-                    average: item.last_3h_stats?.average ?? 0,
-                },
-                last24h: {
-                    count: item.last_24h_stats?.count ?? 0,
-                    score: item.last_24h_stats?.score ?? 0,
-                    speed: item.last_24h_stats?.speed ?? 0,
-                    average: item.last_24h_stats?.average ?? 0,
-                },
-            },
-            user: {
-              id: String(item.last_player_info.profile.id),
-              username: item.name,
-              display_name: item.name,
-              avatar: '',
-              supporter_tier: 0, 
-            }
-          }));
-          
-          setRankings(transformedRankings);
-          setCachedLiveRankings(transformedRankings);
-          setEventName(responseData.name);
-          if (responseData.id) {
-              setLiveEventId(responseData.id);
-          }
-          if (responseData.aggregate_at && responseData.ranking_announce_at) {
-              setLiveEventTiming({
-                  aggregateAt: responseData.aggregate_at,
-                  rankingAnnounceAt: responseData.ranking_announce_at
-              });
-          }
-          setLastUpdated(new Date());
-
-        } else {
-          throw new Error('Unexpected API response format.');
-        }
-      } catch (e) {
-        setError(e instanceof Error ? `取得排名失敗: ${e.message}` : '發生未知錯誤');
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-  };
-
-  const fetchBorderRankings = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-          const response = await fetch(BORDER_API_URL);
-          if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
-
-          const textData = await response.text();
-          const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-          const responseData: HisekaiBorderApiResponse = JSON.parse(sanitizedData);
-
-          if (responseData && Array.isArray(responseData.border_player_rankings)) {
-              const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
-              const transformedRankings: RankEntry[] = responseData.border_player_rankings.map(item => ({
-                  rank: item.rank,
-                  score: item.score,
-                  lastPlayedAt: '',
-                  stats: { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat },
-                  user: {
-                      id: String(item.last_player_info.profile.id),
-                      username: item.name,
-                      display_name: item.name,
-                      avatar: '',
-                      supporter_tier: 0,
-                  }
-              }));
-              setRankings(transformedRankings);
-          }
-      } catch (e) {
-          setError(e instanceof Error ? `取得精彩片段失敗: ${e.message}` : '發生未知錯誤');
-      } finally {
-          setIsLoading(false);
-      }
-  }
-
-  const fetchPastRankings = async (eventId: number) => {
-    setIsLoading(true);
-    setError(null);
-    setRankings([]); 
-    setSortOption('score'); 
-    
-    try {
-        const response = await fetch(`https://api.hisekai.org/event/${eventId}/top100`);
-        if (!response.ok) throw new Error('Failed to fetch past event rankings');
-
-        const textData = await response.text();
-        const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-        
-        const responseData: PastEventApiResponse = JSON.parse(sanitizedData);
-
-        if (responseData && Array.isArray(responseData.rankings)) {
-            const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
-            const transformedRankings: RankEntry[] = responseData.rankings.map(item => ({
-                rank: item.rank,
-                score: item.score,
-                lastPlayedAt: '',
-                stats: { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat },
-                user: {
-                    id: String(item.userId),
-                    username: item.name,
-                    display_name: item.name,
-                    avatar: '',
-                    supporter_tier: 0
-                }
-            }));
-
-            setRankings(transformedRankings);
-            setCachedPastRankings(transformedRankings);
-            setLastUpdated(null);
-        } else {
-            throw new Error('Unexpected API response format.');
-        }
-    } catch (e) {
-        setError(e instanceof Error ? `讀取活動失敗: ${e.message}` : '發生未知錯誤');
-        console.error(e);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const fetchPastBorderRankings = async (eventId: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-        const response = await fetch(`https://api.hisekai.org/event/${eventId}/border`);
-        if (!response.ok) throw new Error('Failed to fetch past event highlights');
-
-        const textData = await response.text();
-        const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-        const responseData: PastEventBorderApiResponse = JSON.parse(sanitizedData);
-
-        if (responseData && Array.isArray(responseData.borderRankings)) {
-            const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
-            const transformedRankings: RankEntry[] = responseData.borderRankings.map(item => ({
-                rank: item.rank,
-                score: item.score,
-                lastPlayedAt: '',
-                stats: { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat },
-                user: {
-                    id: String(item.userId),
-                    username: item.name,
-                    display_name: item.name,
-                    avatar: '',
-                    supporter_tier: 0
-                }
-            }));
-            setRankings(transformedRankings);
-        }
-    } catch (e) {
-        setError(e instanceof Error ? `取得精彩片段失敗: ${e.message}` : '發生未知錯誤');
-        console.error(e);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
+  // Main Effect to trigger fetches based on view and page
   useEffect(() => {
     if (currentView === 'live') {
         fetchLiveRankings();
         setCurrentPage(1);
     } else if (currentView === 'past' && selectedEvent) {
         fetchPastRankings(selectedEvent.id);
-        setEventName(selectedEvent.name);
+        setEventName(selectedEvent.name); // Ensure name is set from selection immediately
         setCurrentPage(1);
     }
-  }, [currentView, selectedEvent]);
+  }, [currentView, selectedEvent, fetchLiveRankings, fetchPastRankings, setEventName]);
 
   const handlePageChange = (page: number | 'highlights') => {
       setCurrentPage(page);
@@ -472,7 +293,7 @@ const App: React.FC = () => {
           const unitLogo = getAssetUrl(details?.unit, 'unit');
           const bannerImg = getAssetUrl(details?.banner, 'character');
           const eventLogoUrl = getAssetUrl(selectedEvent.id.toString(), 'event');
-          const unitStyle = UNIT_STYLES[details?.unit] || "bg-slate-500 text-white";
+          const unitStyle = UNITS[details?.unit]?.style || "bg-slate-500 text-white";
 
           rankingsTitle = (
               <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
@@ -596,97 +417,100 @@ const App: React.FC = () => {
             </div>
 
             <main className="p-4 w-full">
-                {currentView === 'home' && (
-                    <HomeView setCurrentView={setCurrentView} />
-                )}
+                <ErrorBoundary>
+                    {currentView === 'home' && (
+                        <HomeView setCurrentView={setCurrentView} />
+                    )}
 
-                {currentView === 'live' && (
-                    <div className="animate-fadeIn">
-                        <div className="mb-6">
-                            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
-                            <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
-                                <div className="flex items-center gap-3">
-                                    {liveEventId && (
-                                        <img 
-                                            src={getAssetUrl(liveEventId.toString(), 'event') || ''} 
-                                            alt="Logo" 
-                                            className="h-12 w-auto object-contain rounded-md"
-                                            onError={(e) => e.currentTarget.style.display = 'none'}
-                                        />
-                                    )}
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <h2 
-                                                className="text-xl sm:text-2xl font-bold mb-1"
-                                                style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
-                                            >
-                                                {eventName}
-                                            </h2>
-                                            {liveEventTiming && (
-                                                <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />
-                                            )}
+                    {currentView === 'live' && (
+                        <div className="animate-fadeIn">
+                            <div className="mb-6">
+                                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
+                                <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
+                                    <div className="flex items-center gap-3">
+                                        {liveEventId && (
+                                            <img 
+                                                src={getAssetUrl(liveEventId.toString(), 'event') || ''} 
+                                                alt="Logo" 
+                                                className="h-12 w-auto object-contain rounded-md"
+                                                onError={(e) => e.currentTarget.style.display = 'none'}
+                                            />
+                                        )}
+                                        <div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h2 
+                                                    className="text-xl sm:text-2xl font-bold mb-1"
+                                                    style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
+                                                >
+                                                    {eventName}
+                                                </h2>
+                                                {liveEventTiming && (
+                                                    <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />
+                                                )}
+                                            </div>
+                                            <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                                最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
+                                            </p>
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm">
-                                            最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
-                                        </p>
                                     </div>
                                 </div>
                             </div>
+                            {renderContent()}
                         </div>
-                        {renderContent()}
-                    </div>
-                )}
+                    )}
 
-                {currentView === 'past' && !selectedEvent && (
-                    <PastEventsView onSelectEvent={(id, name) => setSelectedEvent({ id, name })} />
-                )}
+                    {currentView === 'past' && !selectedEvent && (
+                        <PastEventsView onSelectEvent={(id, name) => setSelectedEvent({ id, name })} />
+                    )}
 
-                {currentView === 'past' && selectedEvent && (
-                    <>
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                             <button 
-                                onClick={() => setSelectedEvent(null)}
-                                className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
-                             >
-                                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                                返回列表 (Back)
-                             </button>
-                        </div>
-                         {renderContent()}
-                    </>
-                )}
+                    {currentView === 'past' && selectedEvent && (
+                        <>
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                 <button 
+                                    onClick={() => setSelectedEvent(null)}
+                                    className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
+                                 >
+                                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    返回列表 (Back)
+                                 </button>
+                            </div>
+                             {renderContent()}
+                        </>
+                    )}
 
-                {currentView === 'comparison' && (
-                    <EventComparisonView />
-                )}
-                
-                {currentView === 'analysis' && (
-                    <RankAnalysisView />
-                )}
+                    {currentView === 'comparison' && (
+                        <EventComparisonView />
+                    )}
+                    
+                    {currentView === 'analysis' && (
+                        <RankAnalysisView />
+                    )}
 
-                {currentView === 'trend' && (
-                    <RankTrendView />
-                )}
+                    {currentView === 'trend' && (
+                        <RankTrendView />
+                    )}
 
-                {currentView === 'worldLink' && (
-                    <WorldLinkView />
-                )}
+                    {currentView === 'worldLink' && (
+                        <WorldLinkView />
+                    )}
 
-                {currentView === 'playerAnalysis' && (
-                    <PlayerAnalysisView />
-                )}
+                    {currentView === 'playerAnalysis' && (
+                        <PlayerAnalysisView />
+                    )}
 
-                {currentView === 'resourceEstimator' && (
-                    <ResourceEstimatorView />
-                )}
+                    {currentView === 'resourceEstimator' && (
+                        <ResourceEstimatorView />
+                    )}
 
-                {currentView === 'playerProfile' && (
-                    <PlayerProfileView />
-                )}
+                    {currentView === 'playerProfile' && (
+                        <PlayerProfileView />
+                    )}
+                </ErrorBoundary>
             </main>
         </div>
+        <ScrollToTop />
     </div>
   );
 };

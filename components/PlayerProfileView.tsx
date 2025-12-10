@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { UserProfileResponse, UserCharacter } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { getAssetUrl, CHAR_INFO, UNIT_COLORS } from '../constants';
+import { getAssetUrl, CHARACTERS, UNITS } from '../constants';
 import UnitLogo from './icons/UnitLogo';
+import Card from './ui/Card';
 
 const difficultyStyles: Record<string, string> = {
   easy: 'text-lime-600 dark:text-lime-400',    
@@ -38,14 +40,21 @@ const PlayerProfileView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const handleFetchProfile = async () => {
-        if (!userIdInput.trim()) return;
+        const input = userIdInput.trim();
+        if (!input) return;
         
+        // Security: Input Validation (Digits only)
+        if (!/^\d+$/.test(input)) {
+            setError('ID 格式錯誤：請只輸入數字 (Invalid ID Format)');
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
         setProfileData(null);
 
         try {
-            const response = await fetch(`https://api.hisekai.org/user/${userIdInput.trim()}/profile`);
+            const response = await fetch(`https://api.hisekai.org/user/${input}/profile`);
             if (!response.ok) {
                 if (response.status === 404) {
                     throw new Error('找不到該玩家 ID，請檢查輸入是否正確。');
@@ -83,16 +92,19 @@ const PlayerProfileView: React.FC = () => {
         if (!profileData?.userCharacters) return null;
 
         return (
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg mt-6">
-                <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
-                    <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    角色等級 (Character Rank)
-                </h4>
-                
+            <Card 
+                title={
+                    <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        角色等級 (Character Rank)
+                    </div>
+                }
+                className="mt-6"
+            >
                 <div className="space-y-6">
                     {UNIT_ROWS.map((unit) => {
                         const unitLogoUrl = getAssetUrl(unit.name, 'unit');
-                        const unitColor = UNIT_COLORS[unit.name] || '#94a3b8';
+                        const unitColor = UNITS[unit.name]?.color || '#94a3b8';
 
                         return (
                             <div key={unit.name} className="flex flex-col gap-3">
@@ -116,7 +128,7 @@ const PlayerProfileView: React.FC = () => {
                                         const charData = profileData.userCharacters?.find(c => c.characterId === charId);
                                         const rank = charData?.characterRank || 0;
                                         const imgUrl = getAssetUrl(charName, 'character');
-                                        const charColor = CHAR_INFO[charName];
+                                        const charColor = CHARACTERS[charName]?.color || '#999';
 
                                         return (
                                             <div key={charId} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-100 dark:border-slate-800/50">
@@ -149,7 +161,7 @@ const PlayerProfileView: React.FC = () => {
                         );
                     })}
                 </div>
-            </div>
+            </Card>
         );
     };
 
@@ -197,7 +209,7 @@ const PlayerProfileView: React.FC = () => {
             {profileData && !isLoading && (
                 <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
                     {/* User Info Card */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg">
+                    <Card>
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-100 dark:border-slate-700/50 pb-4">
                             <div>
                                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
@@ -235,17 +247,20 @@ const PlayerProfileView: React.FC = () => {
                                 <PowerBreakdownItem label="大門加成 (Gate)" value={profileData.totalPower.mysekaiGateLevelBonus} />
                             </div>
                         </div>
-                    </div>
+                    </Card>
 
                     {renderCharacterRanks()}
 
                     {/* Music Stats Card */}
                     {profileData.userMusicDifficultyClearCount && profileData.userMusicDifficultyClearCount.length > 0 && (
-                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg">
-                            <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                                <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
-                                歌曲通關狀態 (Music Clear Status)
-                            </h4>
+                        <Card 
+                            title={
+                                <div className="flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+                                    歌曲通關狀態 (Music Clear Status)
+                                </div>
+                            }
+                        >
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                                 {profileData.userMusicDifficultyClearCount.map((stat) => (
                                     <div key={stat.musicDifficultyType} className="bg-slate-5 dark:bg-slate-700/30 rounded-lg p-3 border border-slate-100 dark:border-slate-700 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow">
@@ -269,7 +284,7 @@ const PlayerProfileView: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </Card>
                     )}
                 </div>
             )}

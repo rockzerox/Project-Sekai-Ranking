@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
-import CrownIcon from './icons/CrownIcon';
 import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
+import DashboardTable from './ui/DashboardTable';
+import Select from './ui/Select';
 
 interface EventStat {
     eventId: number;
@@ -18,83 +19,6 @@ interface EventStat {
 }
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
-
-interface RankTableProps {
-    title: string;
-    headerAction?: React.ReactNode;
-    data: EventStat[];
-    valueGetter: (stat: EventStat) => number;
-    color: string;
-}
-
-const RankTable: React.FC<RankTableProps> = ({ title, headerAction, data, valueGetter, color }) => (
-    <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-lg h-full flex flex-col transition-colors duration-300">
-        <div className={`px-3 py-3 ${color} bg-opacity-10 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0 min-h-[56px]`}>
-            <div className="flex items-center flex-1 min-w-0 mr-2">
-                <h3 className={`font-bold ${color.replace('bg-', 'text-')} truncate mr-2`}>{title}</h3>
-                {headerAction}
-            </div>
-            <CrownIcon className={`w-5 h-5 ${color.replace('bg-', 'text-')} flex-shrink-0`} />
-        </div>
-        <div className="overflow-x-auto flex-1 custom-scrollbar">
-            <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 uppercase sticky top-0 z-10">
-                    <tr>
-                        <th className="px-3 py-2 w-10">#</th>
-                        <th className="px-3 py-2">活動 (Event)</th>
-                        <th className="px-3 py-2 text-right">分數 (Score)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.map((stat, idx) => (
-                        <tr key={stat.eventId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                {idx + 1}
-                            </td>
-                            <td className="px-3 py-2">
-                                <div className="flex items-center gap-2">
-                                    <div 
-                                        className="font-medium truncate" 
-                                        title={stat.eventName}
-                                        style={{ color: getEventColor(stat.eventId) || undefined }}
-                                    >
-                                        {stat.eventName}
-                                    </div>
-                                    {stat.isLive && (
-                                        <span className="bg-cyan-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
-                                            進行中
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                    <span>ID: {stat.eventId}</span>
-                                    <span className="w-0.5 h-0.5 bg-slate-400 rounded-full"></span>
-                                    {stat.isLive ? (
-                                        <span className="text-cyan-600 dark:text-cyan-400 font-bold">
-                                            剩 {stat.remainingDays?.toFixed(2)} 天
-                                        </span>
-                                    ) : (
-                                        <span>{Math.round(stat.duration)} 天</span>
-                                    )}
-                                </div>
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
-                                {valueGetter(stat).toLocaleString()}
-                            </td>
-                        </tr>
-                    ))}
-                    {data.length === 0 && (
-                        <tr>
-                            <td colSpan={3} className="px-3 py-4 text-center text-slate-500">
-                                暫無資料 (No Data)
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
 
 // Helper for retry logic
 const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<Response> => {
@@ -299,7 +223,7 @@ const RankAnalysisView: React.FC = () => {
         runAnalysis();
 
         return () => { alive = false; };
-    }, [isPaused]); // Depend on isPaused to allow resume logic if needed, but here implemented via polling loop inside effect
+    }, [isPaused]); 
 
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
         const getMetric = (stat: EventStat, rawScore: number) => {
@@ -359,6 +283,50 @@ const RankAnalysisView: React.FC = () => {
         return Math.ceil(rawScore / days);
     };
 
+    const renderEventRow = (stat: EventStat, idx: number, score: number) => (
+        <tr key={stat.eventId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                {idx + 1}
+            </td>
+            <td className="px-3 py-2">
+                <div className="flex items-center gap-2">
+                    <div 
+                        className="font-medium truncate" 
+                        title={stat.eventName}
+                        style={{ color: getEventColor(stat.eventId) || undefined }}
+                    >
+                        {stat.eventName}
+                    </div>
+                    {stat.isLive && (
+                        <span className="bg-cyan-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
+                            進行中
+                        </span>
+                    )}
+                </div>
+                <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                    <span>ID: {stat.eventId}</span>
+                    <span className="w-0.5 h-0.5 bg-slate-400 rounded-full"></span>
+                    {stat.isLive ? (
+                        <span className="text-cyan-600 dark:text-cyan-400 font-bold">
+                            剩 {stat.remainingDays?.toFixed(2)} 天
+                        </span>
+                    ) : (
+                        <span>{Math.round(stat.duration)} 天</span>
+                    )}
+                </div>
+            </td>
+            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">
+                {score.toLocaleString()}
+            </td>
+        </tr>
+    );
+
+    const columns = [
+        { header: '#', className: 'w-10' },
+        { header: '活動 (Event)' },
+        { header: '分數 (Score)', className: 'text-right' }
+    ];
+
     return (
         <div className="w-full py-4 animate-fadeIn">
             <div className="mb-6">
@@ -369,49 +337,49 @@ const RankAnalysisView: React.FC = () => {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">
-                         <select
+                         <Select
                             value={selectedUnitFilter}
-                            onChange={(e) => setSelectedUnitFilter(e.target.value)}
-                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[140px]"
-                         >
-                            <option value="all">所有團體 (All Units)</option>
-                            {UNIT_ORDER.map(unit => (
-                                <option key={unit} value={unit}>{unit}</option>
-                            ))}
-                         </select>
+                            onChange={setSelectedUnitFilter}
+                            containerClassName="min-w-[140px]"
+                            options={[
+                                { value: 'all', label: '所有團體 (All Units)' },
+                                ...UNIT_ORDER.map(unit => ({ value: unit, label: unit }))
+                            ]}
+                         />
 
-                         <select
+                         <Select
                             value={selectedBannerFilter}
-                            onChange={(e) => setSelectedBannerFilter(e.target.value)}
-                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[140px]"
-                         >
-                            <option value="all">所有 Banner</option>
-                            {BANNER_ORDER.map(banner => (
-                                <option key={banner} value={banner}>{banner}</option>
-                            ))}
-                         </select>
+                            onChange={setSelectedBannerFilter}
+                            containerClassName="min-w-[140px]"
+                            options={[
+                                { value: 'all', label: '所有 Banner' },
+                                ...BANNER_ORDER.map(banner => ({ value: banner, label: banner }))
+                            ]}
+                         />
 
-                         <select
+                         <Select
                             value={selectedStoryFilter}
-                            onChange={(e) => setSelectedStoryFilter(e.target.value as any)}
-                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[120px]"
-                         >
-                            <option value="all">所有劇情 (All Stories)</option>
-                            <option value="unit_event">箱活</option>
-                            <option value="mixed_event">混活</option>
-                            <option value="world_link">World Link</option>
-                         </select>
+                            onChange={(val) => setSelectedStoryFilter(val as any)}
+                            containerClassName="min-w-[120px]"
+                            options={[
+                                { value: 'all', label: '所有劇情 (All Stories)' },
+                                { value: 'unit_event', label: '箱活' },
+                                { value: 'mixed_event', label: '混活' },
+                                { value: 'world_link', label: 'World Link' }
+                            ]}
+                         />
 
-                         <select
+                         <Select
                             value={selectedCardFilter}
-                            onChange={(e) => setSelectedCardFilter(e.target.value as any)}
-                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none min-w-[120px]"
-                         >
-                            <option value="all">所有卡面 (All Cards)</option>
-                            <option value="permanent">常駐</option>
-                            <option value="limited">限定</option>
-                            <option value="special_limited">特殊限定</option>
-                         </select>
+                            onChange={(val) => setSelectedCardFilter(val as any)}
+                            containerClassName="min-w-[120px]"
+                            options={[
+                                { value: 'all', label: '所有卡面 (All Cards)' },
+                                { value: 'permanent', label: '常駐' },
+                                { value: 'limited', label: '限定' },
+                                { value: 'special_limited', label: '特殊限定' }
+                            ]}
+                         />
 
                         <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm">
                             <button
@@ -465,40 +433,41 @@ const RankAnalysisView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-                <RankTable 
+                <DashboardTable 
                     title={`Top 1 ${displayMode === 'daily' ? '日均' : '最高分'}`}
                     data={top1List} 
-                    valueGetter={(s) => getValue(s, s.top1)} 
+                    columns={columns}
+                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.top1))} 
                     color="bg-yellow-500" 
                 />
-                <RankTable 
+                <DashboardTable 
                     title={`Top 10 ${displayMode === 'daily' ? '日均' : '最高分'}`}
                     data={top10List} 
-                    valueGetter={(s) => getValue(s, s.top10)} 
+                    columns={columns}
+                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.top10))} 
                     color="bg-purple-500" 
                 />
-                <RankTable 
+                <DashboardTable 
                     title={`Top 100 ${displayMode === 'daily' ? '日均' : '最高分'}`}
                     data={top100List} 
-                    valueGetter={(s) => getValue(s, s.top100)} 
+                    columns={columns}
+                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.top100))} 
                     color="bg-cyan-500" 
                 />
-                <RankTable 
+                <DashboardTable 
                     title={`Top ${selectedBorderRank}`}
                     headerAction={
-                        <select 
+                        <Select 
                             value={selectedBorderRank} 
-                            onChange={(e) => setSelectedBorderRank(Number(e.target.value))}
+                            onChange={(val) => setSelectedBorderRank(Number(val))}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold py-1 px-1 rounded border border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-teal-500 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
-                        >
-                            {BORDER_OPTIONS.map(rank => (
-                                <option key={rank} value={rank}>T{rank}</option>
-                            ))}
-                        </select>
+                            className="text-xs py-1"
+                            options={BORDER_OPTIONS.map(rank => ({ value: rank, label: `T${rank}` }))}
+                        />
                     }
                     data={borderRankList} 
-                    valueGetter={(s) => getValue(s, s.borders[selectedBorderRank] || 0)} 
+                    columns={columns}
+                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.borders[selectedBorderRank] || 0))} 
                     color="bg-teal-500" 
                 />
             </div>

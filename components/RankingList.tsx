@@ -22,15 +22,22 @@ const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideSta
 
   return (
     <div className="space-y-3">
-      {rankings.map((entry) => (
-        <RankingItem 
-            key={entry.user.id} 
-            entry={entry} 
-            sortOption={sortOption} 
-            hideStats={hideStats}
-            aggregateAt={aggregateAt}
-        />
-      ))}
+      {rankings.map((entry, index) => {
+        // More robust key generation
+        const uniqueKey = entry.user.id && entry.user.id !== 'undefined' 
+            ? entry.user.id 
+            : `rank-${entry.rank}-${index}`;
+
+        return (
+            <RankingItem 
+                key={uniqueKey} 
+                entry={entry} 
+                sortOption={sortOption} 
+                hideStats={hideStats}
+                aggregateAt={aggregateAt}
+            />
+        );
+      })}
     </div>
   );
 };

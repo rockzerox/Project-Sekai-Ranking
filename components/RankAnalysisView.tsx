@@ -437,21 +437,21 @@ const RankAnalysisView: React.FC = () => {
                     title={`Top 1 ${displayMode === 'daily' ? '日均' : '最高分'}`}
                     data={top1List} 
                     columns={columns}
-                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.top1))} 
+                    renderRow={(s: EventStat, idx) => renderEventRow(s, idx, getValue(s, s.top1))} 
                     color="bg-yellow-500" 
                 />
                 <DashboardTable 
                     title={`Top 10 ${displayMode === 'daily' ? '日均' : '最高分'}`}
                     data={top10List} 
                     columns={columns}
-                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.top10))} 
+                    renderRow={(s: EventStat, idx) => renderEventRow(s, idx, getValue(s, s.top10))} 
                     color="bg-purple-500" 
                 />
                 <DashboardTable 
                     title={`Top 100 ${displayMode === 'daily' ? '日均' : '最高分'}`}
                     data={top100List} 
                     columns={columns}
-                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.top100))} 
+                    renderRow={(s: EventStat, idx) => renderEventRow(s, idx, getValue(s, s.top100))} 
                     color="bg-cyan-500" 
                 />
                 <DashboardTable 
@@ -467,7 +467,7 @@ const RankAnalysisView: React.FC = () => {
                     }
                     data={borderRankList} 
                     columns={columns}
-                    renderRow={(s, idx) => renderEventRow(s, idx, getValue(s, s.borders[selectedBorderRank] || 0))} 
+                    renderRow={(s: EventStat, idx) => renderEventRow(s, idx, getValue(s, s.borders[selectedBorderRank] || 0))} 
                     color="bg-teal-500" 
                 />
             </div>

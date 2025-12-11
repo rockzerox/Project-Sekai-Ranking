@@ -1,20 +1,59 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# 🏆 Hi Sekai TW - 世界計畫台服排名資訊站
 
-This contains everything you need to run your app locally.
+這是一個專為《世界計畫 繽紛舞台！feat. 初音未來》（Project Sekai）繁體中文版（台服）玩家設計的綜合數據分析平台。提供即時排名查詢、歷代活動回顧、分數線趨勢分析以及資源規劃工具。
 
-View your app in AI Studio: https://ai.studio/apps/drive/1nax2N2H9A0PzF3dRjjdmKNWmqKND_r-j
+非官方粉絲製作，數據來源為 [Hi Sekai API](https://hisekai.org)。
 
-## Run Locally
+## ✨ 主要功能介紹與操作指南
 
-**Prerequisites:**  Node.js
+### 🔴 現時活動 (Live Events)
+即時追蹤當前正在進行的活動戰況。
+- **即時排名**：查看 Top 100 玩家的即時分數、時速與隊伍組成。
+- **安全線/死心線分析**：圖表會根據剩餘時間自動推算 Top 100 的「安全分數線」（守住排名的理論值）與「死心分數線」（追不上的理論值）。
+- **精彩片段 (Highlights)**：除了前百，亦可查詢 T200, T300, T400, T500, T1000 等特定名次的分數線。
 
+### 📚 歷代活動 (Past Events)
+完整的台服活動資料庫。
+- **篩選器**：可依照「團體 (Unit)」、「活動類型 (Marathon/Cheer/WL)」、「主角 (Banner)」、「劇情類型」與「卡池類型」快速篩選歷史活動。
+- **詳細數據**：點擊任意活動可查看該期的 Top 100 結算榜單、分數分佈圖表與活動時長。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### ⚖️ 活動比較分析 (Event Comparison)
+想知道這次活動跟以前哪一期很像？
+- **雙活動對比**：選擇任意兩期活動，系統會將其分數線繪製在同一張圖表上。
+- **縮放功能**：支援滑鼠拖曳選取圖表區域進行放大，觀察特定排名區間的競爭差異。
+- **綜合評估**：系統會自動計算並文字化分析兩期活動的「競爭陡峭度 (Steepness)」與「整體分數投入 (Score)」。
+
+### 📈 活動榜線排名與趨勢 (Rank Analysis & Trend)
+- **榜線排名**：查詢台服歷史上 Top 1、Top 10、Top 100 等名次的最高分紀錄排行。
+- **榜線趨勢**：透過折線圖觀察從開服至今，特定排名（如 Top 1000）的分數線隨時間變化的趨勢，藉此觀察玩家生態的變遷。
+
+### 🌐 World Link 分析
+針對 World Link 特殊活動形式的專屬分析頁面。
+- **角色章節排名**：整合所有 World Link 期數，比較各角色的章節排名分數。
+- **日均/總分切換**：由於不同章節天數可能不同，可切換至「日均 (Daily Average)」模式進行公平比較。
+
+### 🕵️ 活躍玩家分析 (Player Analysis)
+- **前百常客**：統計在歷代活動中，上榜次數最多的玩家。
+- **特定排名常客**：可查詢誰最常拿「Top 1」、「Top 10」等特定殊榮。
+
+### 🧮 預估資源計算機 (Resource Estimator)
+準備衝榜嗎？先算算要喝多少水！
+1. **設定基準**：選擇一個過去的活動作為參考（例如：想打某角色的箱活，就選該團體過去類似熱度的活動）。
+2. **設定目標**：選擇未來的活動（系統會自動帶入活動天數）。
+3. **輸入參數**：輸入您目前的單場得分、活動加成倍率。
+4. **獲得結果**：系統會計算出理論上所需的「大補充罐」數量，並提供考慮自然回體的修正值。
+
+### 🆔 玩家狀態查詢 (Player Profile)
+- 輸入玩家 ID，即可查詢該玩家的詳細資料。
+- **綜合力分析**：查看綜合力的組成來源（卡片、區域道具、角色等級等）。
+- **角色等級**：一覽所有角色的 Rank 等級。
+- **通關紀錄**：查看 Easy 到 Append 各難度的 Clear/FC/AP 數量。
+
+## 🛠️ 技術細節
+- **Frontend**: React, TypeScript, Vite
+- **UI Framework**: Tailwind CSS
+- **Design System**: Responsive Design (Mobile/Desktop), Dark/Light Mode support
+
+## ⚠️ 免責聲明
+本網站為非官方粉絲製作，與 SEGA、Colorful Palette 或 HoYoverse 無任何關聯。所有遊戲圖片與數據版權歸原官方所有。

@@ -252,7 +252,7 @@ const PlayerAnalysisView: React.FC = () => {
                         { header: '上榜次數', className: 'text-right' }
                     ]}
                     data={topFrequent100}
-                    renderRow={(stat, idx) => renderRow(stat, idx, stat.top100Count, true)}
+                    renderRow={(stat: PlayerStat, idx) => renderRow(stat, idx, stat.top100Count, true)}
                     color="bg-cyan-500"
                 />
 
@@ -275,7 +275,7 @@ const PlayerAnalysisView: React.FC = () => {
                         { header: '獲得次數', className: 'text-right' }
                     ]}
                     data={topFrequentSpecific}
-                    renderRow={(stat, idx) => renderRow(stat, idx, stat.rankSpecificCounts[selectedSpecificRank] || 0, true)}
+                    renderRow={(stat: PlayerStat, idx) => renderRow(stat, idx, stat.rankSpecificCounts[selectedSpecificRank] || 0, true)}
                     color="bg-pink-500"
                 />
             </div>

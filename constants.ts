@@ -258,7 +258,7 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     115: { unit: "Mix", type: "marathon", banner: "花里實乃理", storyType: "mixed_event", cardType: "permanent" },
     116: { unit: "25點，Nightcord見。", type: "marathon", banner: "宵崎奏", storyType: "unit_event", cardType: "permanent" },
     117: { unit: "Mix", type: "marathon", banner: "曉山瑞希", storyType: "mixed_event", cardType: "limited" },
-    118: { unit: "Vivid BAD SQUAD", type: "world_link", banner: "Vivid BAD SQUAD", storyType: "world_link", cardType: "permanent" },
+    118: { unit: "Vivid BAD SQUAD", type: "world_link", banner: "Vivid BAD SQUAD", storyType: "world_link", cardType: "special_limited" },
     119: { unit: "Wonderlands × Showtime", type: "marathon", banner: "神代類", storyType: "unit_event", cardType: "permanent" },
     120: { unit: "Mix", type: "marathon", banner: "小豆澤心羽", storyType: "mixed_event", cardType: "limited" },
     121: { unit: "Leo/need", type: "marathon", banner: "望月穗波", storyType: "unit_event", cardType: "permanent" },

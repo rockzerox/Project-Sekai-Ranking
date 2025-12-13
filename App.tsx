@@ -1,4 +1,5 @@
 
+// ... existing imports
 import React, { useState, useEffect, useMemo } from 'react';
 import { SortOption } from './types';
 import SearchBar from './components/SearchBar';
@@ -22,11 +23,12 @@ import PlayerProfileView from './components/PlayerProfileView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
-import { getEventColor, EVENT_DETAILS, UNITS, getAssetUrl } from './constants';
+import { getEventColor, EVENT_DETAILS, UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS } from './constants';
 import { useRankings } from './hooks/useRankings';
 
 const ITEMS_PER_PAGE = 20;
 
+// ... existing Timer components ...
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
     const [timeLeft, setTimeLeft] = useState('');
 
@@ -98,12 +100,16 @@ const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
   
+  // World Link Chapter State
+  const [activeChapter, setActiveChapter] = useState<string>('all');
+  
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   // Use Custom Hook for Ranking Logic
   const {
       rankings,
       setRankings,
+      worldLinkChapters,
       isLoading,
       error,
       eventName,
@@ -138,6 +144,28 @@ const App: React.FC = () => {
   const [isChartsOpen, setIsChartsOpen] = useState(true); // Default Open
   const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
 
+  // Reset active chapter when event changes
+  useEffect(() => {
+      setActiveChapter('all');
+  }, [selectedEvent]);
+
+  // Handle Switching between Main Rankings and Chapter Rankings
+  useEffect(() => {
+      if (activeChapter === 'all') {
+          // Restore from cache if available (Standard behavior handled by useRankings usually, but need explicit reset here)
+          if (cachedPastRankings.length > 0) {
+              setRankings(cachedPastRankings);
+          }
+      } else {
+          // Switch to Chapter data
+          if (worldLinkChapters[activeChapter]) {
+              setRankings(worldLinkChapters[activeChapter]);
+          } else {
+              setRankings([]); // Fallback
+          }
+      }
+  }, [activeChapter, worldLinkChapters, cachedPastRankings, setRankings]);
+
   // Manage Chart Collapse State based on View
   useEffect(() => {
       if (currentView === 'live') {
@@ -161,6 +189,9 @@ const App: React.FC = () => {
 
   const handlePageChange = (page: number | 'highlights') => {
       setCurrentPage(page);
+      // Reset chapter to all when switching mode to avoid confusion, or handle border chapters separately
+      // For simplicity, reset to 'all' to ensure correct data fetch
+      setActiveChapter('all'); 
       
       if (currentView === 'live') {
           if (page === 'highlights') {
@@ -287,6 +318,57 @@ const App: React.FC = () => {
       // Construct the Rich Title for Past Events
       let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";
       
+      // World Link Tab Logic
+      const isWorldLink = isPastMode && selectedEvent && WORLD_LINK_IDS.includes(selectedEvent.id);
+      let WorldLinkTabs = null;
+
+      if (isWorldLink && selectedEvent) {
+          const chapters = EVENT_CHAPTER_ORDER[selectedEvent.id] || [];
+          
+          WorldLinkTabs = (
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar ml-auto">
+                  <button
+                      onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }}
+                      className={`
+                          px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border
+                          ${activeChapter === 'all' 
+                              ? 'bg-slate-700 text-white border-transparent shadow-md' 
+                              : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}
+                      `}
+                  >
+                      總榜 (Total)
+                  </button>
+                  {chapters.map(charName => {
+                      const isActive = activeChapter === charName;
+                      const charColor = CHARACTERS[charName]?.color || '#999';
+                      const charImg = getAssetUrl(charName, 'character');
+
+                      return (
+                          <button
+                              key={charName}
+                              onClick={(e) => { e.stopPropagation(); setActiveChapter(charName); }}
+                              className={`
+                                  flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border
+                                  ${isActive 
+                                      ? 'text-white border-transparent shadow-md' 
+                                      : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}
+                              `}
+                              style={{ 
+                                  backgroundColor: isActive ? charColor : 'transparent',
+                                  borderColor: isActive ? 'transparent' : undefined
+                              }}
+                          >
+                              {charImg && (
+                                  <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />
+                              )}
+                              {charName}
+                          </button>
+                      );
+                  })}
+              </div>
+          );
+      }
+
       if (isPastMode && selectedEvent) {
           const details = EVENT_DETAILS[selectedEvent.id];
           const color = getEventColor(selectedEvent.id);
@@ -296,33 +378,37 @@ const App: React.FC = () => {
           const unitStyle = UNITS[details?.unit]?.style || "bg-slate-500 text-white";
 
           rankingsTitle = (
-              <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
-                  <span>前百排行榜 (Top 100) - </span>
-                  {eventLogoUrl && (
-                      <img 
-                          src={eventLogoUrl} 
-                          alt="Logo" 
-                          className="h-8 w-auto object-contain mr-1"
-                          onError={(e) => e.currentTarget.style.display = 'none'}
-                      />
-                  )}
-                  <span style={{ color: color || 'inherit' }} className="mr-2">{selectedEvent.name}</span>
-                  
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${unitStyle}`}>
-                      {unitLogo && details.unit !== 'Mix' && (
-                          <img src={unitLogo} alt={details.unit} className="w-4 h-4 object-contain" />
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between w-full gap-4">
+                  <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
+                      <span>{isHighlights ? "精彩片段" : "前百排行榜"} - </span>
+                      {eventLogoUrl && (
+                          <img 
+                              src={eventLogoUrl} 
+                              alt="Logo" 
+                              className="h-8 w-auto object-contain mr-1"
+                              onError={(e) => e.currentTarget.style.display = 'none'}
+                          />
                       )}
-                      {details?.unit}
-                  </span>
+                      <span style={{ color: color || 'inherit' }} className="mr-2">{selectedEvent.name}</span>
+                      
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${unitStyle}`}>
+                          {unitLogo && details?.unit !== 'Mix' && (
+                              <img src={unitLogo} alt={details.unit} className="w-4 h-4 object-contain" />
+                          )}
+                          {details?.unit}
+                      </span>
 
-                  {bannerImg && (
-                      <img 
-                          src={bannerImg} 
-                          alt={details?.banner} 
-                          className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover ml-1"
-                          title={`Banner: ${details?.banner}`}
-                      />
-                  )}
+                      {bannerImg && (
+                          <img 
+                              src={bannerImg} 
+                              alt={details?.banner} 
+                              className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover ml-1"
+                              title={`Banner: ${details?.banner}`}
+                          />
+                      )}
+                  </div>
+                  {/* Render tabs if WL */}
+                  {WorldLinkTabs}
               </div>
           );
       } else if (isHighlights) {
@@ -378,6 +464,14 @@ const App: React.FC = () => {
         </div>
       );
   };
+
+  // Determine Live Event Color safely
+  const liveEventColor = useMemo(() => {
+      if (!liveEventId) return undefined;
+      const color = getEventColor(liveEventId);
+      // Fallback color (Cyan-500) if undefined to prevent black text
+      return color || '#06b6d4'; 
+  }, [liveEventId]);
 
   return (
     <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300">
@@ -440,7 +534,7 @@ const App: React.FC = () => {
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <h2 
                                                     className="text-xl sm:text-2xl font-bold mb-1"
-                                                    style={{ color: liveEventId ? getEventColor(liveEventId) : undefined }}
+                                                    style={{ color: liveEventColor }}
                                                 >
                                                     {eventName}
                                                 </h2>

@@ -1,5 +1,7 @@
 
-export const WORLD_LINK_IDS = [112, 118, 124, 130, 137, 140, 163];
+export const WORLD_LINK_ROUND_1_IDS = [112, 118, 124, 130, 137, 140];
+export const WORLD_LINK_ROUND_2_IDS = [163, 167, 170, 171, 176, 179];
+export const WORLD_LINK_IDS = [...WORLD_LINK_ROUND_1_IDS, ...WORLD_LINK_ROUND_2_IDS];
 
 // --- 1. Unified Unit Configuration ---
 
@@ -7,7 +9,7 @@ interface UnitConfig {
     color: string;
     style: string;
     filename: string;
-    abbr: string; // Moved from PlayerAnalysisView
+    abbr: string;
 }
 
 export const UNITS: Record<string, UnitConfig> = {
@@ -42,7 +44,7 @@ export const UNITS: Record<string, UnitConfig> = {
         abbr: "25時"
     },
     "Virtual Singer": {
-        color: "#71717A",
+        color: "#33CCBB", // Updated to Miku Teal for better visibility, was Grey
         style: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-600 dark:border-slate-300",
         filename: "VS_logo",
         abbr: "VS"
@@ -50,7 +52,7 @@ export const UNITS: Record<string, UnitConfig> = {
     "Mix": {
         color: "#64748B",
         style: "bg-slate-500 text-white border-transparent",
-        filename: "", // Mix usually has no specific logo asset in this context
+        filename: "", 
         abbr: "Mix"
     }
 };
@@ -102,17 +104,11 @@ export const CHARACTERS: Record<string, CharacterConfig> = {
 };
 
 export const BANNER_ORDER = [
-    // Leo/need
     "星乃一歌", "天馬咲希", "望月穗波", "日野森志步",
-    // MORE MORE JUMP!
     "花里實乃理", "桐谷遙", "桃井愛莉", "日野森雫",
-    // Vivid BAD SQUAD
     "小豆澤心羽", "白石杏", "東雲彰人", "青柳冬彌",
-    // Wonderlands × Showtime
     "天馬司", "鳳笑夢", "草薙寧寧", "神代類",
-    // 25點，Nightcord見。
     "宵崎奏", "朝比奈真冬", "東雲繪名", "曉山瑞希",
-    // VS
     "初音未來"
 ];
 
@@ -122,7 +118,18 @@ export const EVENT_CHAPTER_ORDER: Record<number, string[]> = {
     124: ["神代類", "草薙寧寧", "鳳笑夢", "天馬司"],
     130: ["桃井愛莉", "桐谷遙", "日野森雫", "花里實乃理"],
     137: ["天馬咲希", "望月穗波", "日野森志步", "星乃一歌"],
-    140: ["巡音流歌", "鏡音鈴", "MEIKO", "鏡音連", "KAITO", "初音未來"]
+    140: ["巡音流歌", "鏡音鈴", "MEIKO", "鏡音連", "KAITO", "初音未來"],
+    163: ["青柳冬彌", "東雲彰人", "小豆澤心羽", "白石杏"]
+};
+
+export const EVENT_CHAR_MAP: Record<number, Record<number, string>> = {
+  112: { 18: '朝比奈真冬', 20: '曉山瑞希', 19: '東雲繪名', 17: '宵崎奏' },
+  118: { 11: '東雲彰人', 12: '青柳冬彌', 10: '白石杏', 9: '小豆澤心羽' },
+  124: { 16: '神代類', 15: '草薙寧寧', 14: '鳳笑夢', 13: '天馬司' },
+  130: { 7: '桃井愛莉', 6: '桐谷遙', 8: '日野森雫', 5: '花里實乃理' },
+  137: { 2: '天馬咲希', 3: '望月穗波', 4: '日野森志步', 1: '星乃一歌' },
+  140: { 24: '巡音流歌', 22: '鏡音鈴', 25: 'MEIKO', 23: '鏡音連', 26: 'KAITO', 21: '初音未來' },
+  163: { 9: '小豆澤心羽', 10: '白石杏', 11: '東雲彰人', 12: '青柳冬彌' }
 };
 
 export interface EventDetail {
@@ -133,7 +140,6 @@ export interface EventDetail {
     cardType: 'permanent' | 'limited' | 'special_limited';
 }
 
-// ... existing EVENT_DETAILS map ...
 export const EVENT_DETAILS: Record<number, EventDetail> = {
     1: { unit: "Leo/need", type: "marathon", banner: "天馬咲希", storyType: "unit_event", cardType: "permanent" },
     2: { unit: "25點，Nightcord見。", type: "marathon", banner: "朝比奈真冬", storyType: "unit_event", cardType: "permanent" },
@@ -239,7 +245,7 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     102: { unit: "Mix", type: "cheerful_carnival", banner: "桃井愛莉", storyType: "mixed_event", cardType: "limited" },
     103: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "小豆澤心羽", storyType: "unit_event", cardType: "permanent" },
     104: { unit: "Wonderlands × Showtime", type: "marathon", banner: "鳳笑夢", storyType: "unit_event", cardType: "permanent" },
-    105: { unit: "Vitrual singer", type: "cheerful_carnival", banner: "初音未來", storyType: "unit_event", cardType: "limited" },
+    105: { unit: "Virtual Singer", type: "cheerful_carnival", banner: "初音未來", storyType: "unit_event", cardType: "limited" },
     106: { unit: "Mix", type: "marathon", banner: "天馬咲希", storyType: "mixed_event", cardType: "permanent" },
     107: { unit: "Mix", type: "marathon", banner: "白石杏", storyType: "mixed_event", cardType: "permanent" },
     108: { unit: "Mix", type: "cheerful_carnival", banner: "星乃一歌", storyType: "mixed_event", cardType: "limited" },
@@ -273,7 +279,7 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     136: { unit: "Wonderlands × Showtime", type: "marathon", banner: "天馬司", storyType: "unit_event", cardType: "permanent" },
     137: { unit: "Leo/need", type: "world_link", banner: "Leo/need", storyType: "world_link", cardType: "special_limited" },
     138: { unit: "MORE MORE JUMP!", type: "marathon", banner: "桃井愛莉", storyType: "unit_event", cardType: "limited" },
-    139: { unit: "Mix", type: "marathon", banner: "宵崎奏", storyType: "mixed_event", cardType: "permanent" },
+    139: { unit: "Mix", type: "marathon", banner: "青柳冬彌", storyType: "mixed_event", cardType: "permanent" },
     140: { unit: "Virtual Singer", type: "world_link", banner: "Virtual Singer", storyType: "world_link", cardType: "special_limited" },
     141: { unit: "Mix", type: "marathon", banner: "鳳笑夢", storyType: "mixed_event", cardType: "limited" },
     142: { unit: "Mix", type: "marathon", banner: "桐谷遙", storyType: "mixed_event", cardType: "permanent" },
@@ -301,79 +307,88 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     164: { unit: "Wonderlands × Showtime", type: "marathon", banner: "鳳笑夢", storyType: "unit_event", cardType: "permanent" }
 };
 
-export const EVENT_UNIT_MAP: Record<number, string> = Object.fromEntries(
-    Object.entries(EVENT_DETAILS).map(([k, v]) => [k, v.unit])
-);
-
-export const getEventColor = (eventId: number): string => {
+export const getEventColor = (eventId: number): string | undefined => {
     const details = EVENT_DETAILS[eventId];
-    if (!details) return '';
+    if (!details) return undefined;
 
-    // Check Character color first (for banner)
-    if (CHARACTERS[details.banner]) {
+    // 1. Try to get the Banner Character's color (Primary for ALL event types)
+    if (details.banner && CHARACTERS[details.banner]) {
         return CHARACTERS[details.banner].color;
     }
 
-    // Check Unit color
-    if (UNITS[details.unit]) {
+    // 2. Standard Unit Color (Fallback if banner is not a single character, e.g., WL or Group Banner)
+    if (details.unit && UNITS[details.unit]) {
         return UNITS[details.unit].color;
     }
-
-    return '';
+    
+    // 3. Fallback for World Link if not captured by unit
+    if (details.type === 'world_link') {
+        return '#33CCBB'; 
+    }
+    
+    return undefined;
 };
 
 // New Image Constants
 const BASE_IMAGE_URL = "https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking";
 
-export const getAssetUrl = (name: string, type: 'character' | 'unit' | 'event'): string | null => {
+export const getAssetUrl = (name: string | undefined, type: 'character' | 'unit' | 'event'): string | undefined => {
+    if (!name) return undefined;
+
     if (type === 'event') {
         return `${BASE_IMAGE_URL}/event_logo/${name}.png`;
     }
 
     if (type === 'character') {
         const filename = CHARACTERS[name]?.filename;
-        if (!filename) return null;
+        if (!filename) return undefined;
         return `${BASE_IMAGE_URL}/Chibi/${filename}.png`;
     } else if (type === 'unit') {
         const filename = UNITS[name]?.filename;
-        if (!filename) return null;
+        if (!filename) return undefined;
         return `${BASE_IMAGE_URL}/logo/${filename}.png`;
     }
 
-    return null;
+    return undefined;
 };
 
-// Duration Helpers
 export const calculateDisplayDuration = (startAt: string, aggregateAt: string): number => {
-    const start = new Date(startAt);
-    const agg = new Date(aggregateAt);
-    const diffMs = Math.abs(agg.getTime() - start.getTime());
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    
-    if (diffDays % 1 > 0.9) {
-        return Math.ceil(diffDays);
+    try {
+        const start = new Date(startAt).getTime();
+        const end = new Date(aggregateAt).getTime();
+        const diffTime = Math.abs(end - start);
+        return Math.round(diffTime / (1000 * 60 * 60 * 24)); 
+    } catch (e) {
+        return 0;
     }
-    return Math.floor(diffDays);
 };
 
 export const calculatePreciseDuration = (startAt: string, aggregateAt: string): number => {
-    const start = new Date(startAt);
-    const agg = new Date(aggregateAt);
-    const diffMs = Math.abs(agg.getTime() - start.getTime());
-    const totalHours = Math.round(diffMs / (1000 * 60 * 60)); 
-    return totalHours / 24;
+    try {
+        const start = new Date(startAt).getTime();
+        const end = new Date(aggregateAt).getTime();
+        const diffTime = Math.abs(end - start);
+        return diffTime / (1000 * 60 * 60 * 24);
+    } catch (e) {
+        return 0;
+    }
 };
 
-export const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string, rankingAnnounceAt: string) => {
-    const now = new Date();
-    const start = new Date(startAt);
-    const agg = new Date(aggregateAt);
-    const closed = new Date(closedAt);
-    const announce = new Date(rankingAnnounceAt);
+export const getEventStatus = (
+    startAt: string, 
+    aggregateAt: string, 
+    closedAt: string, 
+    rankingAnnounceAt: string
+): 'active' | 'calculating' | 'ended' | 'future' | 'past' => {
+    const now = new Date().getTime();
+    const start = new Date(startAt).getTime();
+    const aggregate = new Date(aggregateAt).getTime();
+    const announce = new Date(rankingAnnounceAt).getTime();
+    const closed = new Date(closedAt).getTime();
 
     if (now < start) return 'future';
-    if (now >= start && now <= agg) return 'active';
-    if (now > agg && now < announce) return 'calculating';
-    if (now >= announce && now <= closed) return 'ended';
-    return 'past';
+    if (now >= start && now < aggregate) return 'active';
+    if (now >= aggregate && now < announce) return 'calculating';
+    if (now >= closed) return 'past'; 
+    return 'ended'; // Between announce and closed
 };

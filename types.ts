@@ -148,6 +148,7 @@ export interface WorldBloomChapterRankingEntry {
     score: number;
     name: string;
     userId: number | string;
+    userCard?: PastEventUserCard; // Added optional userCard to support rich display
 }
 
 export interface WorldBloomChapter {

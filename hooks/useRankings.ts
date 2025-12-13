@@ -1,6 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { RankEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
+import { EVENT_CHAR_MAP } from '../constants';
 
 const API_URL = 'https://api.hisekai.org/event/live/top100';
 const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
@@ -9,6 +10,7 @@ const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 interface UseRankingsReturn {
     rankings: RankEntry[];
     setRankings: React.Dispatch<React.SetStateAction<RankEntry[]>>;
+    worldLinkChapters: Record<string, RankEntry[]>;
     isLoading: boolean;
     error: string | null;
     eventName: string;
@@ -29,6 +31,9 @@ export const useRankings = (): UseRankingsReturn => {
     const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]);
     const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]);
     
+    // Store parsed chapter rankings: Key = Character Name, Value = RankEntry[]
+    const [worldLinkChapters, setWorldLinkChapters] = useState<Record<string, RankEntry[]>>({});
+    
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -41,9 +46,6 @@ export const useRankings = (): UseRankingsReturn => {
         const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
         
         return data.map(item => {
-            // Determine structure based on Live vs Past and Border vs Top100
-            // Live Top 100 has nested stats. Past/Border usually simpler.
-            
             const stats = item.last_1h_stats ? {
                 last1h: {
                     count: item.last_1h_stats?.count ?? 0,
@@ -65,11 +67,6 @@ export const useRankings = (): UseRankingsReturn => {
                 },
             } : { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat };
 
-            // Handle ID location (Live structure vs Past structure)
-            // Live: item.last_player_info.profile.id
-            // Past: item.userId
-            // Border: item.last_player_info?.profile?.id OR item.userId
-            
             let userId = "";
             if (item.last_player_info?.profile?.id) userId = String(item.last_player_info.profile.id);
             else if (item.userId) userId = String(item.userId);
@@ -152,6 +149,7 @@ export const useRankings = (): UseRankingsReturn => {
         setIsLoading(true);
         setError(null);
         setRankings([]); 
+        setWorldLinkChapters({});
         
         try {
             const response = await fetch(`https://api.hisekai.org/event/${eventId}/top100`);
@@ -162,9 +160,25 @@ export const useRankings = (): UseRankingsReturn => {
             const responseData: PastEventApiResponse = JSON.parse(sanitizedData);
 
             if (responseData && Array.isArray(responseData.rankings)) {
+                // 1. Process Main Rankings
                 const transformed = transformRankings(responseData.rankings, false);
                 setRankings(transformed);
                 setCachedPastRankings(transformed);
+                
+                // 2. Process Chapter Rankings if available
+                if (responseData.userWorldBloomChapterRankings && responseData.userWorldBloomChapterRankings.length > 0) {
+                    const chapterMap: Record<string, RankEntry[]> = {};
+                    const charNameMap = EVENT_CHAR_MAP[eventId] || {};
+
+                    responseData.userWorldBloomChapterRankings.forEach(chapter => {
+                        const charName = charNameMap[chapter.gameCharacterId];
+                        if (charName) {
+                            chapterMap[charName] = transformRankings(chapter.rankings, false);
+                        }
+                    });
+                    setWorldLinkChapters(chapterMap);
+                }
+
                 setLastUpdated(null);
             } else {
                 throw new Error('Unexpected API response format.');
@@ -180,6 +194,8 @@ export const useRankings = (): UseRankingsReturn => {
     const fetchPastBorderRankings = useCallback(async (eventId: number) => {
         setIsLoading(true);
         setError(null);
+        setWorldLinkChapters({});
+
         try {
             const response = await fetch(`https://api.hisekai.org/event/${eventId}/border`);
             if (!response.ok) throw new Error('Failed to fetch past event highlights');
@@ -189,8 +205,23 @@ export const useRankings = (): UseRankingsReturn => {
             const responseData: PastEventBorderApiResponse = JSON.parse(sanitizedData);
 
             if (responseData && Array.isArray(responseData.borderRankings)) {
+                // 1. Process Main Border Rankings
                 const transformed = transformRankings(responseData.borderRankings, true);
                 setRankings(transformed);
+
+                // 2. Process Chapter Border Rankings
+                if (responseData.userWorldBloomChapterRankingBorders && responseData.userWorldBloomChapterRankingBorders.length > 0) {
+                    const chapterMap: Record<string, RankEntry[]> = {};
+                    const charNameMap = EVENT_CHAR_MAP[eventId] || {};
+
+                    responseData.userWorldBloomChapterRankingBorders.forEach(chapter => {
+                        const charName = charNameMap[chapter.gameCharacterId];
+                        if (charName) {
+                            chapterMap[charName] = transformRankings(chapter.borderRankings, true);
+                        }
+                    });
+                    setWorldLinkChapters(chapterMap);
+                }
             }
         } catch (e) {
             setError(e instanceof Error ? `取得精彩片段失敗: ${e.message}` : '發生未知錯誤');
@@ -203,6 +234,7 @@ export const useRankings = (): UseRankingsReturn => {
     return {
         rankings,
         setRankings,
+        worldLinkChapters,
         isLoading,
         error,
         eventName,

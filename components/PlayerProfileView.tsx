@@ -4,7 +4,6 @@ import { UserProfileResponse, UserCharacter } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { getAssetUrl, CHARACTERS, UNITS } from '../constants';
-import UnitLogo from './icons/UnitLogo';
 import Card from './ui/Card';
 
 const difficultyStyles: Record<string, string> = {

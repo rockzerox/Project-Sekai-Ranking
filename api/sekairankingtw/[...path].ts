@@ -3,17 +3,18 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. 解析路徑參數
+  // Vercel 的 Catch-all 路由 ([...path].ts) 會將路徑片段作為字串陣列傳入 req.query.path
   // 例如請求 /api/sekairankingtw/event/live/top100 -> path 為 ['event', 'live', 'top100']
   const { path } = req.query;
 
   if (!path || !Array.isArray(path)) {
-    return res.status(400).json({ error: 'Invalid path' });
+    return res.status(400).json({ error: 'Invalid path parameters. Expected catch-all route.' });
   }
 
   // 2. 重組目標路徑
   const targetPath = path.join('/');
   
-  // 3. 處理 Query Parameters (移除 Vercel 路由用的 'path' 參數)
+  // 3. 處理 Query Parameters (移除 Vercel 路由用的 'path' 參數，保留其他參數)
   const queryParams = new URLSearchParams();
   Object.keys(req.query).forEach((key) => {
     if (key !== 'path') {
@@ -34,10 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiRes = await fetch(targetUrl, {
       method: req.method,
       headers: {
-        // 設定符合規範的 User-Agent
         'User-Agent': 'SekaiRankingTW/1.0.0 (contact: github.com/rockzerox)',
         'Content-Type': 'application/json',
-        // 未來若需 API Key，可在此處加入: 'Authorization': process.env.API_KEY
       },
       body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
     });
@@ -45,13 +44,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 5. 處理回應
     const data = await apiRes.text();
 
-    // 轉發原始狀態碼
     res.status(apiRes.status);
     
-    // 設定回傳 Header
-    res.setHeader('Content-Type', apiRes.headers.get('Content-Type') || 'application/json');
-    // 允許跨域 (雖然同源 Proxy 通常不需要，但保留以防萬一)
+    // 轉發 Content-Type
+    const contentType = apiRes.headers.get('Content-Type');
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+    
+    // 設定 CORS 與 快取 (非強制，但建議加入)
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=59');
 
     res.send(data);
   } catch (error) {

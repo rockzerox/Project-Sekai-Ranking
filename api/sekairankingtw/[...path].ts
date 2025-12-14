@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const apiRes = await fetch(targetUrl, {
       method: req.method,
       headers: {
-        'User-Agent': 'SekaiRankingTW/1.0.0 (contact: github.com/rockzerox)',
+        'User-Agent': 'SekaiRankingTW/1.0.0 (github.com/rockzerox)',
         'Content-Type': 'application/json',
       },
       body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,

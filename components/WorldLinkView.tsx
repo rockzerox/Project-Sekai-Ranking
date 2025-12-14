@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PastEventApiResponse, PastEventBorderApiResponse, WorldBloomChapter, WorldBloomChapterBorder } from '../types';
 import CollapsibleSection from './CollapsibleSection';
-import { CHARACTERS, WORLD_LINK_IDS, WORLD_LINK_ROUND_1_IDS, WORLD_LINK_ROUND_2_IDS, EVENT_CHAPTER_ORDER, getAssetUrl, EVENT_CHAR_MAP } from '../constants';
+import { CHARACTERS, WORLD_LINK_IDS, WORLD_LINK_ROUND_1_IDS, WORLD_LINK_ROUND_2_IDS, EVENT_CHAPTER_ORDER, getAssetUrl, EVENT_CHAR_MAP, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
 
@@ -241,9 +241,10 @@ const WorldLinkView: React.FC = () => {
             for (let i = 0; i < total; i++) {
                 const eventId = targetIds[i];
                 try {
+                    // Using Dynamic API Base URL
                     const [resTop, resBorder] = await Promise.all([
-                        fetch(`https://api.hisekai.org/event/${eventId}/top100`),
-                        fetch(`https://api.hisekai.org/event/${eventId}/border`)
+                        fetch(`${API_BASE_URL}/event/${eventId}/top100`),
+                        fetch(`${API_BASE_URL}/event/${eventId}/border`)
                     ]);
 
                     const sanitize = (t: string) => t.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');

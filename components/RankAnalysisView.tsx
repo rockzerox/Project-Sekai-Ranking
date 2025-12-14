@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
 
@@ -55,7 +55,8 @@ const RankAnalysisView: React.FC = () => {
         const runAnalysis = async () => {
             try {
                 // 1. Fetch Event List
-                const listRes = await fetchWithRetry('https://api.hisekai.org/event/list');
+                // Using Dynamic API Base URL
+                const listRes = await fetchWithRetry(`${API_BASE_URL}/event/list`);
                 const listData: EventSummary[] = await listRes.json();
                 
                 if (!alive) return;
@@ -68,9 +69,10 @@ const RankAnalysisView: React.FC = () => {
 
                 // 2. Fetch Live Event Data
                 try {
+                    // Using Dynamic API Base URL
                     const [resTop, resBorder] = await Promise.all([
-                        fetch('https://api.hisekai.org/event/live/top100'),
-                        fetch('https://api.hisekai.org/event/live/border')
+                        fetch(`${API_BASE_URL}/event/live/top100`),
+                        fetch(`${API_BASE_URL}/event/live/border`)
                     ]);
 
                     if (resTop.ok && alive) {
@@ -150,9 +152,10 @@ const RankAnalysisView: React.FC = () => {
                     
                     const chunkPromises = chunk.map(async (event) => {
                         try {
+                            // Using Dynamic API Base URL
                             const [resTop100, resBorder] = await Promise.all([
-                                fetchWithRetry(`https://api.hisekai.org/event/${event.id}/top100`),
-                                fetchWithRetry(`https://api.hisekai.org/event/${event.id}/border`)
+                                fetchWithRetry(`${API_BASE_URL}/event/${event.id}/top100`),
+                                fetchWithRetry(`${API_BASE_URL}/event/${event.id}/border`)
                             ]);
 
                             let top1 = 0, top10 = 0, top50 = 0, top100 = 0;

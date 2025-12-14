@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration } from '../constants';
+import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
 
@@ -54,7 +54,8 @@ const EventComparisonView: React.FC = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const response = await fetch('https://api.hisekai.org/event/list');
+                // Using Dynamic API Base URL
+                const response = await fetch(`${API_BASE_URL}/event/list`);
                 if (!response.ok) throw new Error('Failed to fetch event list');
                 const data: EventSummary[] = await response.json();
                 
@@ -122,11 +123,12 @@ const EventComparisonView: React.FC = () => {
         setHoveredRank(null);
 
         try {
+            // Using Dynamic API Base URL
             const [res1top, res1border, res2top, res2border] = await Promise.all([
-                fetch(`https://api.hisekai.org/event/${selectedId1}/top100`),
-                fetch(`https://api.hisekai.org/event/${selectedId1}/border`),
-                fetch(`https://api.hisekai.org/event/${selectedId2}/top100`),
-                fetch(`https://api.hisekai.org/event/${selectedId2}/border`)
+                fetch(`${API_BASE_URL}/event/${selectedId1}/top100`),
+                fetch(`${API_BASE_URL}/event/${selectedId1}/border`),
+                fetch(`${API_BASE_URL}/event/${selectedId2}/top100`),
+                fetch(`${API_BASE_URL}/event/${selectedId2}/border`)
             ]);
 
             if (!res1top.ok || !res2top.ok) throw new Error('無法取得活動排行資料');

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { RankEntry, SortOption, HisekaiBorderApiResponse, PastEventBorderApiResponse, HisekaiApiResponse } from '../types';
 import LineChart from './LineChart';
 import CrownIcon from './icons/CrownIcon';
+import { API_BASE_URL } from '../constants';
 
 interface ChartAnalysisProps {
   rankings: RankEntry[];
@@ -42,9 +43,10 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             const shouldFetchBorder = isHighlights || (!eventId && sortOption === 'score');
             
             if (shouldFetchBorder) {
+                // Using Dynamic API Base URL
                 const url = eventId 
-                    ? `https://api.hisekai.org/event/${eventId}/border`
-                    : `https://api.hisekai.org/event/live/border`;
+                    ? `${API_BASE_URL}/event/${eventId}/border`
+                    : `${API_BASE_URL}/event/live/border`;
 
                 const response = await fetch(url);
                 if (response.ok) {
@@ -70,7 +72,8 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
             // 2. Fetch Live Event Timing (For Safety Calculation) if Live Mode
             if (!eventId) {
-                const resTop = await fetch('https://api.hisekai.org/event/live/top100');
+                // Using Dynamic API Base URL
+                const resTop = await fetch(`${API_BASE_URL}/event/live/top100`);
                 if (resTop.ok) {
                     const textTop = await resTop.text();
                     const sanitizedTop = textTop.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');

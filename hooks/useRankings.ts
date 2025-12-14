@@ -1,10 +1,11 @@
 
 import React, { useState, useCallback } from 'react';
 import { RankEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
-import { EVENT_CHAR_MAP } from '../constants';
+import { EVENT_CHAR_MAP, API_BASE_URL } from '../constants';
 
-const API_URL = 'https://api.hisekai.org/event/live/top100';
-const BORDER_API_URL = 'https://api.hisekai.org/event/live/border';
+// Updated to use Dynamic API Base URL
+const API_URL = `${API_BASE_URL}/event/live/top100`;
+const BORDER_API_URL = `${API_BASE_URL}/event/live/border`;
 const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
 
 interface UseRankingsReturn {
@@ -152,7 +153,8 @@ export const useRankings = (): UseRankingsReturn => {
         setWorldLinkChapters({});
         
         try {
-            const response = await fetch(`https://api.hisekai.org/event/${eventId}/top100`);
+            // Using Dynamic API Base URL
+            const response = await fetch(`${API_BASE_URL}/event/${eventId}/top100`);
             if (!response.ok) throw new Error('Failed to fetch past event rankings');
 
             const textData = await response.text();
@@ -197,7 +199,8 @@ export const useRankings = (): UseRankingsReturn => {
         setWorldLinkChapters({});
 
         try {
-            const response = await fetch(`https://api.hisekai.org/event/${eventId}/border`);
+            // Using Dynamic API Base URL
+            const response = await fetch(`${API_BASE_URL}/event/${eventId}/border`);
             if (!response.ok) throw new Error('Failed to fetch past event highlights');
 
             const textData = await response.text();

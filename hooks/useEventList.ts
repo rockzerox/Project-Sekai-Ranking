@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { EventSummary } from '../types';
+import { API_BASE_URL } from '../constants';
 
 export const useEventList = () => {
     const [events, setEvents] = useState<EventSummary[]>([]);
@@ -12,7 +13,8 @@ export const useEventList = () => {
 
         const fetchEvents = async () => {
             try {
-                const response = await fetch('https://api.hisekai.org/event/list');
+                // Using Dynamic API Base URL
+                const response = await fetch(`${API_BASE_URL}/event/list`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch event list');
                 }

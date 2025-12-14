@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { UserProfileResponse, UserCharacter } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { getAssetUrl, CHARACTERS, UNITS } from '../constants';
+import { getAssetUrl, CHARACTERS, UNITS, API_BASE_URL } from '../constants';
 import Card from './ui/Card';
 
 const difficultyStyles: Record<string, string> = {
@@ -53,7 +53,8 @@ const PlayerProfileView: React.FC = () => {
         setProfileData(null);
 
         try {
-            const response = await fetch(`https://api.hisekai.org/user/${input}/profile`);
+            // Using Dynamic API Base URL
+            const response = await fetch(`${API_BASE_URL}/user/${input}/profile`);
             if (!response.ok) {
                 if (response.status === 404) {
                     throw new Error('找不到該玩家 ID，請檢查輸入是否正確。');

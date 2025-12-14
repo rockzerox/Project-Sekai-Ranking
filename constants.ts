@@ -3,6 +3,15 @@ export const WORLD_LINK_ROUND_1_IDS = [112, 118, 124, 130, 137, 140];
 export const WORLD_LINK_ROUND_2_IDS = [163, 167, 170, 171, 176, 179];
 export const WORLD_LINK_IDS = [...WORLD_LINK_ROUND_1_IDS, ...WORLD_LINK_ROUND_2_IDS];
 
+// --- API Base URL Configuration ---
+// 自動偵測環境：
+// 1. 如果網址包含 'vercel.app' (正式部署)，使用 Proxy 路徑 '/api/sekairankingtw'
+// 2. 否則 (本機開發或預覽環境)，使用直連 'https://api.hisekai.org'
+const isVercelDeployment = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+export const API_BASE_URL = isVercelDeployment 
+    ? '/api/sekairankingtw' 
+    : 'https://api.hisekai.org';
+
 // --- 1. Unified Unit Configuration ---
 
 interface UnitConfig {

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import CollapsibleSection from './CollapsibleSection';
-import { calculatePreciseDuration, calculateDisplayDuration, WORLD_LINK_IDS, getEventStatus, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER } from '../constants';
+import { calculatePreciseDuration, calculateDisplayDuration, WORLD_LINK_IDS, getEventStatus, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
 import Input from './ui/Input';
@@ -53,7 +53,8 @@ const ResourceEstimatorView: React.FC = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const response = await fetch('https://api.hisekai.org/event/list');
+                // Using Dynamic API Base URL
+                const response = await fetch(`${API_BASE_URL}/event/list`);
                 const data: EventSummary[] = await response.json();
                 // Sort descending by ID
                 setEvents(data.sort((a, b) => b.id - a.id));
@@ -114,7 +115,8 @@ const ResourceEstimatorView: React.FC = () => {
                 // Top 100 uses top100 endpoint, others use border endpoint
                 let score = 0;
                 if (selectedRank <= 100) {
-                    const res = await fetch(`https://api.hisekai.org/event/${selectedPastEventId}/top100`);
+                    // Using Dynamic API Base URL
+                    const res = await fetch(`${API_BASE_URL}/event/${selectedPastEventId}/top100`);
                     if (res.ok) {
                         const text = await res.text();
                         const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
@@ -127,7 +129,8 @@ const ResourceEstimatorView: React.FC = () => {
                         else if (selectedRank === 100) score = data.rankings[data.rankings.length - 1]?.score || 0;
                     }
                 } else {
-                    const res = await fetch(`https://api.hisekai.org/event/${selectedPastEventId}/border`);
+                    // Using Dynamic API Base URL
+                    const res = await fetch(`${API_BASE_URL}/event/${selectedPastEventId}/border`);
                     if (res.ok) {
                         const text = await res.text();
                         const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');

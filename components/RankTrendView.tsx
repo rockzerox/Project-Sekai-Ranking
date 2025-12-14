@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LineChart from './LineChart';
-import { WORLD_LINK_IDS, calculatePreciseDuration, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER, getEventColor } from '../constants';
+import { WORLD_LINK_IDS, calculatePreciseDuration, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER, getEventColor, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
 
@@ -66,7 +66,8 @@ const RankTrendView: React.FC = () => {
 
             try {
                 // 1. Fetch Event List
-                const listRes = await fetch('https://api.hisekai.org/event/list');
+                // Using Dynamic API Base URL
+                const listRes = await fetch(`${API_BASE_URL}/event/list`);
                 if (!alive) return;
                 const listData: EventSummary[] = await listRes.json();
                 
@@ -92,9 +93,10 @@ const RankTrendView: React.FC = () => {
                             
                             // Decide endpoint based on selected rank
                             const isTop100 = selectedRank <= 100;
+                            // Using Dynamic API Base URL
                             const url = isTop100 
-                                ? `https://api.hisekai.org/event/${event.id}/top100`
-                                : `https://api.hisekai.org/event/${event.id}/border`;
+                                ? `${API_BASE_URL}/event/${event.id}/top100`
+                                : `${API_BASE_URL}/event/${event.id}/border`;
 
                             const res = await fetch(url);
                             if (res.ok) {

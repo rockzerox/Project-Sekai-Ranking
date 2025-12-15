@@ -112,7 +112,10 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     let data: { label: string, value: number, rank?: number }[] = [];
     let chartTitle = '';
     let formatter = (v: number) => Math.round(v).toLocaleString();
-    let axisFormatter = (v: number) => Math.round(v).toLocaleString();
+    let axisFormatter = (v: number) => {
+        if (v >= 10000) return `${(v / 10000).toFixed(1)}萬`.replace('.0萬', '萬');
+        return Math.round(v).toLocaleString();
+    };
     let chartColor = 'cyan'; 
     let axisY = 'Value';
     
@@ -260,7 +263,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             }
             
             chartColor = 'cyan';
-            axisFormatter = (v) => v >= 10000 ? `${(v / 10000).toFixed(0)}萬` : v.toLocaleString();
             break;
         
         case 'lastPlayedAt':
@@ -273,6 +275,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 rank: r.rank
             }));
             chartColor = 'indigo';
+            axisFormatter = (v) => v.toLocaleString(); // Override for minutes
             break;
         default:
             data = isHighlights ? [] : sourceData.map(r => ({ 

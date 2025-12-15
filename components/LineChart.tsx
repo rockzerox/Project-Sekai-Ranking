@@ -231,17 +231,18 @@ const LineChart: React.FC<LineChartProps> = ({
   return (
     <div className="bg-slate-900/70 p-4 pb-12 rounded-lg w-full border border-slate-800">
       <div className={`${containerHeightClass} w-full relative transition-all duration-300`}>
-            <div className="absolute -top-3 left-12 text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
+            {/* Y Axis Label - Increased font for desktop */}
+            <div className="absolute -top-3 left-12 md:left-16 text-[10px] md:text-sm text-cyan-400 font-bold uppercase tracking-wider">
                 {yAxisLabel}
             </div>
 
-            <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-[10px] text-slate-500 font-mono py-2 pointer-events-none">
+            <div className="absolute left-0 top-0 bottom-0 w-12 md:w-16 flex flex-col justify-between text-[10px] md:text-xs text-slate-500 font-mono py-2 pointer-events-none">
                  {yGridLines.slice().reverse().map((grid, i) => (
                      <span key={i} className="truncate text-right pr-2 -mt-2">{grid.label}</span>
                  ))}
             </div>
 
-            <div className="absolute left-12 right-4 top-0 bottom-6">
+            <div className="absolute left-12 md:left-16 right-4 top-0 bottom-6">
                 <svg 
                     viewBox="0 0 100 100" 
                     className="w-full h-full overflow-visible" 
@@ -287,33 +288,17 @@ const LineChart: React.FC<LineChartProps> = ({
                         />
                     )}
 
-                    {/* Y Grid Lines */}
+                    {/* Y Grid Lines (Horizontal) - increased visibility */}
                     {yGridLines.map((grid, i) => (
                         <line 
                             key={`h-${i}`} 
                             x1="0" y1={grid.y} x2="100" y2={grid.y} 
-                            stroke="#334155" 
+                            stroke="#475569" 
                             strokeWidth="0.5" 
                             vectorEffect="non-scaling-stroke"
-                            strokeOpacity="0.2"
+                            strokeOpacity="0.6" 
                         />
                     ))}
-
-                    {/* X Grid Lines */}
-                    {xGridRanks.map((rank, i) => {
-                        const x = getXPercent(rank);
-                        return (
-                             <g key={`v-${i}`}>
-                                <line 
-                                    x1={x} y1="0" x2={x} y2="100" 
-                                    stroke="#334155" 
-                                    strokeWidth="0.5" 
-                                    vectorEffect="non-scaling-stroke"
-                                    strokeOpacity="0.2"
-                                />
-                             </g>
-                        );
-                    })}
 
                     {/* Split Axis Divider for Highlights */}
                     {isHighlights && (
@@ -436,7 +421,7 @@ const LineChart: React.FC<LineChartProps> = ({
             </div>
 
              {/* X-Axis Labels */}
-            <div className="absolute left-12 right-4 bottom-0 h-6 overflow-visible">
+            <div className="absolute left-12 md:left-16 right-4 bottom-0 h-6 overflow-visible">
                  {xGridRanks.map((rank, i) => {
                      const x = getXPercent(rank);
                      
@@ -448,7 +433,7 @@ const LineChart: React.FC<LineChartProps> = ({
                      return (
                         <div 
                             key={`xl-${i}`}
-                            className="absolute top-1 transform -translate-x-1/2 text-[10px] text-slate-500 font-mono"
+                            className="absolute top-1 transform -translate-x-1/2 text-[10px] md:text-xs text-slate-500 font-mono"
                             style={{ left: `${x}%` }}
                         >
                             {rank >= 1000 ? `${rank/1000}k` : rank}
@@ -460,7 +445,7 @@ const LineChart: React.FC<LineChartProps> = ({
                  {isTrend && yearTicks.map((tick, i) => (
                      <div 
                         key={`year-${i}`}
-                        className="absolute top-5 transform -translate-x-1/2 text-[10px] text-slate-400 font-bold border-l border-slate-700 pl-1"
+                        className="absolute top-5 transform -translate-x-1/2 text-[10px] md:text-xs text-slate-400 font-bold border-l border-slate-700 pl-1"
                         style={{ left: `${tick.x}%` }}
                      >
                          {tick.year}
@@ -468,7 +453,8 @@ const LineChart: React.FC<LineChartProps> = ({
                  ))}
             </div>
 
-             <div className="absolute bottom-0 right-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider transform translate-y-full mt-1">
+             {/* X Axis Label - Increased font for desktop */}
+             <div className="absolute bottom-0 right-4 text-[10px] md:text-sm text-slate-400 font-bold uppercase tracking-wider transform translate-y-full mt-1">
                 {xAxisLabel}
             </div>
       </div>

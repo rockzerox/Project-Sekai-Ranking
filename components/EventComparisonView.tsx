@@ -319,10 +319,12 @@ const EventComparisonView: React.FC = () => {
 
         const yTicks = [0, 0.25, 0.5, 0.75, 1].map(r => {
             const val = maxScore * r;
+            let label = Math.round(val).toLocaleString();
+            if (val >= 10000) {
+                label = `${(val / 10000).toFixed(1)}萬`.replace('.0萬', '萬');
+            }
             return {
-                label: displayMode === 'daily' 
-                    ? (val >= 10000 ? `${(val/10000).toFixed(1)}萬` : Math.round(val).toLocaleString())
-                    : (val >= 10000 ? `${(val/10000).toFixed(0)}萬` : Math.round(val).toLocaleString()),
+                label,
                 yPercent: r * 100
             };
         });
@@ -519,11 +521,11 @@ const EventComparisonView: React.FC = () => {
                     <div className="relative bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 sm:p-10 select-none h-[400px] sm:h-[500px] flex">
                         
                         {/* Y-Axis Labels (Left Sidebar) */}
-                        <div className="w-12 flex-shrink-0 relative h-full border-r border-slate-200 dark:border-slate-700 mr-2">
+                        <div className="w-12 md:w-16 flex-shrink-0 relative h-full border-r border-slate-200 dark:border-slate-700 mr-2">
                             {ChartDisplay.yTicks.map((tick, i) => (
                                 <div 
                                     key={`y-${i}`}
-                                    className="absolute right-2 transform translate-y-1/2 text-xs text-slate-400 font-mono text-right w-full font-medium"
+                                    className="absolute right-2 transform translate-y-1/2 text-[10px] md:text-xs text-slate-400 font-mono text-right w-full font-medium"
                                     style={{ bottom: `${tick.yPercent}%` }}
                                 >
                                     {tick.label}
@@ -613,7 +615,7 @@ const EventComparisonView: React.FC = () => {
                                 {ChartDisplay.xTicks.map((tick, i) => (
                                     <div 
                                         key={`x-${i}`}
-                                        className="absolute transform -translate-x-1/2 text-xs font-bold text-slate-500 font-mono text-center top-3"
+                                        className="absolute transform -translate-x-1/2 text-[10px] md:text-xs font-bold text-slate-500 font-mono text-center top-3"
                                         style={{ left: `${tick.xPercent}%` }}
                                     >
                                         #{tick.label}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
 import { EVENT_DETAILS, UNITS, UNIT_ORDER, API_BASE_URL } from '../constants';
@@ -283,7 +282,7 @@ const PlayerAnalysisView: React.FC = () => {
                         { header: '玩家 (Player)', className: 'w-auto' },
                         { header: '上榜次數', className: 'text-right w-24' }
                     ]}
-                    renderRow={(s, idx) => renderRow(s, idx, s.top100Count)} 
+                    renderRow={(s: PlayerStat, idx) => renderRow(s, idx, s.top100Count)} 
                     color="bg-cyan-500" 
                 />
 
@@ -315,7 +314,7 @@ const PlayerAnalysisView: React.FC = () => {
                         { header: '獲取次數', className: 'text-right w-24' }
                     ]}
                     emptyMessage={`尚無玩家多次獲得第 ${selectedSpecificRank} 名`}
-                    renderRow={(s, idx) => renderRow(s, idx, s.specificRankCounts[selectedSpecificRank] || 0)} 
+                    renderRow={(s: PlayerStat, idx) => renderRow(s, idx, s.specificRankCounts[selectedSpecificRank] || 0)} 
                     color="bg-pink-500" 
                 />
             </div>

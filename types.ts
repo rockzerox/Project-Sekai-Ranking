@@ -89,6 +89,7 @@ export interface HisekaiApiResponse {
   aggregate_at: string;
   ranking_announce_at: string;
   top_100_player_rankings: HisekaiRankEntry[];
+  rankings?: HisekaiRankEntry[]; // Added to support /live/tw endpoint structure
 }
 
 export interface MusicDifficultyStats {
@@ -204,18 +205,10 @@ export interface BorderPlayerRanking {
       word: string;
       twitter_id: string;
       image_type: string;
-    }
-  }
+    };
+  };
 }
 
 export interface HisekaiBorderApiResponse {
-  id: number;
-  name: string;
   border_player_rankings: BorderPlayerRanking[];
-}
-
-// --- Sekai Best API Types ---
-export interface SekaiBestRankingResponse {
-  rankings: any[];
-  totalCount: number;
 }

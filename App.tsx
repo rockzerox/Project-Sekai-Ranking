@@ -20,6 +20,7 @@ import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
 import ResourceEstimatorView from './components/ResourceEstimatorView';
 import PlayerProfileView from './components/PlayerProfileView';
+import EventDistributionView from './components/EventDistributionView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
@@ -95,7 +96,7 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
 };
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -572,6 +573,10 @@ const App: React.FC = () => {
                             </div>
                              {renderContent()}
                         </>
+                    )}
+
+                    {currentView === 'distribution' && (
+                        <EventDistributionView />
                     )}
 
                     {currentView === 'comparison' && (

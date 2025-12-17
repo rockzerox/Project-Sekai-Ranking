@@ -22,12 +22,12 @@ interface ProcessedEvent extends EventSummary {
     bannerChar: string;
     unit: string;
     storyType: string;
+    cardType: string; // Added cardType
     unitColor: string;
     charColor: string;
 }
 
 // --- Constants: Unit Member Mapping ---
-// Manually mapping members to units for the dashboard display
 const UNIT_MEMBERS_MAP: Record<string, string[]> = {
     "Leo/need": ["星乃一歌", "天馬咲希", "望月穗波", "日野森志步"],
     "MORE MORE JUMP!": ["花里實乃理", "桐谷遙", "桃井愛莉", "日野森雫"],
@@ -48,6 +48,16 @@ const getUnitByChar = (charName: string): string => {
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 
+// Helper for Card Type Label & Style
+const getCardTypeInfo = (type: string) => {
+    switch(type) {
+        case 'permanent': return { label: '常駐', className: 'bg-slate-600 text-white' };
+        case 'limited': return { label: '限定', className: 'bg-rose-500 text-white' };
+        case 'special_limited': return { label: '特殊限定', className: 'bg-purple-500 text-white' };
+        default: return { label: '一般', className: 'bg-slate-500 text-white' };
+    }
+};
+
 // --- Tooltip Component ---
 const HoverTooltip: React.FC<{ 
     event: ProcessedEvent | null; 
@@ -56,8 +66,13 @@ const HoverTooltip: React.FC<{
     if (!event || !position) return null;
 
     const logoUrl = getAssetUrl(event.id.toString(), 'event');
+    const cardTypeInfo = getCardTypeInfo(event.cardType);
 
-    // Calculate position to keep it on screen (simplified)
+    // Format Date Range: MM/DD - MM/DD
+    const formatDate = (date: Date) => date.toLocaleDateString(undefined, {month:'numeric', day:'numeric'});
+    const dateRange = `${formatDate(event.startDate)} - ${formatDate(event.endDate)}`;
+
+    // Calculate position to keep it on screen
     const style: React.CSSProperties = {
         top: position.y + 20,
         left: Math.min(window.innerWidth - 220, position.x + 10), // Prevent overflow right
@@ -65,13 +80,13 @@ const HoverTooltip: React.FC<{
 
     return (
         <div 
-            className="fixed z-50 bg-slate-900/95 text-white p-3 rounded-xl shadow-xl border border-slate-700 pointer-events-none backdrop-blur-sm animate-fadeIn w-56 flex flex-col gap-2"
+            className="fixed z-50 bg-slate-900/95 text-white p-3 rounded-xl shadow-xl border border-slate-700 pointer-events-none backdrop-blur-sm animate-fadeIn w-60 flex flex-col gap-2"
             style={style}
         >
-            <div className="flex justify-between items-start border-b border-slate-700/50 pb-2 mb-1">
+            <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
                 <span className="text-xs font-mono text-cyan-400 font-bold">#{event.id}</span>
-                <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
-                    {event.startDate.toLocaleDateString(undefined, {month:'numeric', day:'numeric'})}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${cardTypeInfo.className}`}>
+                    {cardTypeInfo.label}
                 </span>
             </div>
             
@@ -90,9 +105,14 @@ const HoverTooltip: React.FC<{
                 {event.name}
             </div>
             
-            <div className="flex items-center gap-2 mt-1">
-                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: event.unitColor }}></div>
-                <span className="text-[10px] text-slate-400">{event.unit}</span>
+            <div className="flex justify-between items-center mt-1">
+                <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: event.unitColor }}></div>
+                    <span className="text-[10px] text-slate-400">{event.unit}</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                    {dateRange}
+                </span>
             </div>
         </div>
     );
@@ -149,6 +169,7 @@ const EventDistributionView: React.FC = () => {
                             bannerChar,
                             unit: unitName,
                             storyType: details?.storyType || 'mixed_event',
+                            cardType: details?.cardType || 'permanent',
                             unitColor,
                             charColor
                         };
@@ -202,6 +223,13 @@ const EventDistributionView: React.FC = () => {
         return { allMonths: monthsList, gridData: grid };
     }, [events]);
 
+    // Available Years for Locator
+    const availableYears = useMemo(() => {
+        const years = new Set<string>();
+        allMonths.forEach(m => years.add(m.split('/')[0]));
+        return Array.from(years);
+    }, [allMonths]);
+
     // Initialize scroll to the bottom (latest months) when data loads
     useEffect(() => {
         if (allMonths.length > VIEWPORT_MONTHS) {
@@ -230,6 +258,23 @@ const EventDistributionView: React.FC = () => {
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = parseInt(e.target.value);
         setScrollIndex(val);
+    };
+
+    const jumpToYear = (year: string) => {
+        // Try to find the January of that year to center it properly (12 months view)
+        // Ideally, if we jump to 2023, we want 2023/01 at the top so 2023 fills the view.
+        let targetIndex = allMonths.findIndex(m => m === `${year}/01`);
+        
+        // If Jan doesn't exist (partial start year), find the first available month
+        if (targetIndex === -1) {
+            targetIndex = allMonths.findIndex(m => m.startsWith(year));
+        }
+
+        if (targetIndex !== -1) {
+            // Clamp value to ensure we don't scroll past end
+            const maxIndex = Math.max(0, allMonths.length - VIEWPORT_MONTHS);
+            setScrollIndex(Math.min(targetIndex, maxIndex));
+        }
     };
 
     // --- 3. Filtering Logic ---
@@ -448,103 +493,119 @@ const EventDistributionView: React.FC = () => {
             </div>
 
             {/* --- Heatmap Visualization with Custom Scroller --- */}
-            <div className="flex gap-2 h-[450px] mb-4 select-none">
-                {/* 1. The Grid (Fixed Height, No Native Scroll) */}
-                <div 
-                    className="flex-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden flex flex-col"
-                    onWheel={handleWheel}
-                >
-                    {/* Header */}
-                    <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                        <div className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 py-1">
-                            <div className="text-[9px] sm:text-xs font-bold text-slate-400 flex items-end justify-end pb-1 pr-1 sm:pr-2">Date</div>
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                                <div key={day} className={`text-[8px] sm:text-[10px] text-center text-slate-400 font-mono ${day % 5 !== 0 && day !== 1 && day !== 31 ? 'hidden sm:block' : ''}`}>
-                                    {String(day).padStart(2, '0')}
-                                </div>
-                            ))}
+            <div className="flex flex-col gap-1 mb-4 select-none">
+                {/* Year Locator Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5 justify-end px-1">
+                    <span className="text-[10px] font-bold text-slate-400 mr-1">定位:</span>
+                    {availableYears.map(year => (
+                        <button
+                            key={year}
+                            onClick={() => jumpToYear(year)}
+                            className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 hover:bg-cyan-500 hover:text-white dark:hover:bg-cyan-600 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded transition-colors"
+                        >
+                            {year}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex gap-2 h-[450px]">
+                    {/* 1. The Grid (Fixed Height, No Native Scroll) */}
+                    <div 
+                        className="flex-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden flex flex-col"
+                        onWheel={handleWheel}
+                    >
+                        {/* Header */}
+                        <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                            <div className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 py-1">
+                                <div className="text-[9px] sm:text-xs font-bold text-slate-400 flex items-end justify-end pb-1 pr-1 sm:pr-2">Date</div>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                    <div key={day} className={`text-[8px] sm:text-[10px] text-center text-slate-400 font-mono ${day % 5 !== 0 && day !== 1 && day !== 31 ? 'hidden sm:block' : ''}`}>
+                                        {String(day).padStart(2, '0')}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Body (12 Rows Fixed) */}
+                        <div className="flex-1 p-1 sm:p-2 flex flex-col justify-between">
+                            {visibleMonths.map(month => {
+                                const [yearStr, monthStr] = month.split('/');
+                                const year = parseInt(yearStr);
+                                const m = parseInt(monthStr); 
+                                const daysInMonth = getDaysInMonth(year, m - 1);
+                                
+                                return (
+                                    <div key={month} className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors rounded p-0.5 h-full">
+                                        {/* Label */}
+                                        <div className="text-[9px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 text-right pr-1 sm:pr-2 font-mono leading-tight">
+                                            <span className="sm:hidden">{month.substring(2)}</span>
+                                            <span className="hidden sm:inline">{month}</span>
+                                        </div>
+
+                                        {/* Cells */}
+                                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
+                                            if (day > daysInMonth) return <div key={day} className="h-full bg-transparent" />;
+
+                                            const dateKey = `${year}/${monthStr}/${String(day).padStart(2, '0')}`;
+                                            const event = gridData[dateKey];
+                                            
+                                            let cellClass = "bg-slate-100 dark:bg-slate-700/50";
+                                            let style: React.CSSProperties = {};
+
+                                            if (event) {
+                                                const matches = isMatch(event);
+                                                let displayColor = event.charColor; 
+
+                                                if (filter.type === 'unit') displayColor = event.unitColor;
+                                                else if (filter.type === 'character') displayColor = event.charColor;
+                                                else {
+                                                    if (event.storyType === 'world_link') displayColor = event.unitColor;
+                                                    else displayColor = event.charColor;
+                                                }
+
+                                                if (matches) {
+                                                    style = { backgroundColor: displayColor };
+                                                    cellClass = "opacity-100 shadow-sm rounded-[1px] sm:rounded-sm hover:ring-2 hover:ring-white z-10";
+                                                } else {
+                                                    style = { backgroundColor: displayColor };
+                                                    cellClass = "opacity-20 grayscale brightness-50";
+                                                }
+                                            }
+
+                                            return (
+                                                <div 
+                                                    key={day}
+                                                    className={`h-full w-full rounded-[1px] sm:rounded-[2px] transition-all duration-100 cursor-default ${cellClass}`}
+                                                    style={style}
+                                                    onMouseEnter={(e) => handleCellEnter(event, e)}
+                                                    onMouseLeave={handleCellLeave}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Body (12 Rows Fixed) */}
-                    <div className="flex-1 p-1 sm:p-2 flex flex-col justify-between">
-                        {visibleMonths.map(month => {
-                            const [yearStr, monthStr] = month.split('/');
-                            const year = parseInt(yearStr);
-                            const m = parseInt(monthStr); 
-                            const daysInMonth = getDaysInMonth(year, m - 1);
-                            
-                            return (
-                                <div key={month} className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors rounded p-0.5 h-full">
-                                    {/* Label */}
-                                    <div className="text-[9px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 text-right pr-1 sm:pr-2 font-mono leading-tight">
-                                        <span className="sm:hidden">{month.substring(2)}</span>
-                                        <span className="hidden sm:inline">{month}</span>
-                                    </div>
-
-                                    {/* Cells */}
-                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
-                                        if (day > daysInMonth) return <div key={day} className="h-full bg-transparent" />;
-
-                                        const dateKey = `${year}/${monthStr}/${String(day).padStart(2, '0')}`;
-                                        const event = gridData[dateKey];
-                                        
-                                        let cellClass = "bg-slate-100 dark:bg-slate-700/50";
-                                        let style: React.CSSProperties = {};
-
-                                        if (event) {
-                                            const matches = isMatch(event);
-                                            let displayColor = event.charColor; 
-
-                                            if (filter.type === 'unit') displayColor = event.unitColor;
-                                            else if (filter.type === 'character') displayColor = event.charColor;
-                                            else {
-                                                if (event.storyType === 'world_link') displayColor = event.unitColor;
-                                                else displayColor = event.charColor;
-                                            }
-
-                                            if (matches) {
-                                                style = { backgroundColor: displayColor };
-                                                cellClass = "opacity-100 shadow-sm rounded-[1px] sm:rounded-sm hover:ring-2 hover:ring-white z-10";
-                                            } else {
-                                                style = { backgroundColor: displayColor };
-                                                cellClass = "opacity-20 grayscale brightness-50";
-                                            }
-                                        }
-
-                                        return (
-                                            <div 
-                                                key={day}
-                                                className={`h-full w-full rounded-[1px] sm:rounded-[2px] transition-all duration-100 cursor-default ${cellClass}`}
-                                                style={style}
-                                                onMouseEnter={(e) => handleCellEnter(event, e)}
-                                                onMouseLeave={handleCellLeave}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
+                    {/* 2. Custom Scrollbar Control */}
+                    <div className="w-6 bg-slate-100 dark:bg-slate-800 rounded-full relative flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                        <input
+                            type="range"
+                            min="0"
+                            max={Math.max(0, allMonths.length - VIEWPORT_MONTHS)}
+                            step="1"
+                            value={scrollIndex}
+                            onChange={handleSliderChange}
+                            className="w-[420px] h-6 origin-center -rotate-90 bg-transparent appearance-none cursor-pointer absolute"
+                            style={{
+                                WebkitAppearance: 'none',
+                            }}
+                        />
+                        {/* Simple indicator arrows */}
+                        <div className="absolute top-2 text-slate-400 pointer-events-none">▲</div>
+                        <div className="absolute bottom-2 text-slate-400 pointer-events-none">▼</div>
                     </div>
-                </div>
-
-                {/* 2. Custom Scrollbar Control */}
-                <div className="w-6 bg-slate-100 dark:bg-slate-800 rounded-full relative flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                    <input
-                        type="range"
-                        min="0"
-                        max={Math.max(0, allMonths.length - VIEWPORT_MONTHS)}
-                        step="1"
-                        value={scrollIndex}
-                        onChange={handleSliderChange}
-                        className="w-[420px] h-6 origin-center -rotate-90 bg-transparent appearance-none cursor-pointer absolute"
-                        style={{
-                            WebkitAppearance: 'none',
-                        }}
-                    />
-                    {/* Simple indicator arrows */}
-                    <div className="absolute top-2 text-slate-400 pointer-events-none">▲</div>
-                    <div className="absolute bottom-2 text-slate-400 pointer-events-none">▼</div>
                 </div>
             </div>
 

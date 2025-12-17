@@ -22,21 +22,96 @@ interface ProcessedEvent extends EventSummary {
     bannerChar: string;
     unit: string;
     storyType: string;
-    unitColor: string; // Color when viewing by Unit
-    charColor: string; // Color when viewing by Character (Default)
+    unitColor: string;
+    charColor: string;
 }
 
-// --- Helper Functions ---
+// --- Constants: Unit Member Mapping ---
+// Manually mapping members to units for the dashboard display
+const UNIT_MEMBERS_MAP: Record<string, string[]> = {
+    "Leo/need": ["星乃一歌", "天馬咲希", "望月穗波", "日野森志步"],
+    "MORE MORE JUMP!": ["花里實乃理", "桐谷遙", "桃井愛莉", "日野森雫"],
+    "Vivid BAD SQUAD": ["小豆澤心羽", "白石杏", "東雲彰人", "青柳冬彌"],
+    "Wonderlands × Showtime": ["天馬司", "鳳笑夢", "草薙寧寧", "神代類"],
+    "25點，Nightcord見。": ["宵崎奏", "朝比奈真冬", "東雲繪名", "曉山瑞希"],
+    "Virtual Singer": ["初音未來", "鏡音鈴", "鏡音連", "巡音流歌", "MEIKO", "KAITO"],
+    "Mix": []
+};
+
+// Helper to find which unit a character belongs to
+const getUnitByChar = (charName: string): string => {
+    for (const [unit, members] of Object.entries(UNIT_MEMBERS_MAP)) {
+        if (members.includes(charName)) return unit;
+    }
+    return "Mix";
+};
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 
-// --- Component ---
+// --- Tooltip Component ---
+const HoverTooltip: React.FC<{ 
+    event: ProcessedEvent | null; 
+    position: { x: number, y: number } | null; 
+}> = ({ event, position }) => {
+    if (!event || !position) return null;
+
+    const logoUrl = getAssetUrl(event.id.toString(), 'event');
+
+    // Calculate position to keep it on screen (simplified)
+    const style: React.CSSProperties = {
+        top: position.y + 20,
+        left: Math.min(window.innerWidth - 220, position.x + 10), // Prevent overflow right
+    };
+
+    return (
+        <div 
+            className="fixed z-50 bg-slate-900/95 text-white p-3 rounded-xl shadow-xl border border-slate-700 pointer-events-none backdrop-blur-sm animate-fadeIn w-56 flex flex-col gap-2"
+            style={style}
+        >
+            <div className="flex justify-between items-start border-b border-slate-700/50 pb-2 mb-1">
+                <span className="text-xs font-mono text-cyan-400 font-bold">#{event.id}</span>
+                <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                    {event.startDate.toLocaleDateString(undefined, {month:'numeric', day:'numeric'})}
+                </span>
+            </div>
+            
+            {logoUrl ? (
+                <div className="w-full bg-white/5 rounded p-1 flex justify-center">
+                    <img 
+                        src={logoUrl} 
+                        alt="logo" 
+                        className="h-12 w-auto object-contain" 
+                        onError={(e) => e.currentTarget.style.display = 'none'} 
+                    />
+                </div>
+            ) : null}
+
+            <div className="font-bold text-sm leading-tight text-slate-200">
+                {event.name}
+            </div>
+            
+            <div className="flex items-center gap-2 mt-1">
+                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: event.unitColor }}></div>
+                <span className="text-[10px] text-slate-400">{event.unit}</span>
+            </div>
+        </div>
+    );
+};
+
+// --- Main Component ---
 
 const EventDistributionView: React.FC = () => {
     const [events, setEvents] = useState<ProcessedEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    
+    // Time Window State
+    const [scrollIndex, setScrollIndex] = useState(0); // 0 = Oldest Month
+    const VIEWPORT_MONTHS = 12;
+
+    // Tooltip State
+    const [hoveredEvent, setHoveredEvent] = useState<ProcessedEvent | null>(null);
+    const [tooltipPos, setTooltipPos] = useState<{x: number, y: number} | null>(null);
 
     // Filters
     const [filter, setFilter] = useState<FilterState>({
@@ -52,12 +127,10 @@ const EventDistributionView: React.FC = () => {
                 const res = await fetch(`${API_BASE_URL}/event/list`);
                 if (!res.ok) throw new Error('Failed to fetch event list');
                 const rawEvents: EventSummary[] = await res.json();
-
                 const now = new Date();
                 
                 const processed = rawEvents
                     .filter(e => {
-                        // Exclude future events
                         const start = new Date(e.start_at);
                         return start <= now;
                     })
@@ -66,14 +139,13 @@ const EventDistributionView: React.FC = () => {
                         const bannerChar = details?.banner || 'Unknown';
                         const unitName = details?.unit || 'Mix';
                         
-                        // Calculate Both Colors
                         const unitColor = UNITS[unitName]?.color || '#94a3b8';
                         const charColor = CHARACTERS[bannerChar]?.color || '#94a3b8';
 
                         return {
                             ...e,
                             startDate: new Date(e.start_at),
-                            endDate: new Date(e.aggregate_at), // Use aggregate_at as visual end for active play
+                            endDate: new Date(e.aggregate_at),
                             bannerChar,
                             unit: unitName,
                             storyType: details?.storyType || 'mixed_event',
@@ -91,31 +163,24 @@ const EventDistributionView: React.FC = () => {
                 setIsLoading(false);
             }
         };
-
         fetchEvents();
     }, []);
 
-    // Scroll to bottom on load (to see latest events)
-    useEffect(() => {
-        if (!isLoading && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-    }, [isLoading, events]); // Runs when events are loaded
+    // --- 2. Grid & Time Window Logic ---
+    const { allMonths, gridData } = useMemo(() => {
+        if (events.length === 0) return { allMonths: [], gridData: {} };
 
-    // --- 2. Grid Generation Logic (Oldest Top -> Newest Bottom) ---
-    const { months, gridData } = useMemo(() => {
-        if (events.length === 0) return { months: [], gridData: {} };
-
-        // Determine Range based on ALL events (to keep grid stable even if filtered)
-        const firstEventDate = events[0].startDate; // Oldest (index 0 because we sorted ASC)
-        const lastEventDate = events[events.length - 1].startDate; // Newest
+        // Calculate Full Range
+        const firstEventDate = events[0].startDate;
+        const lastEventDate = events[events.length - 1].startDate; // Latest event start date
 
         const monthsList: string[] = [];
         
-        // Start from Oldest Year/Month
         const current = new Date(firstEventDate.getFullYear(), firstEventDate.getMonth(), 1);
-        // End at Newest Year/Month
         const end = new Date(lastEventDate.getFullYear(), lastEventDate.getMonth(), 1);
+        
+        // Add one more month buffer at end
+        end.setMonth(end.getMonth() + 1);
 
         while (current <= end) {
             const yearStr = current.getFullYear();
@@ -124,38 +189,54 @@ const EventDistributionView: React.FC = () => {
             current.setMonth(current.getMonth() + 1);
         }
 
-        // Create Grid Lookup: Map "YYYY/MM/DD" -> Event
         const grid: Record<string, ProcessedEvent> = {};
-        
         events.forEach(event => {
             const s = new Date(event.startDate);
             const e = new Date(event.endDate);
-            
-            // Loop through event days
             for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
                 const key = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
                 grid[key] = event;
             }
         });
 
-        return { months: monthsList, gridData: grid };
+        return { allMonths: monthsList, gridData: grid };
     }, [events]);
+
+    // Initialize scroll to the bottom (latest months) when data loads
+    useEffect(() => {
+        if (allMonths.length > VIEWPORT_MONTHS) {
+            setScrollIndex(allMonths.length - VIEWPORT_MONTHS);
+        }
+    }, [allMonths.length]);
+
+    // Derived Visible Months
+    const visibleMonths = useMemo(() => {
+        return allMonths.slice(scrollIndex, scrollIndex + VIEWPORT_MONTHS);
+    }, [allMonths, scrollIndex]);
+
+    const handleWheel = (e: React.WheelEvent) => {
+        const maxIndex = Math.max(0, allMonths.length - VIEWPORT_MONTHS);
+        if (maxIndex === 0) return;
+
+        // Scroll direction
+        const direction = e.deltaY > 0 ? 1 : -1;
+        
+        setScrollIndex(prev => {
+            const next = prev + direction;
+            return Math.max(0, Math.min(next, maxIndex));
+        });
+    };
+
+    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseInt(e.target.value);
+        setScrollIndex(val);
+    };
 
     // --- 3. Filtering Logic ---
     const isMatch = (event: ProcessedEvent) => {
-        // 1. Story Type Check
-        if (filter.storyType !== 'all' && event.storyType !== filter.storyType) {
-            return false;
-        }
-
-        // 2. Character / Unit Check
-        if (filter.type === 'character') {
-            return event.bannerChar === filter.value;
-        }
-        if (filter.type === 'unit') {
-            return event.unit === filter.value;
-        }
-
+        if (filter.storyType !== 'all' && event.storyType !== filter.storyType) return false;
+        if (filter.type === 'character') return event.bannerChar === filter.value;
+        if (filter.type === 'unit') return event.unit === filter.value;
         return true;
     };
 
@@ -163,18 +244,17 @@ const EventDistributionView: React.FC = () => {
     const stats = useMemo(() => {
         const filteredEvents = events.filter(isMatch);
         
-        // 1. General Stats
         const totalCount = filteredEvents.length;
         const unitCount = filteredEvents.filter(e => e.storyType === 'unit_event').length;
         const mixedCount = filteredEvents.filter(e => e.storyType === 'mixed_event').length;
         const wlCount = filteredEvents.filter(e => e.storyType === 'world_link').length;
 
-        // 2. Advanced Stats (Only if Character selected)
         let maxInterval = 0;
-        let minInterval = Infinity; // Initialize with Infinity
+        let minInterval = Infinity;
         let charUnitCount = 0;
         let charMixedCount = 0;
 
+        // Only calculate intervals if Character is selected
         if (filter.type === 'character') {
             const charName = filter.value;
             const charEvents = events.filter(e => e.bannerChar === charName);
@@ -182,7 +262,6 @@ const EventDistributionView: React.FC = () => {
             charUnitCount = charEvents.filter(e => e.storyType === 'unit_event').length;
             charMixedCount = charEvents.filter(e => e.storyType === 'mixed_event').length;
 
-            // Calculate Intervals between UNIT events
             const unitEvents = charEvents
                 .filter(e => e.storyType === 'unit_event')
                 .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
@@ -191,14 +270,13 @@ const EventDistributionView: React.FC = () => {
                 for (let i = 0; i < unitEvents.length - 1; i++) {
                     const currentStart = unitEvents[i].startDate.getTime();
                     const nextStart = unitEvents[i+1].startDate.getTime();
-                    // Difference in Days
                     const diffDays = Math.round((nextStart - currentStart) / (1000 * 60 * 60 * 24));
                     
                     if (diffDays > maxInterval) maxInterval = diffDays;
                     if (diffDays < minInterval) minInterval = diffDays;
                 }
             } else {
-                minInterval = 0; // No intervals if less than 2 events
+                minInterval = 0;
             }
         }
 
@@ -215,7 +293,6 @@ const EventDistributionView: React.FC = () => {
             minInterval
         };
     }, [events, filter]);
-
 
     // --- Handlers ---
     const handleCharSelect = (char: string) => {
@@ -238,14 +315,33 @@ const EventDistributionView: React.FC = () => {
         setFilter(prev => ({ ...prev, storyType: type }));
     };
 
+    const handleCellEnter = (event: ProcessedEvent | undefined, e: React.MouseEvent) => {
+        if (event) {
+            setHoveredEvent(event);
+            setTooltipPos({ x: e.clientX, y: e.clientY });
+        }
+    };
+
+    const handleCellLeave = () => {
+        setHoveredEvent(null);
+        setTooltipPos(null);
+    };
+
     if (isLoading) return <LoadingSpinner />;
     if (error) return <ErrorMessage message={error} />;
 
     return (
         <div className="w-full animate-fadeIn pb-4">
+            <HoverTooltip event={hoveredEvent} position={tooltipPos} />
+
             <div className="mb-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 mb-2">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">活動分布概況</h2>
+                    <div className="flex items-baseline gap-4">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">活動分布概況</h2>
+                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">
+                            總計: <span className="font-mono text-cyan-600 dark:text-cyan-400 text-lg">{events.length}</span> 期
+                        </span>
+                    </div>
                     <div className="flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 px-2 py-1 rounded text-xs">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         <span className="font-bold">手機版建議橫向觀看體驗最佳</span>
@@ -255,14 +351,12 @@ const EventDistributionView: React.FC = () => {
 
             {/* --- Filter Controls --- */}
             <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 mb-4 shadow-sm space-y-3">
-                {/* 1. Character Filter */}
                 <div className="flex flex-col gap-1.5">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">角色 (Character)</span>
                     <div className="flex flex-wrap gap-1.5">
                         {BANNER_ORDER.map(char => {
                             const isSelected = filter.type === 'character' && filter.value === char;
                             const isDimmed = filter.type === 'unit';
-                            
                             return (
                                 <button
                                     key={char}
@@ -295,7 +389,6 @@ const EventDistributionView: React.FC = () => {
 
                 <div className="w-full h-px bg-slate-100 dark:bg-slate-700/50"></div>
 
-                {/* 2. Unit & Story Type Filter (Grouped for compactness) */}
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex flex-col gap-1.5 flex-1">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">團體 (Unit)</span>
@@ -304,7 +397,6 @@ const EventDistributionView: React.FC = () => {
                                  if (unit === 'Mix') return null;
                                  const isSelected = filter.type === 'unit' && filter.value === unit;
                                  const isDimmed = filter.type === 'character';
-
                                  return (
                                     <button
                                         key={unit}
@@ -355,85 +447,66 @@ const EventDistributionView: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- Main Visualization (Grid) --- */}
-            {/* Wrapper for Fixed Height Scroll */}
-            <div 
-                className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden mb-4 flex flex-col"
-                style={{ height: '60vh', minHeight: '400px' }}
-            >
-                {/* Fixed Header */}
-                <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 pr-2"> {/* pr-2 for scrollbar offset */}
-                    <div className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 py-1">
-                        <div className="text-[9px] sm:text-xs font-bold text-slate-400 flex items-end justify-end pb-1 pr-1 sm:pr-2">Date</div>
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                            <div key={day} className={`text-[8px] sm:text-[10px] text-center text-slate-400 font-mono ${day % 5 !== 0 && day !== 1 && day !== 31 ? 'hidden sm:block' : ''}`}>
-                                {String(day).padStart(2, '0')}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Scrollable Body */}
+            {/* --- Heatmap Visualization with Custom Scroller --- */}
+            <div className="flex gap-2 h-[450px] mb-4 select-none">
+                {/* 1. The Grid (Fixed Height, No Native Scroll) */}
                 <div 
-                    ref={scrollContainerRef}
-                    className="overflow-y-auto custom-scrollbar flex-1 p-1 sm:p-2"
+                    className="flex-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden flex flex-col"
+                    onWheel={handleWheel}
                 >
-                    <div className="space-y-0.5 sm:space-y-1">
-                        {months.map(month => {
+                    {/* Header */}
+                    <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                        <div className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 py-1">
+                            <div className="text-[9px] sm:text-xs font-bold text-slate-400 flex items-end justify-end pb-1 pr-1 sm:pr-2">Date</div>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <div key={day} className={`text-[8px] sm:text-[10px] text-center text-slate-400 font-mono ${day % 5 !== 0 && day !== 1 && day !== 31 ? 'hidden sm:block' : ''}`}>
+                                    {String(day).padStart(2, '0')}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Body (12 Rows Fixed) */}
+                    <div className="flex-1 p-1 sm:p-2 flex flex-col justify-between">
+                        {visibleMonths.map(month => {
                             const [yearStr, monthStr] = month.split('/');
                             const year = parseInt(yearStr);
-                            const m = parseInt(monthStr); // 1-12
+                            const m = parseInt(monthStr); 
                             const daysInMonth = getDaysInMonth(year, m - 1);
                             
                             return (
-                                <div key={month} className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors rounded p-0.5">
-                                    {/* Y-Axis Label */}
+                                <div key={month} className="grid grid-cols-[40px_repeat(31,_1fr)] sm:grid-cols-[80px_repeat(31,_minmax(0,_1fr))] gap-0.5 sm:gap-1 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors rounded p-0.5 h-full">
+                                    {/* Label */}
                                     <div className="text-[9px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 text-right pr-1 sm:pr-2 font-mono leading-tight">
-                                        <span className="sm:hidden">{month.substring(2)}</span> {/* Mobile: 23/01 */}
-                                        <span className="hidden sm:inline">{month}</span> {/* Desktop: 2023/01 */}
+                                        <span className="sm:hidden">{month.substring(2)}</span>
+                                        <span className="hidden sm:inline">{month}</span>
                                     </div>
 
-                                    {/* Day Cells */}
+                                    {/* Cells */}
                                     {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
-                                        if (day > daysInMonth) {
-                                            return <div key={day} className="h-4 sm:h-6 bg-transparent" />; // Invalid Date
-                                        }
+                                        if (day > daysInMonth) return <div key={day} className="h-full bg-transparent" />;
 
                                         const dateKey = `${year}/${monthStr}/${String(day).padStart(2, '0')}`;
                                         const event = gridData[dateKey];
                                         
-                                        // Render Logic
                                         let cellClass = "bg-slate-100 dark:bg-slate-700/50";
                                         let style: React.CSSProperties = {};
-                                        let title = "";
 
                                         if (event) {
                                             const matches = isMatch(event);
-                                            title = `${event.name} (${event.unit !== 'Mix' ? event.unit : event.bannerChar})`;
-                                            
-                                            // Determine Display Color based on Filter Mode
-                                            let displayColor = event.charColor; // Default to Character Color
+                                            let displayColor = event.charColor; 
 
-                                            if (filter.type === 'unit') {
-                                                displayColor = event.unitColor;
-                                            } else if (filter.type === 'character') {
-                                                displayColor = event.charColor;
-                                            } else {
-                                                // Default (All)
-                                                // If World Link, force Unit Color. Otherwise Character Color.
-                                                if (event.storyType === 'world_link') {
-                                                    displayColor = event.unitColor;
-                                                } else {
-                                                    displayColor = event.charColor;
-                                                }
+                                            if (filter.type === 'unit') displayColor = event.unitColor;
+                                            else if (filter.type === 'character') displayColor = event.charColor;
+                                            else {
+                                                if (event.storyType === 'world_link') displayColor = event.unitColor;
+                                                else displayColor = event.charColor;
                                             }
 
                                             if (matches) {
-                                                // Active & Match
                                                 style = { backgroundColor: displayColor };
-                                                cellClass = "opacity-100 shadow-sm scale-105 z-10 rounded-[1px] sm:rounded-sm";
+                                                cellClass = "opacity-100 shadow-sm rounded-[1px] sm:rounded-sm hover:ring-2 hover:ring-white z-10";
                                             } else {
-                                                // Active but No Match (Dimmed)
                                                 style = { backgroundColor: displayColor };
                                                 cellClass = "opacity-20 grayscale brightness-50";
                                             }
@@ -442,9 +515,10 @@ const EventDistributionView: React.FC = () => {
                                         return (
                                             <div 
                                                 key={day}
-                                                title={title}
-                                                className={`h-4 sm:h-6 w-full rounded-[1px] sm:rounded-[2px] transition-all duration-200 cursor-default ${cellClass}`}
+                                                className={`h-full w-full rounded-[1px] sm:rounded-[2px] transition-all duration-100 cursor-default ${cellClass}`}
                                                 style={style}
+                                                onMouseEnter={(e) => handleCellEnter(event, e)}
+                                                onMouseLeave={handleCellLeave}
                                             />
                                         );
                                     })}
@@ -453,69 +527,166 @@ const EventDistributionView: React.FC = () => {
                         })}
                     </div>
                 </div>
+
+                {/* 2. Custom Scrollbar Control */}
+                <div className="w-6 bg-slate-100 dark:bg-slate-800 rounded-full relative flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                    <input
+                        type="range"
+                        min="0"
+                        max={Math.max(0, allMonths.length - VIEWPORT_MONTHS)}
+                        step="1"
+                        value={scrollIndex}
+                        onChange={handleSliderChange}
+                        className="w-[420px] h-6 origin-center -rotate-90 bg-transparent appearance-none cursor-pointer absolute"
+                        style={{
+                            WebkitAppearance: 'none',
+                        }}
+                    />
+                    {/* Simple indicator arrows */}
+                    <div className="absolute top-2 text-slate-400 pointer-events-none">▲</div>
+                    <div className="absolute bottom-2 text-slate-400 pointer-events-none">▼</div>
+                </div>
             </div>
 
-            {/* --- Compact Statistics Footer --- */}
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+            {/* --- Contextual Statistics Dashboard --- */}
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm min-h-[80px] flex items-center">
                 
-                {/* Left: General Stats */}
-                <div className="flex gap-4 items-center text-xs">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">總期數</span>
-                        <span className="text-lg font-mono font-bold text-slate-700 dark:text-slate-200">{stats.totalCount}</span>
+                {/* Scenario A: General / All / Mixed / WL */}
+                {(filter.type === 'all' || filter.value === 'all') && (
+                    <div className="flex flex-col sm:flex-row gap-6 w-full items-center justify-center sm:justify-start">
+                        <div className="flex items-center gap-2 border-r border-slate-200 dark:border-slate-700 pr-6">
+                            <span className="text-xs text-slate-500 font-bold uppercase">目前顯示</span>
+                            <span className="font-bold text-slate-700 dark:text-white">整體概況 (All)</span>
+                        </div>
+                        <div className="flex gap-6 text-sm">
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">箱活 (Unit)</span>
+                                <span className="font-mono font-bold text-2xl text-slate-700 dark:text-white leading-none">{stats.unitCount}</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-pink-500 font-bold">混活 (Mixed)</span>
+                                <span className="font-mono font-bold text-2xl text-slate-700 dark:text-white leading-none">{stats.mixedCount}</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] text-emerald-500 font-bold">WL</span>
+                                <span className="font-mono font-bold text-2xl text-slate-700 dark:text-white leading-none">{stats.wlCount}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
-                    <div className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                            <span className="text-[9px] text-cyan-600 dark:text-cyan-400 font-bold">箱活</span>
-                            <span className="font-mono font-bold text-slate-600 dark:text-slate-300">{stats.unitCount}</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[9px] text-pink-500 font-bold">混活</span>
-                            <span className="font-mono font-bold text-slate-600 dark:text-slate-300">{stats.mixedCount}</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[9px] text-emerald-500 font-bold">WL</span>
-                            <span className="font-mono font-bold text-slate-600 dark:text-slate-300">{stats.wlCount}</span>
-                        </div>
-                    </div>
-                </div>
+                )}
 
-                {/* Right: Character Specific Stats (Only if Char selected) */}
-                {filter.type === 'character' && (
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 w-full sm:w-auto overflow-hidden relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: CHARACTERS[filter.value]?.color }}></div>
+                {/* Scenario B: Unit or Character Selected */}
+                {(filter.type === 'unit' || filter.type === 'character') && (
+                    <div className="flex flex-col xl:flex-row gap-4 w-full items-start xl:items-center">
                         
-                        <div className="flex flex-col">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">
-                                {filter.value} 統計
-                            </span>
-                            <div className="flex items-baseline gap-3 text-xs">
-                                <div>
-                                    <span className="text-slate-500 mr-1">箱:</span>
-                                    <span className="font-bold">{stats.charUnitCount}</span>
-                                </div>
-                                <div>
-                                    <span className="text-slate-500 mr-1">混:</span>
-                                    <span className="font-bold">{stats.charMixedCount}</span>
-                                </div>
-                            </div>
+                        {/* 1. Identity Section */}
+                        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 p-2 pr-4 rounded-lg border border-slate-100 dark:border-slate-700 w-full xl:w-auto">
+                            {(() => {
+                                // Determine current "Context Unit"
+                                const contextUnitName = filter.type === 'unit' ? filter.value : getUnitByChar(filter.value);
+                                const contextUnitConfig = UNITS[contextUnitName];
+                                const members = UNIT_MEMBERS_MAP[contextUnitName] || [];
+                                
+                                // Unit Highlight Logic
+                                const isUnitHighlit = filter.type === 'unit';
+                                
+                                return (
+                                    <>
+                                        {/* Unit Logo/Icon */}
+                                        <div 
+                                            className={`p-1.5 rounded transition-all ${isUnitHighlit ? 'bg-white dark:bg-slate-700 shadow-md ring-1 ring-slate-200 dark:ring-slate-600' : 'opacity-70 grayscale'}`}
+                                        >
+                                            <img 
+                                                src={getAssetUrl(contextUnitName, 'unit')} 
+                                                alt={contextUnitName} 
+                                                className="h-8 w-auto object-contain"
+                                            />
+                                        </div>
+
+                                        {/* Members List */}
+                                        <div className="flex flex-wrap gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-700">
+                                            {members.map(memberName => {
+                                                const isCharHighlit = filter.type === 'character' && filter.value === memberName;
+                                                const charColor = CHARACTERS[memberName]?.color || '#999';
+                                                
+                                                return (
+                                                    <div 
+                                                        key={memberName}
+                                                        className={`relative rounded-full transition-all duration-300 ${isCharHighlit ? 'ring-2 ring-offset-1 dark:ring-offset-slate-800 z-10 scale-110 shadow-lg' : 'opacity-60 grayscale hover:opacity-100 hover:grayscale-0'}`}
+                                                        style={{ borderColor: isCharHighlit ? charColor : 'transparent', boxShadow: isCharHighlit ? `0 0 10px ${charColor}40` : 'none' }}
+                                                    >
+                                                        <img 
+                                                            src={getAssetUrl(memberName, 'character')} 
+                                                            alt={memberName} 
+                                                            className="w-8 h-8 rounded-full border border-slate-100 dark:border-slate-700 bg-slate-200 object-cover"
+                                                            title={memberName}
+                                                        />
+                                                        {isCharHighlit && (
+                                                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm">
+                                                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: charColor }}></div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
 
-                        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
-                        <div className="flex flex-col flex-1">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">箱活間隔 (天)</span>
-                            <div className="flex items-center gap-3 text-xs font-mono">
-                                <div title="最小間隔">
-                                    <span className="text-emerald-500 font-bold mr-1">Min:</span>
-                                    <span className="font-bold">{stats.minInterval}</span>
+                        {/* 2. Stats Section */}
+                        <div className="flex-1 flex flex-col sm:flex-row gap-4 sm:gap-8 items-start sm:items-center w-full px-2">
+                            {/* Counts */}
+                            <div className="flex gap-6 text-sm">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase">總期數</span>
+                                    <span className="font-mono font-bold text-xl dark:text-white">{stats.totalCount}</span>
                                 </div>
-                                <div title="最大間隔">
-                                    <span className="text-rose-500 font-bold mr-1">Max:</span>
-                                    <span className="font-bold">{stats.maxInterval}</span>
-                                </div>
+                                <div className="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+                                {filter.type === 'unit' ? (
+                                    <>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">箱活總數</span>
+                                            <span className="font-mono font-bold text-xl dark:text-white">{stats.unitCount}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-emerald-500 font-bold">WL</span>
+                                            <span className="font-mono font-bold text-xl dark:text-white">{stats.wlCount}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">個人箱活</span>
+                                            <span className="font-mono font-bold text-xl dark:text-white">{stats.charUnitCount}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-pink-500 font-bold">個人混活</span>
+                                            <span className="font-mono font-bold text-xl dark:text-white">{stats.charMixedCount}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
+
+                            {/* Interval Stats (Only for Character) */}
+                            {filter.type === 'character' && (
+                                <div className="flex-1 w-full bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 border border-slate-100 dark:border-slate-700 flex items-center justify-between sm:justify-around">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-2">箱活間隔</span>
+                                    <div className="flex gap-4">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs text-emerald-500 font-bold">Min</span>
+                                            <span className="font-mono font-bold text-lg dark:text-white">{stats.minInterval}</span>
+                                            <span className="text-[10px] text-slate-400">天</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xs text-rose-500 font-bold">Max</span>
+                                            <span className="font-mono font-bold text-lg dark:text-white">{stats.maxInterval}</span>
+                                            <span className="text-[10px] text-slate-400">天</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

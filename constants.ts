@@ -220,7 +220,7 @@ export const EVENT_DETAILS: Record<number, EventDetail> = {
     73: { unit: "MORE MORE JUMP!", type: "marathon", banner: "花里實乃理", storyType: "unit_event", cardType: "permanent" },
     74: { unit: "Wonderlands × Showtime", type: "marathon", banner: "神代類", storyType: "unit_event", cardType: "permanent" },
     75: { unit: "Mix", type: "cheerful_carnival", banner: "小豆澤心羽", storyType: "mixed_event", cardType: "limited" },
-    76: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "白石杏", storyType: "unit_event", cardType: "permanent" },
+    76: { unit: "Leo/need", type: "marathon", banner: "星乃一歌", storyType: "unit_event", cardType: "permanent" },
     77: { unit: "25點，Nightcord見。", type: "marathon", banner: "東雲繪名", storyType: "unit_event", cardType: "permanent" },
     78: { unit: "MORE MORE JUMP!", type: "cheerful_carnival", banner: "桐谷遙", storyType: "unit_event", cardType: "limited" },
     79: { unit: "Vivid BAD SQUAD", type: "marathon", banner: "東雲彰人", storyType: "unit_event", cardType: "permanent" },

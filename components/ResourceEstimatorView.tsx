@@ -1,420 +1,435 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
-import CollapsibleSection from './CollapsibleSection';
-import { calculatePreciseDuration, calculateDisplayDuration, WORLD_LINK_IDS, getEventStatus, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER, API_BASE_URL } from '../constants';
+import { calculatePreciseDuration, WORLD_LINK_IDS, UNIT_ORDER, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
-import Button from './ui/Button';
 import Input from './ui/Input';
 import Card from './ui/Card';
+import { useConfig } from '../contexts/ConfigContext';
+import LoadingSpinner from './LoadingSpinner';
 
-const MULTIPLIERS = [1, 5, 10, 15, 20, 25, 27, 29, 31, 33, 35];
+// PJSK Energy Scaling Map (Energy -> Score Multiplier)
+const ENERGY_SCALING: Record<number, number> = {
+    0: 1,
+    1: 5,
+    2: 10,
+    3: 15,
+    4: 19,
+    5: 23,
+    6: 26,
+    7: 29,
+    8: 31,
+    9: 33,
+    10: 35
+};
+
 const ENERGY_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const RANK_OPTIONS = [1, 10, 100, 200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
 interface CalculationResult {
-    step_XB: string;
-    step_S_adjusted: string;
-    step_P: string;
-    step_Y: string;
-    step_potions_no_recovery: string;
-    step_recovery_adjust: string;
-    step_final_potions: string;
+    refDuration: number;
+    targetDuration: number;
+    adjustedTargetScore: number;
+    estimatedPtPerGame: number;
+    gamesNeeded: number;
+    totalEnergyNeeded: number;
+    naturalRecovery: number;
+    finalPotions: number;
+    isWarning: boolean;
 }
 
 const ResourceEstimatorView: React.FC = () => {
+    const { eventDetails, getEventColor } = useConfig();
     const [events, setEvents] = useState<EventSummary[]>([]);
-    
-    // Inputs
-    const [selectedPastEventId, setSelectedPastEventId] = useState<number | ''>('');
+    const [isLoadingList, setIsLoadingList] = useState(true);
+
+    // --- State: Selections ---
+    const [refUnitFilter, setRefUnitFilter] = useState<string>('all');
+    const [selectedPastId, setSelectedPastId] = useState<number | ''>('');
+    const [selectedTargetId, setSelectedTargetId] = useState<number | ''>('');
     const [selectedRank, setSelectedRank] = useState<number>(1000);
-    const [selectedFutureEventId, setSelectedFutureEventId] = useState<number | ''>('');
-    
-    const [inputS, setInputS] = useState<string>('15000');
-    const [inputL, setInputL] = useState<number>(5);
-    const [targetL, setTargetL] = useState<number>(5);
 
-    // Filters for Past Events
-    const [pastUnitFilter, setPastUnitFilter] = useState<string>('all');
-    const [pastBannerFilter, setPastBannerFilter] = useState<string>('all');
-    const [pastStoryFilter, setPastStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
-    const [pastCardFilter, setPastCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
+    // --- State: Player Condition ---
+    const [inputPt, setInputPt] = useState<string>('15000'); 
+    const [inputEnergyUsed, setInputEnergyUsed] = useState<number>(3); 
+    const [planEnergyPerGame, setPlanEnergyPerGame] = useState<number>(10); 
 
-    // Fetched/Derived Data
+    // --- State: Fetched Data ---
     const [pastEventScore, setPastEventScore] = useState<number | null>(null);
-    const [pastEventDuration, setPastEventDuration] = useState<number>(0);
-    const [futureEventDuration, setFutureEventDuration] = useState<number>(0);
-    
-    const [result, setResult] = useState<CalculationResult | null>(null);
-    const [isStepsOpen, setIsStepsOpen] = useState(true);
-    const [isLoadingData, setIsLoadingData] = useState(false);
+    const [pastEventDuration, setPastEventDuration] = useState<number | null>(null);
+    const [isFetchingScore, setIsFetchingScore] = useState(false);
 
-    // Fetch Event List
+    // --- Effect: Fetch All Events ---
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                // Using Dynamic API Base URL
-                const response = await fetch(`${API_BASE_URL}/event/list`);
-                const data: EventSummary[] = await response.json();
-                // Sort descending by ID
-                setEvents(data.sort((a, b) => b.id - a.id));
+                const res = await fetch(`${API_BASE_URL}/event/list`);
+                if (res.ok) {
+                    const data: EventSummary[] = await res.json();
+                    setEvents(data);
+                }
             } catch (e) {
-                console.error("Failed to fetch events", e);
+                console.error("Failed to load events", e);
+            } finally {
+                setIsLoadingList(false);
             }
         };
         fetchEvents();
     }, []);
 
-    // Filtered Past Events List
-    const pastEventsList = useMemo(() => {
-        const now = new Date();
-        let list = events.filter(e => new Date(e.closed_at) < now && !WORLD_LINK_IDS.includes(e.id));
-
-        if (pastUnitFilter !== 'all') {
-            list = list.filter(e => EVENT_DETAILS[e.id]?.unit === pastUnitFilter);
-        }
-        if (pastBannerFilter !== 'all') {
-            list = list.filter(e => EVENT_DETAILS[e.id]?.banner === pastBannerFilter);
-        }
-        if (pastStoryFilter !== 'all') {
-            list = list.filter(e => EVENT_DETAILS[e.id]?.storyType === pastStoryFilter);
-        }
-        if (pastCardFilter !== 'all') {
-            list = list.filter(e => EVENT_DETAILS[e.id]?.cardType === pastCardFilter);
-        }
-        return list;
-    }, [events, pastUnitFilter, pastBannerFilter, pastStoryFilter, pastCardFilter]);
-
-    // Active/Future Events List for Target
-    const futureEventsList = useMemo(() => {
-        return events.filter(e => {
-            if (WORLD_LINK_IDS.includes(e.id)) return false;
-            const status = getEventStatus(e.start_at, e.aggregate_at, e.closed_at, e.ranking_announce_at);
-            return status === 'active' || status === 'calculating' || status === 'future';
-        });
-    }, [events]);
-
-    // Fetch Past Event Score when Event/Rank changes
+    // --- Effect: Fetch Reference Score & Duration ---
     useEffect(() => {
-        if (!selectedPastEventId) {
+        if (!selectedPastId) {
             setPastEventScore(null);
-            setPastEventDuration(0);
+            setPastEventDuration(null);
             return;
         }
 
         const fetchScore = async () => {
-            setIsLoadingData(true);
+            setIsFetchingScore(true);
             try {
-                // Find event to get duration
-                const event = events.find(e => e.id === Number(selectedPastEventId));
-                if (event) {
-                    setPastEventDuration(calculatePreciseDuration(event.start_at, event.aggregate_at));
-                }
+                const isTop100 = selectedRank <= 100;
+                const url = isTop100 
+                    ? `${API_BASE_URL}/event/${selectedPastId}/top100`
+                    : `${API_BASE_URL}/event/${selectedPastId}/border`;
 
-                // Decide which API to call based on rank
-                // Top 100 uses top100 endpoint, others use border endpoint
-                let score = 0;
-                if (selectedRank <= 100) {
-                    // Using Dynamic API Base URL
-                    const res = await fetch(`${API_BASE_URL}/event/${selectedPastEventId}/top100`);
-                    if (res.ok) {
-                        const text = await res.text();
-                        const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        const data: PastEventApiResponse = JSON.parse(sanitized);
-                        const entry = data.rankings.find(r => r.rank === selectedRank);
-                        if (entry) score = entry.score;
-                        // If exact rank not found (rare for 1-100 unless specific), try index
-                        else if (selectedRank === 1) score = data.rankings[0]?.score || 0;
-                        else if (selectedRank === 10) score = data.rankings[9]?.score || 0;
-                        else if (selectedRank === 100) score = data.rankings[data.rankings.length - 1]?.score || 0;
+                const res = await fetch(url);
+                if (res.ok) {
+                    const txt = await res.text();
+                    const sanitized = txt.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                    const json = JSON.parse(sanitized);
+                    
+                    let score = 0;
+                    if (isTop100) {
+                        const data = json as PastEventApiResponse;
+                        score = data.rankings.find(r => r.rank === selectedRank)?.score || 0;
+                    } else {
+                        const data = json as PastEventBorderApiResponse;
+                        score = data.borderRankings.find(r => r.rank === selectedRank)?.score || 0;
                     }
-                } else {
-                    // Using Dynamic API Base URL
-                    const res = await fetch(`${API_BASE_URL}/event/${selectedPastEventId}/border`);
-                    if (res.ok) {
-                        const text = await res.text();
-                        const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        const data: PastEventBorderApiResponse = JSON.parse(sanitized);
-                        const entry = data.borderRankings.find(r => r.rank === selectedRank);
-                        if (entry) score = entry.score;
+                    setPastEventScore(score);
+
+                    const evt = events.find(e => e.id === selectedPastId);
+                    if (evt) {
+                        setPastEventDuration(calculatePreciseDuration(evt.start_at, evt.aggregate_at));
                     }
                 }
-                setPastEventScore(score);
             } catch (e) {
-                console.error("Failed to fetch score", e);
+                console.error(e);
                 setPastEventScore(0);
             } finally {
-                setIsLoadingData(false);
+                setIsFetchingScore(false);
             }
         };
-
         fetchScore();
-    }, [selectedPastEventId, selectedRank, events]);
+    }, [selectedPastId, selectedRank, events]);
 
-    // Update Future Duration
-    useEffect(() => {
-        if (!selectedFutureEventId) {
-            setFutureEventDuration(0);
-            return;
-        }
-        const event = events.find(e => e.id === Number(selectedFutureEventId));
-        if (event) {
-            const status = getEventStatus(event.start_at, event.aggregate_at, event.closed_at, event.ranking_announce_at);
-            
-            if (status === 'active' || status === 'calculating') {
-                // Dynamic remaining duration: Now -> Aggregate
-                const now = new Date();
-                const agg = new Date(event.aggregate_at);
-                const diffMs = Math.max(0, agg.getTime() - now.getTime());
-                // Convert ms to days
-                const remainingDays = diffMs / (1000 * 60 * 60 * 24);
-                setFutureEventDuration(remainingDays);
-            } else {
-                // Future event: Use full duration
-                setFutureEventDuration(calculatePreciseDuration(event.start_at, event.aggregate_at));
-            }
-        }
-    }, [selectedFutureEventId, events]);
+    // --- Memo: Categorized Events ---
+    const { refEventOptions, targetEventOptions } = useMemo(() => {
+        const now = new Date();
+        
+        // Filter past events with unit filter
+        const past = events.filter(e => {
+            const isPast = new Date(e.closed_at) < now;
+            if (!isPast) return false;
+            if (refUnitFilter !== 'all' && eventDetails[e.id]?.unit !== refUnitFilter) return false;
+            return true;
+        }).sort((a,b) => b.id - a.id);
 
-    const calculateResources = () => {
-        if (!pastEventScore || !pastEventDuration || !futureEventDuration) return;
+        // Target events: currently active or starting in future
+        const target = events.filter(e => new Date(e.closed_at) >= now).sort((a,b) => b.id - a.id);
 
-        const X = pastEventScore;
-        const A_d = pastEventDuration;
-        const B_d = futureEventDuration;
-        const L_use = targetL;
-        const L_input = inputL;
-        const S_input = parseInt(inputS) || 1;
+        return {
+            refEventOptions: past.map(e => ({
+                value: e.id,
+                label: `#${e.id} ${e.name}`,
+                style: { color: getEventColor(e.id) }
+            })),
+            targetEventOptions: target.map(e => ({
+                value: e.id,
+                label: `#${e.id} ${e.name}`,
+                style: { color: getEventColor(e.id) }
+            }))
+        };
+    }, [events, refUnitFilter, eventDetails, getEventColor]);
 
-        const S_adjusted = S_input * (MULTIPLIERS[L_use] / MULTIPLIERS[L_input]);
-        const X_B = X * (B_d / A_d);
-        const P = X_B / S_adjusted;
-        const Y = P * L_use;
-        const potions_no_recovery = Math.ceil(Y / 10);
-        // Recovery adjust calculation based on days (approx 48 energy per day)
-        // 1 day = 24 hours = 48 energy (1 energy per 30 mins)
-        // Natural recovery = B_d * 48
-        const recovery_adjust = (B_d * 48) / 10;
-        const final_potions = Math.max(0, Math.ceil(Y / 10 - recovery_adjust));
+    // --- Logic: Calculation ---
+    const result: CalculationResult | null = useMemo(() => {
+        const targetEvt = events.find(e => e.id === selectedTargetId);
+        const ptValue = parseInt(inputPt);
 
-        setResult({
-            step_XB: `調整後分數 X_B = ${Math.round(X_B).toLocaleString()}`,
-            step_S_adjusted: `調整後單場最高分 S = ${Math.round(S_adjusted).toLocaleString()}`,
-            step_P: `需要打場次 P = ${Math.ceil(P).toLocaleString()}`,
-            step_Y: `總體力消耗 Y = ${Math.ceil(Y).toLocaleString()}`,
-            step_potions_no_recovery: `大補充罐數 (不考慮回體) = ${potions_no_recovery}`,
-            step_recovery_adjust: `考慮回體可少準備罐數 ≈ ${Math.floor(recovery_adjust)}`,
-            step_final_potions: `最終理論大補充罐數 = ${final_potions}`
-        });
-    };
+        if (!pastEventScore || !pastEventDuration || !targetEvt || isNaN(ptValue) || ptValue <= 0) return null;
 
-    const resetInputs = () => {
-        setSelectedPastEventId('');
-        setSelectedFutureEventId('');
-        setPastEventScore(null);
-        setPastEventDuration(0);
-        setFutureEventDuration(0);
-        setResult(null);
-    };
+        // 1. Target Duration
+        const targetDur = calculatePreciseDuration(targetEvt.start_at, targetEvt.aggregate_at);
+
+        // 2. Adjust Target Total Score based on Duration Ratio
+        const adjustedTargetScore = Math.ceil(pastEventScore * (targetDur / pastEventDuration));
+
+        // 3. Normalize to Base Pt (0 energy)
+        const inputScale = ENERGY_SCALING[inputEnergyUsed] || 1;
+        const basePt = ptValue / inputScale;
+
+        // 4. Calculate Planned Pt
+        const planScale = ENERGY_SCALING[planEnergyPerGame] || 1;
+        const estimatedPtPerGame = Math.ceil(basePt * planScale);
+
+        // Check if unreasonable (Warning if basePt * 35 > 75000)
+        const isWarning = (basePt * 35) > 75000;
+
+        // 5. Games & Energy
+        const gamesNeeded = Math.ceil(adjustedTargetScore / estimatedPtPerGame);
+        const totalEnergyNeeded = gamesNeeded * planEnergyPerGame;
+
+        // 6. Natural Recovery (48 per day)
+        const naturalRecovery = Math.floor(targetDur * 48);
+
+        // 7. Final Potions
+        const finalPotions = Math.ceil(Math.max(0, totalEnergyNeeded - naturalRecovery) / 10);
+
+        return {
+            refDuration: pastEventDuration,
+            targetDuration: targetDur,
+            adjustedTargetScore,
+            estimatedPtPerGame,
+            gamesNeeded,
+            totalEnergyNeeded,
+            naturalRecovery,
+            finalPotions,
+            isWarning
+        };
+    }, [pastEventScore, pastEventDuration, selectedTargetId, inputPt, inputEnergyUsed, planEnergyPerGame, events]);
+
+    if (isLoadingList) return <LoadingSpinner />;
 
     return (
-        <div className="w-full py-4 animate-fadeIn">
-            <div className="mb-6">
+        <div className="w-full animate-fadeIn py-4">
+            <div className="mb-8 px-2">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">預估資源計算機 (Resource Estimator)</h2>
-                <p className="text-slate-500 dark:text-slate-400">依據過往活動分數預估未來活動所需的大補充罐數</p>
+                <p className="text-slate-500 dark:text-slate-400">
+                    參考歷史數據，透過體力倍率換算精確估計衝榜所需的 Live Bonus 飲料數量。
+                </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Configuration Card */}
-                <Card title="1. 設定基準 (Baseline)">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-2">
-                             <Select
-                                className="text-xs"
-                                value={pastUnitFilter}
-                                onChange={setPastUnitFilter}
-                                options={[
-                                    { value: 'all', label: '所有團體' },
-                                    ...UNIT_ORDER.map(u => ({ value: u, label: u }))
-                                ]}
-                             />
-                             <Select
-                                className="text-xs"
-                                value={pastBannerFilter}
-                                onChange={setPastBannerFilter}
-                                options={[
-                                    { value: 'all', label: '所有 Banner' },
-                                    ...BANNER_ORDER.map(b => ({ value: b, label: b }))
-                                ]}
-                             />
-                             <Select
-                                className="text-xs"
-                                value={pastStoryFilter}
-                                onChange={(val) => setPastStoryFilter(val as any)}
-                                options={[
-                                    { value: 'all', label: '所有劇情' },
-                                    { value: 'unit_event', label: '箱活' },
-                                    { value: 'mixed_event', label: '混活' }
-                                ]}
-                             />
-                             <Select
-                                className="text-xs"
-                                value={pastCardFilter}
-                                onChange={(val) => setPastCardFilter(val as any)}
-                                options={[
-                                    { value: 'all', label: '所有卡面' },
-                                    { value: 'permanent', label: '常駐' },
-                                    { value: 'limited', label: '限定' },
-                                    { value: 'special_limited', label: '特殊限定' }
-                                ]}
-                             />
-                        </div>
-
-                        <Select
-                            label="選擇參考活動 (Past Event)"
-                            value={selectedPastEventId}
-                            onChange={(val) => setSelectedPastEventId(Number(val))}
-                            options={[
-                                { value: '', label: '請選擇...' },
-                                ...pastEventsList.map(e => ({
-                                    value: e.id,
-                                    label: `[${e.id}] ${e.name} (${calculateDisplayDuration(e.start_at, e.aggregate_at)}日)`
-                                }))
-                            ]}
-                        />
-
-                        <Select
-                            label="參考排名 (Rank Target)"
-                            value={selectedRank}
-                            onChange={(val) => setSelectedRank(Number(val))}
-                            options={RANK_OPTIONS.map(r => ({ value: r, label: `Top ${r}` }))}
-                        />
-
-                        {selectedPastEventId !== '' && (
-                            <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded text-sm flex justify-between items-center">
-                                <span className="text-slate-500">基準分數 (X):</span>
-                                {isLoadingData ? (
-                                    <span className="text-cyan-500 animate-pulse">載入中...</span>
-                                ) : (
-                                    <span className="font-mono font-bold text-slate-700 dark:text-cyan-400">
-                                        {pastEventScore ? pastEventScore.toLocaleString() : 'N/A'}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                        {selectedPastEventId !== '' && (
-                            <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded text-sm flex justify-between items-center">
-                                <span className="text-slate-500">基準天數 (Ad):</span>
-                                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                                    {pastEventDuration.toFixed(2)} 天
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                </Card>
-
-                {/* Target Card */}
-                <Card title="2. 設定目標 (Target)">
+            {/* Input Layer - Utilizing full width */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+                
+                {/* Column 1: Reference */}
+                <Card title="1. 參考過往活動" className="flex flex-col h-full shadow-md">
                     <div className="space-y-4">
                         <Select
-                            label="選擇未來活動/目標長度 (Future Event)"
-                            value={selectedFutureEventId}
-                            onChange={(val) => setSelectedFutureEventId(Number(val))}
-                            options={[
-                                { value: '', label: '請選擇...' },
-                                ...futureEventsList.map(e => {
-                                    const status = getEventStatus(e.start_at, e.aggregate_at, e.closed_at, e.ranking_announce_at);
-                                    const labelPrefix = status === 'future' ? '[未來]' : '[進行中]';
-                                    return {
-                                        value: e.id,
-                                        label: `${labelPrefix} #${e.id} ${e.name}`
-                                    };
-                                })
-                            ]}
+                            label="快速篩選團體"
+                            value={refUnitFilter}
+                            onChange={setRefUnitFilter}
+                            options={[{value: 'all', label: '所有團體'}, ...UNIT_ORDER.map(u => ({value: u, label: u}))]}
                         />
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input
-                                label="每場得分 (S)"
-                                type="number"
-                                value={inputS}
-                                onChange={(val) => setInputS(val)}
-                            />
-                            
+                        <Select
+                            label="選擇參考期數"
+                            value={selectedPastId}
+                            onChange={(v) => setSelectedPastId(Number(v))}
+                            placeholder="請選擇活動..."
+                            options={refEventOptions}
+                        />
+                        <div className="grid grid-cols-1 gap-3">
                             <Select
-                                label="使用體力 (L Input)"
-                                value={inputL}
-                                onChange={(val) => setInputL(Number(val))}
-                                options={ENERGY_OPTIONS}
+                                label="參考名次"
+                                value={selectedRank}
+                                onChange={(v) => setSelectedRank(Number(v))}
+                                options={RANK_OPTIONS.map(r => ({ value: r, label: `Top ${r}` }))}
                             />
+                            {pastEventScore && !isFetchingScore && (
+                                <div className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-700 animate-fadeIn">
+                                    <div className="flex justify-between items-baseline mb-1.5">
+                                        <span className="text-[10px] text-slate-400 uppercase font-black">基準分數線</span>
+                                        <span className="text-base font-mono font-black text-cyan-600 dark:text-cyan-400">
+                                            {pastEventScore.toLocaleString()} pt
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-baseline">
+                                        <span className="text-[10px] text-slate-400 uppercase font-black">活動時長</span>
+                                        <span className="text-base font-mono font-black text-slate-600 dark:text-slate-300">
+                                            {pastEventDuration?.toFixed(2)} 天
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            {isFetchingScore && <div className="text-center text-xs text-cyan-500 py-4 animate-pulse">讀取數據中...</div>}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Column 2: Target */}
+                <Card title="2. 設定目標活動" className="flex flex-col h-full shadow-md">
+                    <div className="space-y-4">
+                        <Select
+                            label="衝榜目標活動"
+                            value={selectedTargetId}
+                            onChange={(v) => setSelectedTargetId(Number(v))}
+                            placeholder="選擇進行中/未來活動..."
+                            options={targetEventOptions}
+                        />
+                        {selectedTargetId && result && (
+                            <div className="p-5 bg-cyan-500/5 dark:bg-cyan-400/5 rounded-xl border border-cyan-500/20 dark:border-cyan-400/20 animate-fadeIn">
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="text-sm text-slate-600 dark:text-slate-300 font-black">預估活動時長:</span>
+                                    <span className="font-mono font-black text-xl text-cyan-600 dark:text-cyan-400">
+                                        {result.targetDuration.toFixed(2)} 天
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 leading-relaxed italic">
+                                    * 系統已根據兩期活動的天數比率 ({ (result.targetDuration / result.refDuration).toFixed(2) }x) 自動校正目標分。
+                                </p>
+                            </div>
+                        )}
+                        {!selectedTargetId && (
+                            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-400 p-8">
+                                <svg className="w-10 h-10 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                請選取目標活動以換算天數
+                            </div>
+                        )}
+                    </div>
+                </Card>
+
+                {/* Column 3: Player stats */}
+                <Card title="3. 自身條件與計畫" className="flex flex-col h-full shadow-md">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-1.5">
+                                <label className="text-sm font-black text-slate-700 dark:text-slate-300">單場參考分數 (pt)</label>
+                                <div className="group relative cursor-help">
+                                    <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 flex items-center justify-center text-[10px] font-black">?</div>
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed">
+                                        這是您個人目前打一場的平均得分（請依當下使用的體力填寫）。系統將依此倍率逆推出您的「基礎分」。
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Input
+                                        value={inputPt}
+                                        onChange={setInputPt}
+                                        type="number"
+                                        placeholder="例: 15000"
+                                        className="font-mono font-bold"
+                                    />
+                                </div>
+                                <div className="w-28">
+                                    <Select
+                                        value={inputEnergyUsed}
+                                        onChange={(v) => setInputEnergyUsed(Number(v))}
+                                        options={ENERGY_OPTIONS.map(e => ({ value: e, label: `${e} 體遊玩` }))}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        <Select
-                            label="衝榜預設體力 (Target L)"
-                            value={targetL}
-                            onChange={(val) => setTargetL(Number(val))}
-                            options={ENERGY_OPTIONS}
-                        />
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <Select
+                                label="計畫衝榜使用體力"
+                                value={planEnergyPerGame}
+                                onChange={(v) => setPlanEnergyPerGame(Number(v))}
+                                options={ENERGY_OPTIONS.map(e => ({ value: e, label: `衝榜時用 ${e} 體/場` }))}
+                            />
+                            {result && (
+                                <div className="mt-3 flex justify-between items-center text-[11px]">
+                                    <span className="text-slate-500 font-bold uppercase tracking-tight">換算單場預計:</span>
+                                    <span className="text-cyan-600 dark:text-cyan-400 font-black">{result.estimatedPtPerGame.toLocaleString()} pt</span>
+                                </div>
+                            )}
+                        </div>
 
-                        {selectedFutureEventId !== '' && (
-                            <div className="bg-slate-100 dark:bg-slate-900/50 p-3 rounded text-sm flex justify-between items-center">
-                                <span className="text-slate-500">目標天數 (Bd):</span>
-                                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                                    {futureEventDuration.toFixed(2)} 天
-                                    {events.find(e => e.id === Number(selectedFutureEventId)) && 
-                                     ['active', 'calculating'].includes(getEventStatus(
-                                         events.find(e => e.id === Number(selectedFutureEventId))!.start_at,
-                                         events.find(e => e.id === Number(selectedFutureEventId))!.aggregate_at,
-                                         events.find(e => e.id === Number(selectedFutureEventId))!.closed_at,
-                                         events.find(e => e.id === Number(selectedFutureEventId))!.ranking_announce_at
-                                     )) && " (剩餘)"}
-                                </span>
+                        {result?.isWarning && (
+                            <div className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] rounded-lg border border-amber-500/20 animate-pulse font-bold">
+                                ⚠️ 注意：單場基礎分換算後偏高，請確認數值準確性。
                             </div>
                         )}
                     </div>
                 </Card>
             </div>
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-4">
-                <Button
-                    variant="gradient"
-                    fullWidth
-                    onClick={calculateResources}
-                    disabled={!pastEventScore || !selectedFutureEventId}
-                >
-                    計算預估資源
-                </Button>
-                <Button
-                    variant="secondary"
-                    onClick={resetInputs}
-                >
-                    重做評估
-                </Button>
-            </div>
+            {/* Output Layer - Full Width Hero View */}
+            <div className="w-full">
+                {result ? (
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 p-8 md:p-12 shadow-2xl animate-fadeIn relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
+                            <svg className="w-64 h-64" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h6V3h-8z" /></svg>
+                        </div>
 
-            {result && (
-                <div className="mt-8 animate-fadeIn">
-                    <CollapsibleSection
-                        title="計算步驟與結果 (Results)"
-                        isOpen={isStepsOpen}
-                        onToggle={() => setIsStepsOpen(!isStepsOpen)}
-                    >
-                        <div className="space-y-2 font-mono text-sm text-slate-700 dark:text-slate-300">
-                            <p className="p-2 border-b border-slate-200 dark:border-slate-700">{result.step_S_adjusted}</p>
-                            <p className="p-2 border-b border-slate-200 dark:border-slate-700">{result.step_XB}</p>
-                            <p className="p-2 border-b border-slate-200 dark:border-slate-700">{result.step_P}</p>
-                            <p className="p-2 border-b border-slate-200 dark:border-slate-700">{result.step_Y}</p>
-                            <p className="p-2 border-b border-slate-200 dark:border-slate-700 font-bold text-indigo-600 dark:text-indigo-400">{result.step_potions_no_recovery}</p>
-                            <p className="p-2 border-b border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400">{result.step_recovery_adjust}</p>
-                            <div className="mt-4 p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-700/50 text-center">
-                                <p className="text-xl sm:text-2xl font-bold text-cyan-700 dark:text-cyan-300">
-                                    {result.step_final_potions}
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-12 items-center relative z-10">
+                            
+                            {/* Detailed Stats Groups */}
+                            <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
+                                <div className="space-y-6">
+                                    <h4 className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] border-l-4 border-cyan-500 pl-3">目標校正 (Targeting)</h4>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-end border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">校正後目標分數</span>
+                                            <span className="font-mono font-black text-xl text-slate-900 dark:text-white">{result.adjustedTargetScore.toLocaleString()} pt</span>
+                                        </div>
+                                        <div className="flex justify-between items-end border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">預計總遊玩場數</span>
+                                            <span className="font-mono font-black text-xl text-slate-900 dark:text-white">{result.gamesNeeded.toLocaleString()} <span className="text-xs font-normal">場</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <h4 className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] border-l-4 border-amber-500 pl-3">能源與效率 (Efficiency)</h4>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-end border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">總消耗能源需求</span>
+                                            <span className="font-mono font-black text-xl text-slate-900 dark:text-white">{result.totalEnergyNeeded.toLocaleString()} ⚡</span>
+                                        </div>
+                                        <div className="flex justify-between items-end border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400 font-bold">自然回體抵扣</span>
+                                            <span className="font-mono font-black text-xl text-emerald-500 dark:text-emerald-400">-{result.naturalRecovery.toLocaleString()} ⚡</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Final Result Circle */}
+                            <div className="flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800 rounded-[3rem] p-12 border border-slate-200 dark:border-slate-700 shadow-inner group">
+                                <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase mb-4">預估所需資源</span>
+                                
+                                <div className="flex items-baseline gap-3 relative">
+                                    <span className="text-8xl font-black font-mono text-cyan-600 dark:text-cyan-400 tracking-tighter">
+                                        {result.finalPotions}
+                                    </span>
+                                    <span className="text-2xl font-black text-slate-400">罐</span>
+                                </div>
+
+                                <div className="mt-8 px-8 py-3 bg-cyan-600 text-white rounded-2xl shadow-xl shadow-cyan-600/20 transform group-hover:scale-105 transition-all duration-300">
+                                    <span className="font-black text-sm uppercase tracking-wider">Live Bonus 飲料（大）</span>
+                                </div>
+
+                                <p className="mt-8 text-[10px] text-slate-400 font-bold text-center leading-relaxed max-w-[220px]">
+                                    * 數值僅供策略參考，衝榜末期常有劇烈變動，建議額外準備 15% 以上的安全邊際。
                                 </p>
                             </div>
                         </div>
-                    </CollapsibleSection>
+                    </div>
+                ) : (
+                    <div className="py-24 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200 dark:border-slate-800 shadow-sm text-center animate-fadeIn group">
+                        <div className="bg-slate-50 dark:bg-slate-800 p-8 rounded-full mb-8 group-hover:scale-110 transition-transform duration-500 border border-slate-100 dark:border-slate-700">
+                            <svg className="w-16 h-16 text-slate-200 dark:text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                        </div>
+                        <h4 className="text-slate-900 dark:text-white font-black text-xl mb-3 tracking-tight">準備就緒，等待設定</h4>
+                        <p className="text-slate-500 dark:text-slate-400 max-w-sm px-6 leading-relaxed font-medium">
+                            完成上方三個步驟的基準設定與計畫，系統將為您生成專屬衝榜資源報告。
+                        </p>
+                    </div>
+                )}
+            </div>
+            
+            <div className="mt-10 flex justify-center px-4">
+                <div className="inline-flex items-center gap-2.5 px-5 py-3 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+                    <svg className="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span className="text-xs text-amber-700 dark:text-amber-400 font-bold leading-relaxed">
+                        注意：計算結果未包含「等級提升 (Rank Up)」與「官方登入活動」贈送的體力，實際喝水量可能會更少。
+                    </span>
                 </div>
-            )}
+            </div>
         </div>
     );
 };

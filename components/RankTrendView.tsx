@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LineChart from './LineChart';
-import { calculatePreciseDuration, EVENT_DETAILS, UNIT_ORDER, BANNER_ORDER, getEventColor, API_BASE_URL } from '../constants';
+import { calculatePreciseDuration, UNIT_ORDER, BANNER_ORDER, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
 import Input from './ui/Input';
+import { useConfig } from '../contexts/ConfigContext';
 
 interface TrendDataPoint {
     eventId: number;
@@ -18,6 +19,7 @@ interface TrendDataPoint {
 const RANK_OPTIONS = [1, 10, 100, 200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
 const RankTrendView: React.FC = () => {
+    const { eventDetails, getEventColor } = useConfig();
     // Data States
     const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
     const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
@@ -237,7 +239,7 @@ const RankTrendView: React.FC = () => {
         let visibleCount = 0;
 
         const mappedData = trendData.map(d => {
-            const details = EVENT_DETAILS[d.eventId];
+            const details = eventDetails[d.eventId];
             let isMatch = true;
 
             if (selectedUnitFilter !== 'all' && details?.unit !== selectedUnitFilter) isMatch = false;
@@ -281,7 +283,7 @@ const RankTrendView: React.FC = () => {
             medianValue: median,
             hasMatchingData: visibleCount > 0
         };
-    }, [trendData, displayMode, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
+    }, [trendData, displayMode, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, eventDetails, getEventColor]);
 
     const formatYAxis = (v: number) => {
         if (v >= 10000) {

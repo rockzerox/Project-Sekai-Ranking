@@ -1,5 +1,3 @@
-
-// ... existing imports
 import React, { useState, useEffect, useMemo } from 'react';
 import { SortOption } from './types';
 import SearchBar from './components/SearchBar';
@@ -24,70 +22,55 @@ import EventDistributionView from './components/EventDistributionView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
-import { getEventColor, EVENT_DETAILS, UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS } from './constants';
+import { UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS } from './constants';
 import { useRankings } from './hooks/useRankings';
+import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 
 const ITEMS_PER_PAGE = 20;
 
-// ... existing Timer components ...
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
     const [timeLeft, setTimeLeft] = useState('');
-
     useEffect(() => {
         const interval = setInterval(() => {
             const now = new Date().getTime();
             const target = new Date(targetDate).getTime();
             const distance = target - now;
-
             if (distance < 0) {
                 setTimeLeft('即將公佈');
                 clearInterval(interval);
                 return;
             }
-
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
             setTimeLeft(`${hours}小時 ${minutes}分 ${seconds}秒`);
         }, 1000);
-
         return () => clearInterval(interval);
     }, [targetDate]);
-
     return <span className="font-mono text-xl sm:text-2xl font-bold text-cyan-600 dark:text-cyan-400">{timeLeft}</span>;
 };
 
 const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) => {
     const [timeLeft, setTimeLeft] = useState('00日:00時:00分:00秒');
-
     useEffect(() => {
         const calculateTime = () => {
             const now = new Date().getTime();
             const target = new Date(targetDate).getTime();
             const distance = target - now;
-
             if (distance <= 0) {
                 setTimeLeft('00日:00時:00分:00秒');
                 return;
             }
-
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            setTimeLeft(
-                `${String(days).padStart(2, '0')}日:${String(hours).padStart(2, '0')}時:${String(minutes).padStart(2, '0')}分:${String(seconds).padStart(2, '0')}秒`
-            );
+            setTimeLeft(`${String(days).padStart(2, '0')}日:${String(hours).padStart(2, '0')}時:${String(minutes).padStart(2, '0')}分:${String(seconds).padStart(2, '0')}秒`);
         };
-
         calculateTime();
         const interval = setInterval(calculateTime, 1000);
-
         return () => clearInterval(interval);
     }, [targetDate]);
-
     return (
         <span className="font-mono text-sm sm:text-base font-bold text-slate-500 dark:text-slate-400 ml-2 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-300 dark:border-slate-600">
             {timeLeft}
@@ -95,196 +78,99 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
     );
 };
 
-const App: React.FC = () => {
+const MainContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
-  
-  // World Link Chapter State
+  const { eventDetails, getEventColor } = useConfig();
   const [activeChapter, setActiveChapter] = useState<string>('all');
-  
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  // Use Custom Hook for Ranking Logic
   const {
-      rankings,
-      setRankings,
-      worldLinkChapters,
-      isLoading,
-      error,
-      eventName,
-      liveEventId,
-      liveEventTiming,
-      lastUpdated,
-      cachedLiveRankings,
-      cachedPastRankings,
-      fetchLiveRankings,
-      fetchBorderRankings,
-      fetchPastRankings,
-      fetchPastBorderRankings,
-      setEventName
+      rankings, setRankings, worldLinkChapters, isLoading, error, eventName, liveEventId, liveEventTiming, lastUpdated,
+      cachedLiveRankings, cachedPastRankings, fetchLiveRankings, fetchBorderRankings, fetchPastRankings, fetchPastBorderRankings, setEventName
   } = useRankings();
 
   useEffect(() => {
-      if (theme === 'dark') {
-          document.documentElement.classList.add('dark');
-      } else {
-          document.documentElement.classList.remove('dark');
-      }
+      if (theme === 'dark') document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  const toggleTheme = () => {
-      setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('score');
-  
   const [isRankingsOpen, setIsRankingsOpen] = useState(true);
-  const [isChartsOpen, setIsChartsOpen] = useState(true); // Default Open
+  const [isChartsOpen, setIsChartsOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
 
-  // Reset active chapter when event changes
-  useEffect(() => {
-      setActiveChapter('all');
-  }, [selectedEvent]);
+  useEffect(() => { setActiveChapter('all'); }, [selectedEvent]);
 
-  // Handle Switching between Main Rankings and Chapter Rankings
   useEffect(() => {
       if (activeChapter === 'all') {
-          // Restore from cache if available (Standard behavior handled by useRankings usually, but need explicit reset here)
-          if (cachedPastRankings.length > 0) {
-              setRankings(cachedPastRankings);
-          }
+          if (cachedPastRankings.length > 0) setRankings(cachedPastRankings);
       } else {
-          // Switch to Chapter data
-          if (worldLinkChapters[activeChapter]) {
-              setRankings(worldLinkChapters[activeChapter]);
-          } else {
-              setRankings([]); // Fallback
-          }
+          if (worldLinkChapters[activeChapter]) setRankings(worldLinkChapters[activeChapter]);
+          else setRankings([]);
       }
   }, [activeChapter, worldLinkChapters, cachedPastRankings, setRankings]);
 
-  // Manage Chart Collapse State based on View
   useEffect(() => {
-      if (currentView === 'live') {
-          setIsChartsOpen(true); // Default open for live events
-      } else if (currentView === 'past' && selectedEvent) {
-          setIsChartsOpen(true); // Default open for past events
-      }
-  }, [currentView, selectedEvent]);
-
-  // Main Effect to trigger fetches based on view and page
-  useEffect(() => {
-    if (currentView === 'live') {
-        fetchLiveRankings();
-        setCurrentPage(1);
-    } else if (currentView === 'past' && selectedEvent) {
-        fetchPastRankings(selectedEvent.id);
-        setEventName(selectedEvent.name); // Ensure name is set from selection immediately
-        setCurrentPage(1);
-    }
+    if (currentView === 'live') { fetchLiveRankings(); setCurrentPage(1); } 
+    else if (currentView === 'past' && selectedEvent) { fetchPastRankings(selectedEvent.id); setEventName(selectedEvent.name); setCurrentPage(1); }
   }, [currentView, selectedEvent, fetchLiveRankings, fetchPastRankings, setEventName]);
 
   const handlePageChange = (page: number | 'highlights') => {
       setCurrentPage(page);
-      // Reset chapter to all when switching mode to avoid confusion, or handle border chapters separately
-      // For simplicity, reset to 'all' to ensure correct data fetch
       setActiveChapter('all'); 
-      
       if (currentView === 'live') {
-          if (page === 'highlights') {
-              fetchBorderRankings();
-          } else {
-              if (currentPage === 'highlights') {
-                   setRankings(cachedLiveRankings);
-              }
-              if (cachedLiveRankings.length === 0) {
-                  fetchLiveRankings();
-              }
+          if (page === 'highlights') fetchBorderRankings();
+          else {
+              if (currentPage === 'highlights') setRankings(cachedLiveRankings);
+              if (cachedLiveRankings.length === 0) fetchLiveRankings();
           }
       } else if (currentView === 'past' && selectedEvent) {
-          if (page === 'highlights') {
-              fetchPastBorderRankings(selectedEvent.id);
-          } else {
-              if (currentPage === 'highlights') {
-                  setRankings(cachedPastRankings);
-              }
-              if (cachedPastRankings.length === 0) {
-                   fetchPastRankings(selectedEvent.id);
-              }
+          if (page === 'highlights') fetchPastBorderRankings(selectedEvent.id);
+          else {
+              if (currentPage === 'highlights') setRankings(cachedPastRankings);
+              if (cachedPastRankings.length === 0) fetchPastRankings(selectedEvent.id);
           }
       }
   };
 
-  useEffect(() => {
-    if (currentPage !== 'highlights') {
-        setCurrentPage(1);
-    }
-  }, [searchTerm, sortOption, currentView, selectedEvent]);
+  useEffect(() => { if (currentPage !== 'highlights') setCurrentPage(1); }, [searchTerm, sortOption, currentView, selectedEvent]);
 
   const sortedAndFilteredRankings = useMemo(() => {
-    const filtered = rankings.filter(entry =>
-      entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
+    const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));
     const sorted = [...filtered].sort((a, b) => {
-        switch (sortOption) {
-            case 'lastPlayedAt':
-                if(!a.lastPlayedAt) return 1;
-                if(!b.lastPlayedAt) return -1;
-                return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
-            case 'last1h_count': return b.stats.last1h.count - a.stats.last1h.count;
-            case 'last1h_score': return b.stats.last1h.score - a.stats.last1h.score;
-            case 'last1h_speed': return b.stats.last1h.speed - a.stats.last1h.speed;
-            case 'last1h_average': return b.stats.last1h.average - a.stats.last1h.average;
-            case 'last3h_count': return b.stats.last3h.count - a.stats.last3h.count;
-            case 'last3h_score': return b.stats.last3h.score - a.stats.last3h.score;
-            case 'last3h_speed': return b.stats.last3h.speed - a.stats.last3h.speed;
-            case 'last3h_average': return b.stats.last3h.average - a.stats.last3h.average;
-            case 'last24h_count': return b.stats.last24h.count - a.stats.last24h.count;
-            case 'last24h_score': return b.stats.last24h.score - a.stats.last24h.score;
-            case 'last24h_speed': return b.stats.last24h.speed - a.stats.last24h.speed;
-            case 'last24h_average': return b.stats.last24h.average - a.stats.last24h.average;
-            case 'score':
-            default:
-                return b.score - a.score;
+        if (sortOption === 'score') return b.score - a.score;
+        if (sortOption === 'lastPlayedAt') {
+            if(!a.lastPlayedAt) return 1; if(!b.lastPlayedAt) return -1;
+            return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
         }
+        const [period, metric] = sortOption.split('_') as [any, any];
+        if (a.stats[period as keyof typeof a.stats] && b.stats[period as keyof typeof b.stats]) {
+            return (b.stats[period as keyof typeof b.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0) - (a.stats[period as keyof typeof a.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0);
+        }
+        return 0;
     });
-    
-    if (currentPage === 'highlights') {
-        return sorted;
-    }
-
-    return sorted.map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-    }));
-
+    if (currentPage === 'highlights') return sorted;
+    return sorted.map((entry, index) => ({ ...entry, rank: index + 1 }));
   }, [searchTerm, rankings, sortOption, currentPage]);
   
   const paginatedRankings = useMemo(() => {
-    if (currentPage === 'highlights') {
-        return sortedAndFilteredRankings;
-    }
+    if (currentPage === 'highlights') return sortedAndFilteredRankings;
     const pageNum = typeof currentPage === 'number' ? currentPage : 1;
-    const startIndex = (pageNum - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return sortedAndFilteredRankings.slice(startIndex, endIndex);
+    return sortedAndFilteredRankings.slice((pageNum - 1) * ITEMS_PER_PAGE, pageNum * ITEMS_PER_PAGE);
   }, [sortedAndFilteredRankings, currentPage]);
 
-  // Check calculation status for Live Event
   const isCalculating = useMemo(() => {
       if (currentView !== 'live' || !liveEventTiming) return false;
       const now = new Date();
-      const agg = new Date(liveEventTiming.aggregateAt);
-      const announce = new Date(liveEventTiming.rankingAnnounceAt);
-      return now >= agg && now < announce;
+      return now >= new Date(liveEventTiming.aggregateAt) && now < new Date(liveEventTiming.rankingAnnounceAt);
   }, [currentView, liveEventTiming]);
 
-  const renderContent = () => {
+  const renderRankingUI = () => {
       const isPastMode = currentView === 'past' && selectedEvent !== null;
       const isHighlights = currentPage === 'highlights';
       const shouldHideStats = isPastMode || isHighlights;
@@ -292,21 +178,17 @@ const App: React.FC = () => {
       if (isLoading) return <LoadingSpinner />;
       if (error) return <ErrorMessage message={error} />;
 
-      // Special View for Calculating Phase in Live Mode
       if (currentView === 'live' && isCalculating && liveEventTiming) {
           return (
               <div className="flex flex-col items-center justify-center py-20 animate-fadeIn text-center">
                   <div className="bg-amber-100 dark:bg-amber-900/30 p-8 rounded-2xl border border-amber-200 dark:border-amber-700 shadow-lg max-w-lg w-full mx-4">
                       <div className="mb-6 flex justify-center">
                           <div className="p-4 bg-amber-500/20 rounded-full">
-                              <svg className="w-16 h-16 text-amber-500 dark:text-amber-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
+                              <svg className="w-16 h-16 text-amber-500 dark:text-amber-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </div>
                       </div>
                       <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">活動結算中請稍後...</h3>
                       <p className="text-slate-500 dark:text-slate-400 mb-6">正在統計最終排名數據，請耐心等待結果公佈。</p>
-                      
                       <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
                           <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">距離結果公佈 (Results in)</p>
                           <CountdownTimer targetDate={liveEventTiming.rankingAnnounceAt} />
@@ -316,52 +198,22 @@ const App: React.FC = () => {
           );
       }
 
-      // Construct the Rich Title for Past Events
       let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";
-      
-      // World Link Tab Logic
       const isWorldLink = isPastMode && selectedEvent && WORLD_LINK_IDS.includes(selectedEvent.id);
       let WorldLinkTabs = null;
 
       if (isWorldLink && selectedEvent) {
           const chapters = EVENT_CHAPTER_ORDER[selectedEvent.id] || [];
-          
           WorldLinkTabs = (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar ml-auto">
-                  <button
-                      onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }}
-                      className={`
-                          px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border
-                          ${activeChapter === 'all' 
-                              ? 'bg-slate-700 text-white border-transparent shadow-md' 
-                              : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}
-                      `}
-                  >
-                      總榜 (Total)
-                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
                   {chapters.map(charName => {
                       const isActive = activeChapter === charName;
                       const charColor = CHARACTERS[charName]?.color || '#999';
                       const charImg = getAssetUrl(charName, 'character');
-
                       return (
-                          <button
-                              key={charName}
-                              onClick={(e) => { e.stopPropagation(); setActiveChapter(charName); }}
-                              className={`
-                                  flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border
-                                  ${isActive 
-                                      ? 'text-white border-transparent shadow-md' 
-                                      : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}
-                              `}
-                              style={{ 
-                                  backgroundColor: isActive ? charColor : 'transparent',
-                                  borderColor: isActive ? 'transparent' : undefined
-                              }}
-                          >
-                              {charImg && (
-                                  <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />
-                              )}
+                          <button key={charName} onClick={(e) => { e.stopPropagation(); setActiveChapter(charName); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
+                              {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
                               {charName}
                           </button>
                       );
@@ -371,247 +223,119 @@ const App: React.FC = () => {
       }
 
       if (isPastMode && selectedEvent) {
-          const details = EVENT_DETAILS[selectedEvent.id];
+          const details = eventDetails[selectedEvent.id];
           const color = getEventColor(selectedEvent.id);
           const unitLogo = getAssetUrl(details?.unit, 'unit');
           const bannerImg = getAssetUrl(details?.banner, 'character');
-          const eventLogoUrl = getAssetUrl(selectedEvent.id.toString(), 'event');
           const unitStyle = UNITS[details?.unit]?.style || "bg-slate-500 text-white";
 
           rankingsTitle = (
               <div className="flex flex-col xl:flex-row xl:items-center justify-between w-full gap-4">
                   <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
+                      <span className="text-slate-400 font-mono text-sm mr-1">#{selectedEvent.id}</span>
                       <span>{isHighlights ? "精彩片段" : "前百排行榜"} - </span>
-                      {eventLogoUrl && (
-                          <img 
-                              src={eventLogoUrl} 
-                              alt="Logo" 
-                              className="h-8 w-auto object-contain mr-1"
-                              onError={(e) => e.currentTarget.style.display = 'none'}
-                          />
-                      )}
-                      <span style={{ color: color || 'inherit' }} className="mr-2">{selectedEvent.name}</span>
-                      
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${unitStyle}`}>
-                          {unitLogo && details?.unit !== 'Mix' && (
-                              <img src={unitLogo} alt={details.unit} className="w-4 h-4 object-contain" />
-                          )}
-                          {details?.unit}
-                      </span>
-
-                      {bannerImg && (
-                          <img 
-                              src={bannerImg} 
-                              alt={details?.banner} 
-                              className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover ml-1"
-                              title={`Banner: ${details?.banner}`}
-                          />
-                      )}
+                      {unitLogo && <img src={unitLogo} alt="Logo" className="h-8 w-auto object-contain mr-1" />}
+                      <span style={{ color: color || 'inherit' }} className="mr-2 font-bold">{selectedEvent.name}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${unitStyle}`}>{details?.unit}</span>
+                      {bannerImg && <img src={bannerImg} alt={details?.banner} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover ml-1" />}
                   </div>
-                  {/* Render tabs if WL */}
                   {WorldLinkTabs}
               </div>
           );
-      } else if (isHighlights) {
-          rankingsTitle = "精彩片段 (Highlights)";
-      }
+      } else if (isHighlights) rankingsTitle = "精彩片段 (Highlights)";
 
       return (
         <div className="animate-fadeIn">
-            <CollapsibleSection
-                title="圖表分析 (Chart Analysis)"
-                isOpen={isChartsOpen}
-                onToggle={() => setIsChartsOpen(!isChartsOpen)}
-            >
-            <ChartAnalysis 
-                rankings={sortedAndFilteredRankings} 
-                sortOption={sortOption}
-                isHighlights={isHighlights} 
-                eventId={isPastMode ? selectedEvent?.id : undefined}
-            />
+            <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
+                <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={isPastMode ? selectedEvent?.id : undefined} />
             </CollapsibleSection>
-            
-            <CollapsibleSection
-                title={rankingsTitle}
-                isOpen={isRankingsOpen}
-                onToggle={() => setIsRankingsOpen(!isRankingsOpen)}
-            >
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-                <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-                
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <Pagination
-                        totalItems={100}
-                        itemsPerPage={ITEMS_PER_PAGE}
-                        currentPage={currentPage}
-                        onPageChange={handlePageChange}
-                        activeSort={sortOption}
-                    />
-                    
-                    <SortSelector 
-                        activeSort={sortOption} 
-                        onSortChange={setSortOption} 
-                        limitToScore={shouldHideStats}
-                    />
+            <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                    <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
+                        <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
+                    </div>
                 </div>
-            </div>
-            <RankingList 
-                rankings={paginatedRankings} 
-                sortOption={sortOption} 
-                hideStats={shouldHideStats}
-                aggregateAt={currentView === 'live' ? liveEventTiming?.aggregateAt : undefined}
-            />
+                <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} aggregateAt={currentView === 'live' ? liveEventTiming?.aggregateAt : undefined} />
             </CollapsibleSection>
         </div>
       );
   };
 
-  // Determine Live Event Color safely
-  const liveEventColor = useMemo(() => {
-      if (!liveEventId) return undefined;
-      const color = getEventColor(liveEventId);
-      // Fallback color (Cyan-500) if undefined to prevent black text
-      return color || '#06b6d4'; 
-  }, [liveEventId]);
+  const viewContent = () => {
+      switch (currentView) {
+          case 'home': return <HomeView setCurrentView={setCurrentView} />;
+          case 'live':
+              return (
+                  <div className="animate-fadeIn">
+                      <div className="mb-6">
+                          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
+                          <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
+                              <div className="flex items-center gap-3">
+                                  {liveEventId && <img src={getAssetUrl(liveEventId.toString(), 'event') || ''} alt="Logo" className="h-12 w-auto object-contain rounded-md" onError={(e) => e.currentTarget.style.display = 'none'} />}
+                                  <div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                          <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: getEventColor(liveEventId!) || '#06b6d4' }}>{eventName}</h2>
+                                          {liveEventTiming && <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />}
+                                      </div>
+                                      <p className="text-slate-500 dark:text-slate-400 text-sm">最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                      {renderRankingUI()}
+                  </div>
+              );
+          case 'past':
+              if (selectedEvent) return (
+                  <>
+                      <div className="mb-6">
+                          <button onClick={() => setSelectedEvent(null)} className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 font-bold mb-4 transition-colors">
+                              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                              返回列表 (Back)
+                          </button>
+                      </div>
+                      {renderRankingUI()}
+                  </>
+              );
+              return <PastEventsView onSelectEvent={(id, name) => setSelectedEvent({ id, name })} />;
+          case 'distribution': return <EventDistributionView />;
+          case 'comparison': return <EventComparisonView />;
+          case 'analysis': return <RankAnalysisView />;
+          case 'trend': return <RankTrendView />;
+          case 'worldLink': return <WorldLinkView />;
+          case 'playerAnalysis': return <PlayerAnalysisView />;
+          case 'resourceEstimator': return <ResourceEstimatorView />;
+          case 'playerProfile': return <PlayerProfileView />;
+          default: return <HomeView setCurrentView={setCurrentView} />;
+      }
+  };
 
   return (
-    <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300">
-        <Sidebar 
-            currentView={currentView}
-            setCurrentView={setCurrentView}
-            isOpen={isSidebarOpen}
-            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-            isCollapsed={isSidebarCollapsed}
-            toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            theme={theme}
-            toggleTheme={toggleTheme}
-        />
-
+    <div className="flex bg-slate-50 dark:bg-slate-950 min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300">
+        <Sidebar currentView={currentView} setCurrentView={setCurrentView} isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isCollapsed={isSidebarCollapsed} toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} theme={theme} toggleTheme={toggleTheme} />
         <div className="flex-1 transition-all duration-300 w-full">
-            <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
+            <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
                 <div className="flex items-center">
-                    <div className="bg-cyan-500/20 p-2 rounded-lg mr-3">
-                        <TrophyIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
-                    </div>
-                    <h1 className="text-lg font-bold text-slate-900 dark:text-white">Hisekai TW</h1>
+                    <div className="bg-cyan-500/20 p-2 rounded-lg mr-3"><TrophyIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" /></div>
+                    <h1 className="text-lg font-black text-slate-900 dark:text-white">Hi Sekai TW</h1>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={toggleTheme} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
-                        {theme === 'dark' ? (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                        ) : (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                        )}
-                    </button>
-                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white focus:outline-none">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                </div>
+                <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 dark:text-slate-400"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg></button>
             </div>
-
-            <main className="p-4 w-full">
-                <ErrorBoundary>
-                    {currentView === 'home' && (
-                        <HomeView setCurrentView={setCurrentView} />
-                    )}
-
-                    {currentView === 'live' && (
-                        <div className="animate-fadeIn">
-                            <div className="mb-6">
-                                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
-                                <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
-                                    <div className="flex items-center gap-3">
-                                        {liveEventId && (
-                                            <img 
-                                                src={getAssetUrl(liveEventId.toString(), 'event') || ''} 
-                                                alt="Logo" 
-                                                className="h-12 w-auto object-contain rounded-md"
-                                                onError={(e) => e.currentTarget.style.display = 'none'}
-                                            />
-                                        )}
-                                        <div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h2 
-                                                    className="text-xl sm:text-2xl font-bold mb-1"
-                                                    style={{ color: liveEventColor }}
-                                                >
-                                                    {eventName}
-                                                </h2>
-                                                {liveEventTiming && (
-                                                    <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />
-                                                )}
-                                            </div>
-                                            <p className="text-slate-500 dark:text-slate-400 text-sm">
-                                                最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {renderContent()}
-                        </div>
-                    )}
-
-                    {currentView === 'past' && !selectedEvent && (
-                        <PastEventsView onSelectEvent={(id, name) => setSelectedEvent({ id, name })} />
-                    )}
-
-                    {currentView === 'past' && selectedEvent && (
-                        <>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                                 <button 
-                                    onClick={() => setSelectedEvent(null)}
-                                    className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 transition-colors"
-                                 >
-                                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                    返回列表 (Back)
-                                 </button>
-                            </div>
-                             {renderContent()}
-                        </>
-                    )}
-
-                    {currentView === 'distribution' && (
-                        <EventDistributionView />
-                    )}
-
-                    {currentView === 'comparison' && (
-                        <EventComparisonView />
-                    )}
-                    
-                    {currentView === 'analysis' && (
-                        <RankAnalysisView />
-                    )}
-
-                    {currentView === 'trend' && (
-                        <RankTrendView />
-                    )}
-
-                    {currentView === 'worldLink' && (
-                        <WorldLinkView />
-                    )}
-
-                    {currentView === 'playerAnalysis' && (
-                        <PlayerAnalysisView />
-                    )}
-
-                    {currentView === 'resourceEstimator' && (
-                        <ResourceEstimatorView />
-                    )}
-
-                    {currentView === 'playerProfile' && (
-                        <PlayerProfileView />
-                    )}
-                </ErrorBoundary>
+            <main className="p-4 md:p-6 w-full custom-scrollbar">
+                <ErrorBoundary>{viewContent()}</ErrorBoundary>
             </main>
         </div>
         <ScrollToTop />
     </div>
   );
 };
+
+const App: React.FC = () => (
+    <ConfigProvider>
+        <MainContent />
+    </ConfigProvider>
+);
 
 export default App;

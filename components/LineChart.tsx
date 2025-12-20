@@ -1,5 +1,5 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
+import { getAssetUrl } from '../constants';
 
 interface ChartData {
   label: string;
@@ -22,10 +22,10 @@ interface LineChartProps {
   yAxisLabel?: string;
   meanValue?: number;
   medianValue?: number;
-  safeThreshold?: number; // Green line/zone (Lower bound of safety)
-  safeRankCutoff?: number; // X-axis limit for safe zone
-  giveUpThreshold?: number; // Red line/zone (Upper bound of hopelessness)
-  giveUpRankCutoff?: number; // X-axis start for give up zone
+  safeThreshold?: number; 
+  safeRankCutoff?: number; 
+  giveUpThreshold?: number; 
+  giveUpRankCutoff?: number; 
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -53,9 +53,7 @@ const LineChart: React.FC<LineChartProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 1. Sort data
   const sortedData = useMemo(() => {
-      // For Highlights, explicitly filter out rank > 10000 and score <= 0 to allow safe log calc
       if (variant === 'highlights') {
           return [...data]
               .filter(d => (d.rank || 0) <= 10000 && d.value > 0)
@@ -68,10 +66,8 @@ const LineChart: React.FC<LineChartProps> = ({
     return <p className="text-slate-400 text-center py-10">Not enough data to draw a chart.</p>;
   }
 
-  // Determine filtering status
   const hasFiltering = useMemo(() => sortedData.some(d => d.isHighlighted === false), [sortedData]);
 
-  // 2. Determine Range
   const maxScore = Math.max(...sortedData.map(d => d.value));
   const minScore = Math.min(...sortedData.map(d => d.value));
   
@@ -79,33 +75,24 @@ const LineChart: React.FC<LineChartProps> = ({
   const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
   const yRange = yDomainMax - yDomainMin || 1;
 
-  // Determine if Safe Line is visible within current chart domain
   const isSafeLineVisible = safeThreshold !== undefined && safeThreshold <= yDomainMax;
 
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
   
-  // Variant Logic
   const isTrend = variant === 'trend';
   const isHighlights = variant === 'highlights';
 
-  // Chart Height
   const containerHeightClass = isTrend ? "h-64 md:h-[500px]" : "h-48 md:h-64"; 
 
-  // Axis Logic
   const getXPercent = (rank: number) => {
       if (isTrend) {
-          // Trend: Linear 1..EventID
           const range = maxRank - minRank;
           if (range === 0) return 50;
           return ((rank - minRank) / range) * 100;
       }
 
       if (isHighlights) {
-          // Split-Linear for Live Highlights (Linear 100-1000, Linear 1000-10000)
-          // Range A: 100-1000 -> 0-50%
-          // Range B: 1000-10000 -> 50-100%
-          
           if (rank <= 1000) {
               const rMin = 100; 
               const rMax = 1000;
@@ -114,14 +101,13 @@ const LineChart: React.FC<LineChartProps> = ({
               return ratio * 50;
           } else {
               const rMin = 1000;
-              const rMax = 10000; // Cap at 10000
+              const rMax = 10000; 
               let ratio = (rank - rMin) / (rMax - rMin);
               ratio = Math.max(0, Math.min(1, ratio));
               return 50 + (ratio * 50);
           }
       }
 
-      // Default (Live Top 100 / Past): Standard Linear 1-100
       const range = maxRank - minRank;
       if (range === 0) return 50;
       return ((rank - minRank) / range) * 100;
@@ -131,77 +117,48 @@ const LineChart: React.FC<LineChartProps> = ({
       return 100 - ((score - yDomainMin) / yRange) * 100;
   };
 
-  // 4. Generate Points for Tooltips/Dots
   const points = sortedData.map(d => ({
       x: getXPercent(d.rank || 0),
       y: getYPercent(d.value),
       ...d
   }));
 
-  // 5. Generate Path (with Interpolation if Highlights)
   const pathD = useMemo(() => {
       if (isHighlights) {
           let path = "";
-          
           for (let i = 0; i < sortedData.length - 1; i++) {
               const p1 = sortedData[i];
               const p2 = sortedData[i+1];
-              
-              if (i === 0) {
-                  path += `M ${getXPercent(p1.rank!)} ${getYPercent(p1.value)}`;
-              }
-
-              // Interpolation Steps between anchors
-              // We simulate the "Tiering Congestion" using Cosine Interpolation in Log-Log space.
-              // This creates an S-curve: Flat at the start/end (congestion), Steep in the middle (gap).
+              if (i === 0) path += `M ${getXPercent(p1.rank!)} ${getYPercent(p1.value)}`;
               const steps = 30; 
-
               for (let j = 1; j <= steps; j++) {
-                  const t_linear = j / steps; // 0 to 1
-                  
-                  // Cosine Interpolation: Map t to a curve that eases in and out
-                  // This naturally simulates the +/- 10% congestion at borders
+                  const t_linear = j / steps; 
                   const t_curved = (1 - Math.cos(t_linear * Math.PI)) / 2;
-                  
-                  // Linear Interpolation for Rank (X)
                   const currentRank = p1.rank! + (p2.rank! - p1.rank!) * t_linear;
-
-                  // Score Interpolation (Y)
                   let interpolatedScore;
                   if (p1.value <= 0 || p2.value <= 0) {
                        interpolatedScore = p1.value + (p2.value - p1.value) * t_curved;
                   } else {
                        const lnY1 = Math.log(p1.value);
                        const lnY2 = Math.log(p2.value);
-                       
-                       // Apply the CURVED t to the value interpolation
                        const lnY = lnY1 + (lnY2 - lnY1) * t_curved;
-                       
                        interpolatedScore = Math.exp(lnY);
                   }
-
-                  const xPx = getXPercent(currentRank);
-                  const yPx = getYPercent(interpolatedScore);
-                  
-                  path += ` L ${xPx} ${yPx}`;
+                  path += ` L ${getXPercent(currentRank)} ${getYPercent(interpolatedScore)}`;
               }
           }
           return path;
-
       } else {
-          // Standard Linear Path
           return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
       }
-  }, [sortedData, isHighlights, points]); // Re-calc if data changes
+  }, [sortedData, isHighlights, points]);
 
-  // 6. Generate Grid Lines
   const yGridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
       const val = yDomainMin + (yRange * ratio);
       const y = 100 - (ratio * 100);
       return { y, label: axisFormatter(val) };
   });
 
-  // X-Axis Grid
   let xGridRanks: number[] = [];
   let yearTicks: { x: number, year: number }[] = [];
   
@@ -218,9 +175,7 @@ const LineChart: React.FC<LineChartProps> = ({
       });
   } else if (isHighlights) {
       xGridRanks = [100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
-      if (isMobile) {
-          xGridRanks = [100, 500, 1000, 5000, 10000];
-      }
+      if (isMobile) xGridRanks = [100, 500, 1000, 5000, 10000];
   } else {
       xGridRanks = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
   }
@@ -231,7 +186,6 @@ const LineChart: React.FC<LineChartProps> = ({
   return (
     <div className="bg-slate-900/70 p-4 pb-12 rounded-lg w-full border border-slate-800">
       <div className={`${containerHeightClass} w-full relative transition-all duration-300`}>
-            {/* Y Axis Label - Increased font for desktop */}
             <div className="absolute -top-3 left-12 md:left-16 text-[10px] md:text-sm text-cyan-400 font-bold uppercase tracking-wider">
                 {yAxisLabel}
             </div>
@@ -243,217 +197,109 @@ const LineChart: React.FC<LineChartProps> = ({
             </div>
 
             <div className="absolute left-12 md:left-16 right-4 top-0 bottom-6">
-                <svg 
-                    viewBox="0 0 100 100" 
-                    className="w-full h-full overflow-visible" 
-                    preserveAspectRatio="none"
-                >
+                <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible" preserveAspectRatio="none">
                      <defs>
-                        <style>
-                            {`
-                            :root {
-                                --color-cyan-500: #06b6d4;
-                            }
-                            `}
-                        </style>
-                        <pattern id="safeZonePattern" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
-                            <line x1="0" y1="0" x2="0" y2="10" stroke="#10b981" strokeWidth="2" opacity="0.15" />
-                        </pattern>
-                        <pattern id="giveUpZonePattern" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(-45)">
-                            <line x1="0" y1="0" x2="0" y2="10" stroke="#f43f5e" strokeWidth="2" opacity="0.15" />
-                        </pattern>
+                        <style>{`:root { --color-cyan-500: #06b6d4; }`}</style>
                     </defs>
 
-                    {/* Safe Zone Shading (Rank 1 to SafeCutoff) - Only if visible in chart */}
                     {isSafeLineVisible && safeThreshold !== undefined && safeRankCutoff !== undefined && (
-                        <rect
-                            x="0"
-                            y="0"
-                            width={getXPercent(safeRankCutoff)}
-                            height={100}
-                            fill="rgba(16, 185, 129, 0.2)"
-                            className="transition-all duration-500"
-                        />
+                        <rect x="0" y="0" width={getXPercent(safeRankCutoff)} height={100} fill="rgba(16, 185, 129, 0.2)" className="transition-all duration-500" />
                     )}
 
-                    {/* Give Up Zone Shading (Rank GiveUpCutoff to Max) */}
                     {giveUpThreshold !== undefined && giveUpRankCutoff !== undefined && (
-                        <rect
-                            x={getXPercent(giveUpRankCutoff)}
-                            y="0"
-                            width={100 - getXPercent(giveUpRankCutoff)}
-                            height={100}
-                            fill="rgba(244, 63, 94, 0.2)"
-                            className="transition-all duration-500"
-                        />
+                        <rect x={getXPercent(giveUpRankCutoff)} y="0" width={100 - getXPercent(giveUpRankCutoff)} height={100} fill="rgba(244, 63, 94, 0.2)" className="transition-all duration-500" />
                     )}
 
-                    {/* Y Grid Lines (Horizontal) - increased visibility */}
                     {yGridLines.map((grid, i) => (
-                        <line 
-                            key={`h-${i}`} 
-                            x1="0" y1={grid.y} x2="100" y2={grid.y} 
-                            stroke="#475569" 
-                            strokeWidth="0.5" 
-                            vectorEffect="non-scaling-stroke"
-                            strokeOpacity="0.6" 
-                        />
+                        <line key={`h-${i}`} x1="0" y1={grid.y} x2="100" y2={grid.y} stroke="#475569" strokeWidth="0.5" vectorEffect="non-scaling-stroke" strokeOpacity="0.6" />
                     ))}
 
-                    {/* Split Axis Divider for Highlights */}
                     {isHighlights && (
-                        <line 
-                            x1="50" y1="0" x2="50" y2="100" 
-                            stroke="#94a3b8" 
-                            strokeWidth="1" 
-                            strokeDasharray="4 4"
-                            vectorEffect="non-scaling-stroke"
-                            opacity="0.5"
-                        />
+                        <line x1="50" y1="0" x2="50" y2="100" stroke="#94a3b8" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" opacity="0.5" />
                     )}
                     
-                    {/* Path */}
-                    <path 
-                        d={pathD} 
-                        fill="none" 
-                        stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} 
-                        strokeWidth={isTrend ? 1.5 : 2} 
-                        vectorEffect="non-scaling-stroke"
-                        strokeOpacity={hasFiltering ? 0.4 : 1}
-                        className="drop-shadow-sm transition-all duration-300"
-                        // Solid line for highlights now as requested
-                        strokeDasharray="none" 
-                    />
+                    <path d={pathD} fill="none" stroke={hasFiltering ? "#94a3b8" : `var(--color-${lineColor}-500, #06b6d4)`} strokeWidth={isTrend ? 1.5 : 2} vectorEffect="non-scaling-stroke" strokeOpacity={hasFiltering ? 0.4 : 1} className="drop-shadow-sm transition-all duration-300" strokeDasharray="none" />
 
-                    {/* Mean Line */}
                     {meanValue !== undefined && (
-                        <g>
-                            <line 
-                                x1="0" y1={getYPercent(meanValue)} x2="100" y2={getYPercent(meanValue)} 
-                                stroke="#a855f7" 
-                                strokeWidth="1.5" 
-                                strokeDasharray="5 3"
-                                vectorEffect="non-scaling-stroke"
-                            />
-                        </g>
+                        <line x1="0" y1={getYPercent(meanValue)} x2="100" y2={getYPercent(meanValue)} stroke="#a855f7" strokeWidth="1.5" strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
                     )}
 
-                    {/* Median Line */}
                     {medianValue !== undefined && (
-                        <g>
-                            <line 
-                                x1="0" y1={getYPercent(medianValue)} x2="100" y2={getYPercent(medianValue)} 
-                                stroke="#f59e0b" 
-                                strokeWidth="1.5" 
-                                strokeDasharray="3 2"
-                                vectorEffect="non-scaling-stroke"
-                            />
-                        </g>
+                        <line x1="0" y1={getYPercent(medianValue)} x2="100" y2={getYPercent(medianValue)} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />
                     )}
 
-                    {/* Safety Line - Only if visible */}
                     {isSafeLineVisible && safeThreshold !== undefined && (
-                        <g>
-                            <line 
-                                x1="0" y1={getYPercent(safeThreshold)} x2="100" y2={getYPercent(safeThreshold)} 
-                                stroke="#10b981" 
-                                strokeWidth="1" 
-                                strokeDasharray="4 2" 
-                                strokeOpacity="0.7"
-                                vectorEffect="non-scaling-stroke"
-                            >
-                                <title>Safety Line: Score &gt; {safeThreshold.toLocaleString()}</title>
-                            </line>
-                        </g>
+                        <line x1="0" y1={getYPercent(safeThreshold)} x2="100" y2={getYPercent(safeThreshold)} stroke="#10b981" strokeWidth="1" strokeDasharray="4 2" strokeOpacity="0.7" vectorEffect="non-scaling-stroke" />
                     )}
 
-                    {/* Give Up Line */}
                     {giveUpThreshold !== undefined && (
-                        <g>
-                            <line 
-                                x1="0" y1={getYPercent(giveUpThreshold)} x2="100" y2={getYPercent(giveUpThreshold)} 
-                                stroke="#f43f5e" 
-                                strokeWidth="1" 
-                                strokeDasharray="4 2" 
-                                strokeOpacity="0.7"
-                                vectorEffect="non-scaling-stroke"
-                            >
-                                <title>Give Up Line: Score &lt; {giveUpThreshold.toLocaleString()}</title>
-                            </line>
-                        </g>
+                        <line x1="0" y1={getYPercent(giveUpThreshold)} x2="100" y2={getYPercent(giveUpThreshold)} stroke="#f43f5e" strokeWidth="1" strokeDasharray="4 2" strokeOpacity="0.7" vectorEffect="non-scaling-stroke" />
                     )}
-
                 </svg>
 
-                {/* SCATTER POINTS */}
                 {hasFiltering && points.map((point, index) => {
                     if (!point.isHighlighted) return null;
                     return (
-                        <div 
-                            key={`dot-${index}`}
-                            className="absolute w-1.5 h-1.5 rounded-full -ml-[3px] -mt-[3px] shadow-sm pointer-events-none z-10 border border-white/20"
-                            style={{ 
-                                left: `${point.x}%`, 
-                                top: `${point.y}%`,
-                                backgroundColor: point.pointColor || "#06b6d4"
-                            }}
-                        />
+                        <div key={`dot-${index}`} className="absolute w-1.5 h-1.5 rounded-full -ml-[3px] -mt-[3px] shadow-sm pointer-events-none z-10 border border-white/20" style={{ left: `${point.x}%`, top: `${point.y}%`, backgroundColor: point.pointColor || "#06b6d4" }} />
                     );
                 })}
 
-                {/* HIT AREAS */}
-                {points.map((point, index) => (
-                     <div 
-                        key={`hit-${index}`}
-                        className="absolute w-3 h-3 -ml-[6px] -mt-[6px] rounded-full cursor-pointer z-20 hover:bg-white/10 group"
-                        style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                     >
-                        <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px] px-2 py-1 bg-slate-700 text-white text-xs rounded shadow-xl z-30 border border-slate-600 pointer-events-none">
-                            <p className="font-bold text-cyan-300 text-[10px] mb-0.5">
-                                {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
-                            </p>
-                            <p className="truncate font-medium text-slate-200 mb-0.5">{data[index]?.label}</p>
-                            <p className="font-bold text-center">{valueFormatter(data[index]?.value || 0)}</p>
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-700"></div>
+                {/* ENHANCED TOOLTIP HIT AREAS */}
+                {points.map((point, index) => {
+                    const eventLogoUrl = isTrend ? getAssetUrl(point.rank?.toString(), 'event') : undefined;
+                    
+                    return (
+                        <div key={`hit-${index}`} className="absolute w-4 h-4 -ml-[8px] -mt-[8px] rounded-full cursor-pointer z-20 hover:bg-white/10 group" style={{ left: `${point.x}%`, top: `${point.y}%` }}>
+                            <div className="hidden group-hover:flex absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl z-50 border border-slate-700 pointer-events-none backdrop-blur-md animate-fadeIn flex-col gap-2">
+                                <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
+                                    <span className="text-xs font-mono text-cyan-400 font-black">
+                                        {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
+                                    </span>
+                                </div>
+                                
+                                {eventLogoUrl && (
+                                    <div className="w-full bg-white/5 rounded-lg p-1.5 flex justify-center">
+                                        <img src={eventLogoUrl} alt="logo" className="h-14 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                    </div>
+                                )}
+
+                                <div className="font-black text-sm leading-tight text-center" style={{ color: point.pointColor || 'inherit' }}>
+                                    {point.label}
+                                </div>
+                                
+                                <div className="flex flex-col gap-1 mt-1 bg-black/30 p-2 rounded-lg border border-white/5">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">分佈值</span>
+                                        <span className="text-sm font-mono font-black text-white">
+                                            {valueFormatter(point.value)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900/95"></div>
+                            </div>
                         </div>
-                     </div>
-                ))}
+                    );
+                })}
             </div>
 
-             {/* X-Axis Labels */}
             <div className="absolute left-12 md:left-16 right-4 bottom-0 h-6 overflow-visible">
                  {xGridRanks.map((rank, i) => {
                      const x = getXPercent(rank);
-                     
-                     // Optimization for mobile labels
-                     if (isMobile && isHighlights) {
-                         if (![100, 1000, 10000].includes(rank)) return null;
-                     }
-
+                     if (isMobile && isHighlights && ![100, 1000, 10000].includes(rank)) return null;
                      return (
-                        <div 
-                            key={`xl-${i}`}
-                            className="absolute top-1 transform -translate-x-1/2 text-[10px] md:text-xs text-slate-500 font-mono"
-                            style={{ left: `${x}%` }}
-                        >
+                        <div key={`xl-${i}`} className="absolute top-1 transform -translate-x-1/2 text-[10px] md:text-xs text-slate-500 font-mono" style={{ left: `${x}%` }}>
                             {rank >= 1000 ? `${rank/1000}k` : rank}
                         </div>
                      );
                  })}
                  
-                 {/* Year Labels */}
                  {isTrend && yearTicks.map((tick, i) => (
-                     <div 
-                        key={`year-${i}`}
-                        className="absolute top-5 transform -translate-x-1/2 text-[10px] md:text-xs text-slate-400 font-bold border-l border-slate-700 pl-1"
-                        style={{ left: `${tick.x}%` }}
-                     >
+                     <div key={`year-${i}`} className="absolute top-5 transform -translate-x-1/2 text-[10px] md:text-xs text-slate-400 font-bold border-l border-slate-700 pl-1" style={{ left: `${tick.x}%` }}>
                          {tick.year}
                      </div>
                  ))}
             </div>
 
-             {/* X Axis Label - Increased font for desktop */}
              <div className="absolute bottom-0 right-4 text-[10px] md:text-sm text-slate-400 font-bold uppercase tracking-wider transform translate-y-full mt-1">
                 {xAxisLabel}
             </div>

@@ -2,15 +2,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, UNITS, getEventColor, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../constants';
+import { UNITS, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../constants';
 import { useEventList } from '../hooks/useEventList';
 import Select from './ui/Select';
+import { useConfig } from '../contexts/ConfigContext';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
 }
 
 const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
+  const { eventDetails, getEventColor } = useConfig();
   const { events, isLoading, error } = useEventList();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -70,27 +72,27 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
 
     // Unit Filter
     if (selectedUnitFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.unit === selectedUnitFilter);
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.unit === selectedUnitFilter);
     }
 
     // Type Filter
     if (selectedTypeFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.type === selectedTypeFilter);
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.type === selectedTypeFilter);
     }
 
     // Banner Filter
     if (selectedBannerFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.banner === selectedBannerFilter);
     }
 
     // Story Filter
     if (selectedStoryFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.storyType === selectedStoryFilter);
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.storyType === selectedStoryFilter);
     }
 
     // Card Filter
     if (selectedCardFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => EVENT_DETAILS[e.id]?.cardType === selectedCardFilter);
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.cardType === selectedCardFilter);
     }
 
     // 2. Year Filter (Only if a specific year is selected)
@@ -115,7 +117,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         // Default ID sort
         return sortOrder === 'desc' ? b.id - a.id : a.id - b.id;
     });
-  }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, sortOrder, sortType]);
+  }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, sortOrder, sortType, eventDetails]);
 
   const toggleSortOrder = () => {
       setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -301,7 +303,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 const isClickable = status === 'past';
                 const duration = calculateDisplayDuration(event.start_at, event.aggregate_at);
                 
-                const details = EVENT_DETAILS[event.id] || { unit: "Unknown", type: "marathon", banner: "", storyType: "unit_event", cardType: "permanent" };
+                const details = eventDetails[event.id] || { unit: "Unknown", type: "marathon", banner: "", storyType: "unit_event", cardType: "permanent" };
                 const unitLabel = details.unit;
                 const typeLabel = getTypeLabel(details.type);
                 const storyLabel = getStoryTypeLabel(details.storyType);

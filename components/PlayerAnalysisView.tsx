@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
-import { EVENT_DETAILS, UNITS, UNIT_ORDER, API_BASE_URL } from '../constants';
+import { UNITS, UNIT_ORDER, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
+import { useConfig } from '../contexts/ConfigContext';
 
 interface PlayerStat {
     userId: string;
@@ -15,6 +17,7 @@ interface PlayerStat {
 }
 
 const PlayerAnalysisView: React.FC = () => {
+    const { eventDetails } = useConfig();
     // 待處理的活動隊列
     const [eventsQueue, setEventsQueue] = useState<EventSummary[]>([]);
     const [playerStats, setPlayerStats] = useState<Record<string, PlayerStat>>({});
@@ -118,7 +121,7 @@ const PlayerAnalysisView: React.FC = () => {
                         if (!result) return;
                         
                         const { rankings, eventId } = result;
-                        const eventUnit = EVENT_DETAILS[eventId]?.unit || 'Unknown';
+                        const eventUnit = eventDetails[eventId]?.unit || 'Unknown';
 
                         rankings.forEach(entry => {
                             const userId = String(entry.userId); // 確保 ID 是字串
@@ -159,7 +162,7 @@ const PlayerAnalysisView: React.FC = () => {
 
         processBatch();
 
-    }, [eventsQueue, isAnalyzing, isPaused, totalEventsCount, processedCount]);
+    }, [eventsQueue, isAnalyzing, isPaused, totalEventsCount, processedCount, eventDetails]);
 
 
     // 3. 數據排序與過濾 (Memoized)

@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import ErrorMessage from './ErrorMessage';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
+import { WORLD_LINK_IDS, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
+import { useConfig } from '../contexts/ConfigContext';
 
 interface SimpleRankData {
     rank: number;
@@ -17,6 +17,7 @@ interface ComparisonResult {
 }
 
 const EventComparisonView: React.FC = () => {
+    const { eventDetails, getEventColor } = useConfig();
     const [events, setEvents] = useState<EventSummary[]>([]);
     const [listError, setListError] = useState<string | null>(null);
 
@@ -75,19 +76,19 @@ const EventComparisonView: React.FC = () => {
     const filteredEventOptions = useMemo(() => {
         let result = events;
         if (selectedUnitFilter !== 'all') {
-            result = result.filter(e => EVENT_DETAILS[e.id]?.unit === selectedUnitFilter);
+            result = result.filter(e => eventDetails[e.id]?.unit === selectedUnitFilter);
         }
         if (selectedBannerFilter !== 'all') {
-            result = result.filter(e => EVENT_DETAILS[e.id]?.banner === selectedBannerFilter);
+            result = result.filter(e => eventDetails[e.id]?.banner === selectedBannerFilter);
         }
         if (selectedStoryFilter !== 'all') {
-            result = result.filter(e => EVENT_DETAILS[e.id]?.storyType === selectedStoryFilter);
+            result = result.filter(e => eventDetails[e.id]?.storyType === selectedStoryFilter);
         }
         if (selectedCardFilter !== 'all') {
-            result = result.filter(e => EVENT_DETAILS[e.id]?.cardType === selectedCardFilter);
+            result = result.filter(e => eventDetails[e.id]?.cardType === selectedCardFilter);
         }
         return result;
-    }, [events, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
+    }, [events, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, eventDetails]);
 
     const getOptions = (currentSelected: string) => {
         const baseOptions = filteredEventOptions.map(e => ({
@@ -404,14 +405,14 @@ const EventComparisonView: React.FC = () => {
             formatY: (val: number) => Math.round(val).toLocaleString()
         };
 
-    }, [comparisonData, displayMode, hoveredRank, isMobile]);
+    }, [comparisonData, displayMode, hoveredRank, isMobile, getEventColor]);
 
     if (listError) return <ErrorMessage message={listError} />;
 
     return (
         <div className="w-full animate-fadeIn py-2">
-            <div className="mb-4">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">活動比較分析 (Event Comparison)</h2>
+            <div className="mb-8">
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活動比較分析 (Event Comparison)</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">選擇兩期活動，比較其分數線分佈與競爭強度</p>
             </div>
 

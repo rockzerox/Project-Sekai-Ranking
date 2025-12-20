@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
-import { EVENT_DETAILS, WORLD_LINK_IDS, getEventColor, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
+import { WORLD_LINK_IDS, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
+import { useConfig } from '../contexts/ConfigContext';
 
 interface EventStat {
     eventId: number;
@@ -35,6 +35,7 @@ const fetchWithRetry = async (url: string, retries = 3, delay = 1000): Promise<R
 };
 
 const RankAnalysisView: React.FC = () => {
+    const { eventDetails, getEventColor } = useConfig();
     const [processedStats, setProcessedStats] = useState<EventStat[]>([]);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
@@ -238,19 +239,19 @@ const RankAnalysisView: React.FC = () => {
         let filteredStats = processedStats;
 
         if (selectedUnitFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.unit === selectedUnitFilter);
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.unit === selectedUnitFilter);
         }
 
         if (selectedBannerFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.banner === selectedBannerFilter);
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.banner === selectedBannerFilter);
         }
 
         if (selectedStoryFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.storyType === selectedStoryFilter);
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.storyType === selectedStoryFilter);
         }
 
         if (selectedCardFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => EVENT_DETAILS[stat.eventId]?.cardType === selectedCardFilter);
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.cardType === selectedCardFilter);
         }
 
         // Deterministic Sort: Score DESC, then Event ID DESC (Newer wins ties)
@@ -278,7 +279,7 @@ const RankAnalysisView: React.FC = () => {
             top100List: getTop10('top100'),
             borderRankList: getTopBorder(selectedBorderRank)
         };
-    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter]);
+    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, eventDetails]);
 
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;

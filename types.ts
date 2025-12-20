@@ -1,4 +1,3 @@
-
 // The internal representation used by components, which we will map the API response to.
 export interface User {
   id: string;
@@ -10,7 +9,7 @@ export interface User {
 
 interface StatDetail {
   count: number;
-  score: number; // New field
+  score: number;
   speed: number;
   average: number;
 }
@@ -31,19 +30,17 @@ export type SortOption =
   | 'score'
   | 'lastPlayedAt'
   | 'last1h_count'
-  | 'last1h_score' // New
+  | 'last1h_score'
   | 'last1h_speed'
   | 'last1h_average'
   | 'last3h_count'
-  | 'last3h_score' // New
+  | 'last3h_score'
   | 'last3h_speed'
   | 'last3h_average'
   | 'last24h_count'
-  | 'last24h_score' // New
+  | 'last24h_score'
   | 'last24h_speed'
   | 'last24h_average';
-
-export type ChartType = 'bar' | 'line';
 
 
 // --- New types for the actual API response from api.hisekai.org ---
@@ -63,7 +60,7 @@ interface LastPlayerInfo {
 
 interface Stats {
   count: number;
-  score: number; // New field from API
+  score: number;
   speed: number;
   average: number;
 }
@@ -211,4 +208,13 @@ export interface BorderPlayerRanking {
 
 export interface HisekaiBorderApiResponse {
   border_player_rankings: BorderPlayerRanking[];
+}
+
+// --- Config Types ---
+export interface EventDetail {
+    unit: string;
+    type: 'marathon' | 'cheerful_carnival' | 'world_link';
+    banner: string;
+    storyType: 'unit_event' | 'mixed_event' | 'world_link';
+    cardType: 'permanent' | 'limited' | 'special_limited';
 }

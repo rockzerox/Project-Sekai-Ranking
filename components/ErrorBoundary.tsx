@@ -9,21 +9,38 @@ interface State {
   error: Error | null;
 }
 
+/**
+ * ErrorBoundary component to catch rendering errors in its child components.
+ * Fixed "Property 'props' does not exist" by using a standard constructor and super(props).
+ */
 class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-  };
+  // Explicitly declare state and props to fix "Property 'state' does not exist" and "Property 'props' does not exist" errors
+  public props: Props;
+  public state: State;
+
+  // Use constructor for proper initialization and to satisfy TypeScript's property checks on the instance
+  constructor(props: Props) {
+    super(props);
+    // Ensure properties are initialized explicitly to satisfy strict TypeScript checks
+    this.props = props;
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+  }
 
   public static getDerivedStateFromError(error: Error): State {
+    // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Log the error to an error reporting service
     console.error('Uncaught error:', error, errorInfo);
   }
 
-  public render() {
+  public render(): ReactNode {
+    // Access state for error status
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 text-center animate-fadeIn">
@@ -37,6 +54,7 @@ class ErrorBoundary extends React.Component<Props, State> {
             應用程式遇到預期外的狀況。請嘗試重新整理頁面。
             <br />
             <span className="text-xs text-slate-400 mt-2 block font-mono bg-slate-100 dark:bg-slate-900 p-2 rounded text-left overflow-auto max-w-full">
+                {/* Display error message from state */}
                 {this.state.error?.message}
             </span>
           </p>
@@ -50,6 +68,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // Access props.children to render wrapped components
     return this.props.children;
   }
 }

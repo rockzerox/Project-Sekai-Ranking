@@ -1,5 +1,2 @@
-
-// This component is deprecated and removed. 
-// Please use getAssetUrl('unit_name', 'unit') from constants.ts instead to display unit logos.
-const UnitLogo = () => null;
-export default UnitLogo;
+// This component is removed. Use getAssetUrl from constants.ts instead.
+export default () => null;

@@ -1,65 +1,81 @@
-
 export const WORLD_LINK_ROUND_1_IDS = [112, 118, 124, 130, 137, 140];
 export const WORLD_LINK_ROUND_2_IDS = [163, 167, 170, 171, 176, 179];
 export const WORLD_LINK_IDS = [...WORLD_LINK_ROUND_1_IDS, ...WORLD_LINK_ROUND_2_IDS];
 
-// --- API Base URL Configuration ---
-// 暫時恢復直連模式，保留 Proxy 檔案以備未來加上 User-Agent 需求時使用
 export const API_BASE_URL = 'https://api.hisekai.org';
 
-// --- 1. Unified Unit Configuration ---
+// --- 1. Unified Unit Configuration (ID & Name Map) ---
 
-interface UnitConfig {
+interface UnitInfo {
+    id: string;
+    name: string;
     color: string;
     style: string;
     filename: string;
     abbr: string;
 }
 
-export const UNITS: Record<string, UnitConfig> = {
+export const UNIT_MASTER: Record<string, UnitInfo> = {
+    "Virtual Singer": {
+        id: "0",
+        name: "Virtual Singer",
+        color: "#33CCBB",
+        style: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-600 dark:border-slate-300",
+        filename: "VS_logo",
+        abbr: "VS"
+    },
     "Leo/need": {
+        id: "1",
+        name: "Leo/need",
         color: "#4455DD",
         style: "bg-[#4455DD] text-white border-transparent",
         filename: "LN_logo",
         abbr: "L/n"
     },
     "MORE MORE JUMP!": {
+        id: "2",
+        name: "MORE MORE JUMP!",
         color: "#88DD44",
         style: "bg-[#88DD44] text-white border-transparent",
         filename: "MMJ_logo",
         abbr: "MMJ"
     },
     "Vivid BAD SQUAD": {
+        id: "3",
+        name: "Vivid BAD SQUAD",
         color: "#EE1166",
         style: "bg-[#EE1166] text-white border-transparent",
         filename: "VBS_logo",
         abbr: "VBS"
     },
     "Wonderlands × Showtime": {
+        id: "4",
+        name: "Wonderlands × Showtime",
         color: "#FF9900",
         style: "bg-[#FF9900] text-white border-transparent",
         filename: "WS_logo",
         abbr: "WxS"
     },
     "25點，Nightcord見。": {
+        id: "5",
+        name: "25點，Nightcord見。",
         color: "#884499",
         style: "bg-[#884499] text-white border-transparent",
         filename: "25_logo",
         abbr: "25時"
     },
-    "Virtual Singer": {
-        color: "#33CCBB", // Updated to Miku Teal for better visibility, was Grey
-        style: "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-600 dark:border-slate-300",
-        filename: "VS_logo",
-        abbr: "VS"
-    },
     "Mix": {
+        id: "99",
+        name: "Mix",
         color: "#64748B",
         style: "bg-slate-500 text-white border-transparent",
         filename: "", 
         abbr: "Mix"
     }
 };
+
+// Fix: Export UNITS as an alias of UNIT_MASTER for component imports
+export const UNITS = UNIT_MASTER;
 
 export const UNIT_ORDER = [
     "Virtual Singer",
@@ -71,50 +87,102 @@ export const UNIT_ORDER = [
     "Mix"
 ];
 
-// --- 2. Unified Character Configuration ---
+// --- 2. Unified Character Configuration (ID-centric) ---
 
-interface CharacterConfig {
+interface CharInfo {
+    id: string;
+    name: string;
     color: string;
     filename: string;
 }
 
-export const CHARACTERS: Record<string, CharacterConfig> = {
-    "朝比奈真冬": { color: "#8888CC", filename: "Mafuyu" },
-    "曉山瑞希":   { color: "#DDAACC", filename: "Mizuki" },
-    "東雲繪名":   { color: "#CCAA88", filename: "Ena" },
-    "宵崎奏":     { color: "#BB6688", filename: "Kanade" },
-    "東雲彰人":   { color: "#FF7722", filename: "Akito" },
-    "青柳冬彌":   { color: "#0077DD", filename: "Toya" },
-    "白石杏":     { color: "#00BBDD", filename: "An" },
-    "小豆澤心羽": { color: "#FF6699", filename: "Kohane" },
-    "神代類":     { color: "#BB88EE", filename: "Rui" },
-    "草薙寧寧":   { color: "#33DD99", filename: "Nene" },
-    "鳳笑夢":     { color: "#FF66BB", filename: "Emu" },
-    "天馬司":     { color: "#FFBB00", filename: "Tsukasa" },
-    "桃井愛莉":   { color: "#FFAACC", filename: "Airi" },
-    "桐谷遙":     { color: "#99CCFF", filename: "Haruka" },
-    "日野森雫":   { color: "#99EEDD", filename: "Shizuku" },
-    "花里實乃理": { color: "#FFCCAA", filename: "Minori" },
-    "天馬咲希":   { color: "#FFDD44", filename: "Saki" },
-    "望月穗波":   { color: "#EE6666", filename: "Honami" },
-    "日野森志步": { color: "#BBDD22", filename: "Shiho" },
-    "星乃一歌":   { color: "#33AAEE", filename: "Ichika" },
-    "巡音流歌":   { color: "#FFBBCC", filename: "Luka" },
-    "鏡音鈴":     { color: "#FFCC11", filename: "Rin" },
-    "MEIKO":      { color: "#DD4444", filename: "Meiko" },
-    "鏡音連":     { color: "#FFEE11", filename: "Len" },
-    "KAITO":      { color: "#3366CC", filename: "Kaito" },
-    "初音未來":   { color: "#33CCBB", filename: "Miku" }
+export const CHARACTER_MASTER: Record<string, CharInfo> = {
+    "1": { id: "1", name: "星乃一歌", color: "#33AAEE", filename: "Ichika" },
+    "2": { id: "2", name: "天馬咲希", color: "#FFDD44", filename: "Saki" },
+    "3": { id: "3", name: "望月穗波", color: "#EE6666", filename: "Honami" },
+    "4": { id: "4", name: "日野森志步", color: "#BBDD22", filename: "Shiho" },
+    "5": { id: "5", name: "花里實乃理", color: "#FFCCAA", filename: "Minori" },
+    "6": { id: "6", name: "桐谷遙", color: "#99CCFF", filename: "Haruka" },
+    "7": { id: "7", name: "桃井愛莉", color: "#FFAACC", filename: "Airi" },
+    "8": { id: "8", name: "日野森雫", color: "#99EEDD", filename: "Shizuku" },
+    "9": { id: "9", name: "小豆澤心羽", color: "#FF6699", filename: "Kohane" },
+    "10": { id: "10", name: "白石杏", color: "#00BBDD", filename: "An" },
+    "11": { id: "11", name: "東雲彰人", color: "#FF7722", filename: "Akito" },
+    "12": { id: "12", name: "青柳冬彌", color: "#0077DD", filename: "Toya" },
+    "13": { id: "13", name: "天馬司", color: "#FFBB00", filename: "Tsukasa" },
+    "14": { id: "14", name: "鳳笑夢", color: "#FF66BB", filename: "Emu" },
+    "15": { id: "15", name: "草薙寧寧", color: "#33DD99", filename: "Nene" },
+    "16": { id: "16", name: "神代類", color: "#BB88EE", filename: "Rui" },
+    "17": { id: "17", name: "宵崎奏", color: "#BB6688", filename: "Kanade" },
+    "18": { id: "18", name: "朝比奈真冬", color: "#8888CC", filename: "Mafuyu" },
+    "19": { id: "19", name: "東雲繪名", color: "#CCAA88", filename: "Ena" },
+    "20": { id: "20", name: "曉山瑞希", color: "#DDAACC", filename: "Mizuki" },
+    "21": { id: "21", name: "初音未來", color: "#33CCBB", filename: "Miku" },
+    "22": { id: "22", name: "鏡音鈴", color: "#FFCC11", filename: "Rin" },
+    "23": { id: "23", name: "鏡音連", color: "#FFEE11", filename: "Len" },
+    "24": { id: "24", name: "巡音流歌", color: "#FFBBCC", filename: "Luka" },
+    "25": { id: "25", name: "MEIKO", color: "#DD4444", filename: "Meiko" },
+    "26": { id: "26", name: "KAITO", color: "#3366CC", filename: "Kaito" }
 };
 
-export const BANNER_ORDER = [
-    "星乃一歌", "天馬咲希", "望月穗波", "日野森志步",
-    "花里實乃理", "桐谷遙", "桃井愛莉", "日野森雫",
-    "小豆澤心羽", "白石杏", "東雲彰人", "青柳冬彌",
-    "天馬司", "鳳笑夢", "草薙寧寧", "神代類",
-    "宵崎奏", "朝比奈真冬", "東雲繪名", "曉山瑞希",
-    "初音未來"
-];
+// Fix: Export CHARACTERS as a name-keyed version of CHARACTER_MASTER for component imports
+export const CHARACTERS: Record<string, CharInfo> = Object.fromEntries(
+    Object.values(CHARACTER_MASTER).map(c => [c.name, c])
+);
+
+// 輔助函式：根據 ID 或名稱取得角色資訊
+export const getChar = (idOrName: string) => {
+    if (CHARACTER_MASTER[idOrName]) return CHARACTER_MASTER[idOrName];
+    return Object.values(CHARACTER_MASTER).find(c => c.name === idOrName);
+};
+
+// 輔助函式：根據名稱取得團體資訊
+export const getUnit = (name: string) => UNIT_MASTER[name];
+
+// --- 3. Step 2: Option Generators for UI Components ---
+
+export const getUnitOptions = (allLabel: string | null = '所有團體 (All Units)') => {
+    const options = UNIT_ORDER.map(u => ({ value: u, label: u }));
+    return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
+};
+
+export const getBannerOptions = (allLabel: string | null = '所有 Banner') => {
+    const options = Object.values(CHARACTER_MASTER).slice(0, 21).map(char => ({ 
+        value: char.id, 
+        label: char.name,
+        style: { color: char.color }
+    }));
+    return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
+};
+
+export const getEventTypeOptions = (allLabel: string | null = '所有類型 (All Types)') => {
+    const options = [
+        { value: 'marathon', label: '馬拉松' },
+        { value: 'cheerful_carnival', label: '歡樂嘉年華' },
+        { value: 'world_link', label: 'World Link' }
+    ];
+    return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
+};
+
+export const getStoryTypeOptions = (allLabel: string | null = '所有劇情 (All Stories)') => {
+    const options = [
+        { value: 'unit_event', label: '箱活' },
+        { value: 'mixed_event', label: '混活' },
+        { value: 'world_link', label: 'World Link' }
+    ];
+    return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
+};
+
+export const getCardTypeOptions = (allLabel: string | null = '所有卡面 (All Cards)') => {
+    const options = [
+        { value: 'permanent', label: '常駐' },
+        { value: 'limited', label: '限定' },
+        { value: 'special_limited', label: '特殊限定' }
+    ];
+    return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
+};
+
+export const BANNER_ORDER = Object.values(CHARACTER_MASTER).slice(0, 21).map(c => c.name);
 
 export const EVENT_CHAPTER_ORDER: Record<number, string[]> = {
     112: ["朝比奈真冬", "曉山瑞希", "東雲繪名", "宵崎奏"],
@@ -136,26 +204,21 @@ export const EVENT_CHAR_MAP: Record<number, Record<number, string>> = {
   163: { 9: '小豆澤心羽', 10: '白石杏', 11: '東雲彰人', 12: '青柳冬彌' }
 };
 
-// New Image Constants
 const BASE_IMAGE_URL = "https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking";
 
-export const getAssetUrl = (name: string | undefined, type: 'character' | 'unit' | 'event'): string | undefined => {
-    if (!name) return undefined;
-
-    if (type === 'event') {
-        return `${BASE_IMAGE_URL}/event_logo/${name}.png`;
-    }
+export const getAssetUrl = (idOrName: string | undefined, type: 'character' | 'unit' | 'event'): string | undefined => {
+    if (!idOrName) return undefined;
+    if (type === 'event') return `${BASE_IMAGE_URL}/event_logo/${idOrName}.png`;
 
     if (type === 'character') {
-        const filename = CHARACTERS[name]?.filename;
-        if (!filename) return undefined;
-        return `${BASE_IMAGE_URL}/Chibi/${filename}.png`;
+        const char = getChar(idOrName);
+        if (!char) return undefined;
+        return `${BASE_IMAGE_URL}/Chibi/${char.filename}.png`;
     } else if (type === 'unit') {
-        const filename = UNITS[name]?.filename;
-        if (!filename) return undefined;
-        return `${BASE_IMAGE_URL}/logo/${filename}.png`;
+        const unit = getUnit(idOrName);
+        if (!unit || !unit.filename) return undefined;
+        return `${BASE_IMAGE_URL}/logo/${unit.filename}.png`;
     }
-
     return undefined;
 };
 
@@ -163,39 +226,26 @@ export const calculateDisplayDuration = (startAt: string, aggregateAt: string): 
     try {
         const start = new Date(startAt).getTime();
         const end = new Date(aggregateAt).getTime();
-        const diffTime = Math.abs(end - start);
-        return Math.round(diffTime / (1000 * 60 * 60 * 24)); 
-    } catch (e) {
-        return 0;
-    }
+        return Math.round(Math.abs(end - start) / (1000 * 60 * 60 * 24)); 
+    } catch (e) { return 0; }
 };
 
 export const calculatePreciseDuration = (startAt: string, aggregateAt: string): number => {
     try {
         const start = new Date(startAt).getTime();
         const end = new Date(aggregateAt).getTime();
-        const diffTime = Math.abs(end - start);
-        return diffTime / (1000 * 60 * 60 * 24);
-    } catch (e) {
-        return 0;
-    }
+        return Math.abs(end - start) / (1000 * 60 * 60 * 24);
+    } catch (e) { return 0; }
 };
 
-export const getEventStatus = (
-    startAt: string, 
-    aggregateAt: string, 
-    closedAt: string, 
-    rankingAnnounceAt: string
-): 'active' | 'calculating' | 'ended' | 'future' | 'past' => {
+export const getEventStatus = (startAt: string, aggregateAt: string, closedAt: string, rankingAnnounceAt: string): 'active' | 'calculating' | 'ended' | 'future' | 'past' => {
     const now = new Date().getTime();
     const start = new Date(startAt).getTime();
     const aggregate = new Date(aggregateAt).getTime();
-    const announce = new Date(rankingAnnounceAt).getTime();
     const closed = new Date(closedAt).getTime();
-
     if (now < start) return 'future';
     if (now >= start && now < aggregate) return 'active';
-    if (now >= aggregate && now < announce) return 'calculating';
+    if (now >= aggregate && now < closed) return 'calculating';
     if (now >= closed) return 'past'; 
-    return 'ended'; // Between announce and closed
+    return 'ended';
 };

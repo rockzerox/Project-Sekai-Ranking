@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import ErrorMessage from './ErrorMessage';
-import { WORLD_LINK_IDS, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
+import { WORLD_LINK_IDS, calculatePreciseDuration, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
+import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
 
 interface SimpleRankData {
@@ -24,11 +25,14 @@ const EventComparisonView: React.FC = () => {
     const [selectedId1, setSelectedId1] = useState<string>('');
     const [selectedId2, setSelectedId2] = useState<string>('');
     
-    // Filters
-    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
-    const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
-    const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
-    const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
+    // Step 3: Consolidate individual filter states into a single object
+    const [filters, setFilters] = useState<EventFilterState>({
+        unit: 'all',
+        banner: 'all',
+        type: 'all',
+        storyType: 'all',
+        cardType: 'all'
+    });
     
     const [comparisonData, setComparisonData] = useState<ComparisonResult>({ event1: null, event2: null });
     const [isComparing, setIsComparing] = useState(false);
@@ -40,7 +44,6 @@ const EventComparisonView: React.FC = () => {
     
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     
-    // Responsive State
     const [isMobile, setIsMobile] = useState(false);
     
     const plotAreaRef = useRef<HTMLDivElement>(null);
@@ -55,7 +58,6 @@ const EventComparisonView: React.FC = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                // Using Dynamic API Base URL
                 const response = await fetch(`${API_BASE_URL}/event/list`);
                 if (!response.ok) throw new Error('Failed to fetch event list');
                 const data: EventSummary[] = await response.json();
@@ -72,23 +74,26 @@ const EventComparisonView: React.FC = () => {
         fetchEvents();
     }, []);
 
-    // Filter Logic
+    // Updated Filter Logic using the new filters object
     const filteredEventOptions = useMemo(() => {
         let result = events;
-        if (selectedUnitFilter !== 'all') {
-            result = result.filter(e => eventDetails[e.id]?.unit === selectedUnitFilter);
+        if (filters.unit !== 'all') {
+            result = result.filter(e => eventDetails[e.id]?.unit === filters.unit);
         }
-        if (selectedBannerFilter !== 'all') {
-            result = result.filter(e => eventDetails[e.id]?.banner === selectedBannerFilter);
+        if (filters.banner !== 'all') {
+            result = result.filter(e => eventDetails[e.id]?.banner === filters.banner);
         }
-        if (selectedStoryFilter !== 'all') {
-            result = result.filter(e => eventDetails[e.id]?.storyType === selectedStoryFilter);
+        if (filters.type !== 'all') {
+            result = result.filter(e => eventDetails[e.id]?.type === filters.type);
         }
-        if (selectedCardFilter !== 'all') {
-            result = result.filter(e => eventDetails[e.id]?.cardType === selectedCardFilter);
+        if (filters.storyType !== 'all') {
+            result = result.filter(e => eventDetails[e.id]?.storyType === filters.storyType);
+        }
+        if (filters.cardType !== 'all') {
+            result = result.filter(e => eventDetails[e.id]?.cardType === filters.cardType);
         }
         return result;
-    }, [events, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, eventDetails]);
+    }, [events, filters, eventDetails]);
 
     const getOptions = (currentSelected: string) => {
         const baseOptions = filteredEventOptions.map(e => ({
@@ -124,7 +129,6 @@ const EventComparisonView: React.FC = () => {
         setHoveredRank(null);
 
         try {
-            // Using Dynamic API Base URL
             const [res1top, res1border, res2top, res2border] = await Promise.all([
                 fetch(`${API_BASE_URL}/event/${selectedId1}/top100`),
                 fetch(`${API_BASE_URL}/event/${selectedId1}/border`),
@@ -189,8 +193,6 @@ const EventComparisonView: React.FC = () => {
         }
     };
 
-    // --- Interaction Handlers (Simplified: Only Hover) ---
-
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, getXPercent: (rank: number) => number, maxRank: number, ranks: number[]) => {
         if (!plotAreaRef.current) return;
         const rect = plotAreaRef.current.getBoundingClientRect();
@@ -212,7 +214,6 @@ const EventComparisonView: React.FC = () => {
                 }
             }
 
-            // Snap Threshold (5% of width)
             if (minDiff < 5) { 
                 setHoveredRank(bestRank);
                 setCursorPercent(bestPercent);
@@ -222,8 +223,6 @@ const EventComparisonView: React.FC = () => {
             }
         }
     };
-
-    // --- Chart Calculation ---
 
     const ChartDisplay = useMemo(() => {
         if (!comparisonData.event1 || !comparisonData.event2) return null;
@@ -248,21 +247,15 @@ const EventComparisonView: React.FC = () => {
         const maxScore = Math.max(...allScores, 1) * 1.05;
         const maxRank = Math.max(...allRanks, 1000);
 
-        // Split Scale Config (No Zoom)
-        // 1-100: Takes 30% of chart width (Give Top 100 more space)
-        // 100-Max: Takes 70% of chart width
         const SPLIT_RATIO = 0.3; 
         const SPLIT_RANK = 100;
         
-        // Rank to Percentage (0-100)
         const getXPercent = (rank: number) => {
             let ratio = 0;
             if (rank <= 1) ratio = 0;
             else if (rank <= SPLIT_RANK) {
-                // Linear part
                 ratio = ((rank - 1) / (SPLIT_RANK - 1)) * SPLIT_RATIO;
             } else {
-                // Log part
                 const logMin = Math.log(SPLIT_RANK);
                 const logMax = Math.log(maxRank);
                 const logVal = Math.log(rank);
@@ -272,25 +265,22 @@ const EventComparisonView: React.FC = () => {
             return ratio * 100;
         };
 
-        // Convert Score to Percentage (0-100) (Y axis is typically inverted in SVG, but here we output 0-100 for css bottom)
         const getYPercent = (score: number) => {
             return (score / maxScore) * 100;
         };
 
-        // Ranks to show dots for - Expanded List
         const SCATTER_RANKS = [
             1, 10, 20, 30, 40, 50, 
             100, 200, 300, 400, 500, 
             1000, 2000, 5000, 10000
         ];
 
-        // Calculate Points
         const calculatePoints = (data: SimpleRankData[]) => {
             if (data.length < 2) return { path: "", points: [] };
             
             const points = data.map(p => {
                 const x = getXPercent(p.rank);
-                const y = 100 - getYPercent(p.score); // SVG Y is top-down
+                const y = 100 - getYPercent(p.score); 
                 const showDot = SCATTER_RANKS.includes(p.rank);
                 return { x, y, rank: p.rank, score: p.score, showDot };
             });
@@ -302,7 +292,6 @@ const EventComparisonView: React.FC = () => {
         const result1 = calculatePoints(d1);
         const result2 = calculatePoints(d2);
 
-        // Responsive Ticks
         let xTicksList;
         if (isMobile) {
             xTicksList = [1, 100, 1000, 10000, 50000];
@@ -330,10 +319,8 @@ const EventComparisonView: React.FC = () => {
             };
         });
 
-        // Split Line Position
         const splitLineX = getXPercent(SPLIT_RANK);
 
-        // Tooltip Values
         const getTooltipData = () => {
             if (hoveredRank === null) return null;
             const s1 = d1.find(d => d.rank === hoveredRank)?.score;
@@ -341,7 +328,6 @@ const EventComparisonView: React.FC = () => {
             return { s1, s2 };
         };
 
-        // Stats Logic
         const getTrendAnalysis = () => {
              const ranges = [
                 { label: 'Top 1-10', min: 1, max: 10 },
@@ -378,7 +364,6 @@ const EventComparisonView: React.FC = () => {
                 if (metricsA.avgScore > metricsB.avgScore * 1.05) scoreWinner = 'A';
                 else if (metricsB.avgScore > metricsA.avgScore * 1.05) scoreWinner = 'B';
 
-                // Evaluation Text using Event ID
                 let evaluation = '兩者趨勢與分數分佈相近。';
                 if (steepnessWinner === 'A' && scoreWinner === 'A') evaluation = `${name1} 分數大幅領先，且排名前段斷層極大 (高度競爭)。`;
                 else if (steepnessWinner === 'B' && scoreWinner === 'B') evaluation = `${name2} 分數大幅領先，且排名前段斷層極大 (高度競爭)。`;
@@ -416,7 +401,6 @@ const EventComparisonView: React.FC = () => {
                 <p className="text-sm text-slate-500 dark:text-slate-400">選擇兩期活動，比較其分數線分佈與競爭強度</p>
             </div>
 
-            {/* Selection Controls */}
             <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 mb-4 shadow-sm">
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
                     <div className="lg:col-span-2">
@@ -447,23 +431,26 @@ const EventComparisonView: React.FC = () => {
                         </Button>
                     </div>
                  </div>
+                 
+                 {/* Step 3: Replace manual Selects with EventFilterGroup using exclusive mode */}
                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
                      <span className="text-xs font-bold text-slate-500 mr-1">快速搜尋:</span>
-                     <Select className="py-1 text-xs" value={selectedUnitFilter} onChange={setSelectedUnitFilter} options={[{ value: 'all', label: '團體' }, ...UNIT_ORDER.map(unit => ({ value: unit, label: unit }))]} />
-                     <Select className="py-1 text-xs" value={selectedBannerFilter} onChange={setSelectedBannerFilter} options={[{ value: 'all', label: 'Banner' }, ...BANNER_ORDER.map(banner => ({ value: banner, label: banner }))]} />
-                     <Select className="py-1 text-xs" value={selectedStoryFilter} onChange={(val) => setSelectedStoryFilter(val as any)} options={[{ value: 'all', label: '劇情' }, { value: 'unit_event', label: '箱活' }, { value: 'mixed_event', label: '混活' }, { value: 'world_link', label: 'World Link' }]} />
-                     <Select className="py-1 text-xs" value={selectedCardFilter} onChange={(val) => setSelectedCardFilter(val as any)} options={[{ value: 'all', label: '卡面' }, { value: 'permanent', label: '常駐' }, { value: 'limited', label: '限定' }, { value: 'special_limited', label: '特殊限定' }]} />
+                     <EventFilterGroup 
+                        filters={filters}
+                        onFilterChange={setFilters}
+                        mode="exclusive"
+                        compact={true}
+                        containerClassName="flex flex-wrap gap-2 items-center"
+                        itemClassName="w-[100px] sm:w-auto"
+                     />
                  </div>
             </div>
 
             {comparisonError && <ErrorMessage message={comparisonError} />}
             
-            {/* Chart Container */}
             {ChartDisplay && (
                 <div className="flex flex-col gap-4">
-                    {/* Header Controls (Outside Chart) */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800/50 p-2 rounded-lg border border-slate-200 dark:border-slate-700 gap-2">
-                        {/* Legend - Updated Layout */}
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 px-2">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ChartDisplay.color1 }}></div>
@@ -481,9 +468,7 @@ const EventComparisonView: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Controls with Info Icon */}
                         <div className="flex items-center gap-2">
-                            {/* Info Tooltip */}
                             <div className="group relative">
                                 <button className="p-1 text-slate-400 hover:text-cyan-500 dark:text-slate-500 dark:hover:text-cyan-400 transition-colors">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -518,10 +503,7 @@ const EventComparisonView: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Chart Body */}
                     <div className="relative bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 sm:p-10 select-none h-[400px] sm:h-[500px] flex">
-                        
-                        {/* Y-Axis Labels (Left Sidebar) */}
                         <div className="w-12 md:w-16 flex-shrink-0 relative h-full border-r border-slate-200 dark:border-slate-700 mr-2">
                             {ChartDisplay.yTicks.map((tick, i) => (
                                 <div 
@@ -534,9 +516,7 @@ const EventComparisonView: React.FC = () => {
                             ))}
                         </div>
 
-                        {/* Main Plot Area */}
                         <div className="flex-1 relative h-full flex flex-col mx-4">
-                            {/* Plot Box (Bordered) - Overflow Visible to prevent clipping Rank 1 */}
                             <div 
                                 ref={plotAreaRef}
                                 className="relative flex-1 border border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900/20 overflow-visible cursor-crosshair mb-10"
@@ -546,7 +526,6 @@ const EventComparisonView: React.FC = () => {
                                     setCursorPercent(null);
                                 }}
                             >
-                                {/* Scale Change Separator */}
                                 <div 
                                     className="absolute top-0 bottom-0 border-l border-slate-300 dark:border-slate-600 border-dashed"
                                     style={{ left: `${ChartDisplay.splitLineX}%` }}
@@ -556,7 +535,6 @@ const EventComparisonView: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Y Grid Lines Only */}
                                 {ChartDisplay.yTicks.map((tick, i) => (
                                     <div 
                                         key={`yg-${i}`}
@@ -564,9 +542,7 @@ const EventComparisonView: React.FC = () => {
                                         style={{ bottom: `${tick.yPercent}%` }}
                                     />
                                 ))}
-                                {/* Vertical Grid Lines Removed as requested */}
 
-                                {/* SVG Lines (0-100 coordinate system) */}
                                 <svg 
                                     viewBox="0 0 100 100" 
                                     preserveAspectRatio="none"
@@ -576,7 +552,6 @@ const EventComparisonView: React.FC = () => {
                                     <path d={ChartDisplay.path2} fill="none" stroke={ChartDisplay.color2} strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
 
-                                {/* Scatter Points (Absolute HTML Divs to avoid aspect-ratio distortion) - Filtered to specific ranks */}
                                 {ChartDisplay.points1.map((p, i) => (
                                     <div 
                                         key={`p1-${i}`}
@@ -602,7 +577,6 @@ const EventComparisonView: React.FC = () => {
                                     />
                                 ))}
 
-                                {/* Cursor Line */}
                                 {cursorPercent !== null && (
                                     <div 
                                         className="absolute top-0 bottom-0 border-l border-slate-500 border-dashed pointer-events-none"
@@ -611,7 +585,6 @@ const EventComparisonView: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* X-Axis Labels (Bottom) - Moved down by using top-3 */}
                             <div className="absolute bottom-0 left-0 right-0 h-10">
                                 {ChartDisplay.xTicks.map((tick, i) => (
                                     <div 
@@ -624,12 +597,11 @@ const EventComparisonView: React.FC = () => {
                                 ))}
                             </div>
 
-                            {/* Tooltip (Floating over container) */}
                             {hoveredRank !== null && cursorPercent !== null && ChartDisplay.tooltipValues && (
                                 <div 
                                     className="absolute z-30 pointer-events-none"
                                     style={{ 
-                                        left: `${Math.min(Math.max(cursorPercent, 10), 90)}%`, // Clamp tooltip position
+                                        left: `${Math.min(Math.max(cursorPercent, 10), 90)}%`, 
                                         top: '10%',
                                         transform: 'translateX(-50%)' 
                                     }}
@@ -662,13 +634,11 @@ const EventComparisonView: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Analysis Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         {ChartDisplay.trendStats.map((stat, idx) => {
                             const steepColor = stat.steepnessWinner === 'A' ? ChartDisplay.color1 : (stat.steepnessWinner === 'B' ? ChartDisplay.color2 : '#94a3b8');
                             const scoreColor = stat.scoreWinner === 'A' ? ChartDisplay.color1 : (stat.scoreWinner === 'B' ? ChartDisplay.color2 : '#94a3b8');
                             
-                            // Use "第X期" instead of Full Name for Card Headers
                             const steepName = stat.steepnessWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.steepnessWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—');
                             const scoreName = stat.scoreWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.scoreWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—');
 

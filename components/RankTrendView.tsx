@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LineChart from './LineChart';
-import { calculatePreciseDuration, UNIT_ORDER, BANNER_ORDER, API_BASE_URL } from '../constants';
+import { calculatePreciseDuration, API_BASE_URL } from '../constants';
 import Select from './ui/Select';
 import Button from './ui/Button';
 import Input from './ui/Input';
+import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
 
 interface TrendDataPoint {
@@ -20,36 +20,33 @@ const RANK_OPTIONS = [1, 10, 100, 200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
 const RankTrendView: React.FC = () => {
     const { eventDetails, getEventColor } = useConfig();
-    // Data States
     const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
     const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     
-    // Status States
     const [isLoadingList, setIsLoadingList] = useState(true);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
     
-    // Core Selection
     const [selectedRank, setSelectedRank] = useState<number>(100);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
 
-    // Range Selection
     const [rangeMode, setRangeMode] = useState<'year' | 'id'>('year');
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [idRange, setIdRange] = useState<{start: string, end: string}>({start: '', end: ''});
 
-    // Chart Config
     const [showStatLines, setShowStatLines] = useState(false);
 
-    // Filters
-    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
-    const [selectedTypeFilter, setSelectedTypeFilter] = useState<'all' | 'marathon' | 'cheerful_carnival' | 'world_link'>('all');
-    const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
-    const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
-    const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
+    // Step 3: Consolidate filter states into a single object
+    const [filters, setFilters] = useState<EventFilterState>({
+        unit: 'all',
+        banner: 'all',
+        type: 'all',
+        storyType: 'all',
+        cardType: 'all'
+    });
 
     // 1. Initial Load: Fetch Event List
     useEffect(() => {
@@ -59,16 +56,13 @@ const RankTrendView: React.FC = () => {
                 if (!listRes.ok) throw new Error('Failed to fetch event list');
                 const listData: EventSummary[] = await listRes.json();
                 
-                // Sort by ID Ascending for easier range processing
                 const sortedEvents = listData.sort((a, b) => a.id - b.id);
                 setAllEvents(sortedEvents);
 
-                // Extract Years
                 const years = Array.from(new Set(sortedEvents.map(e => new Date(e.start_at).getFullYear())))
-                                   .sort((a, b) => b - a); // Descending
+                                   .sort((a, b) => b - a); 
                 setAvailableYears(years);
                 
-                // Default to latest year if current is not available, or keep current
                 if (!years.includes(selectedYear)) {
                     if (years.length > 0) setSelectedYear(years[0]);
                 }
@@ -92,10 +86,7 @@ const RankTrendView: React.FC = () => {
 
         const fetchTrendData = async () => {
             setFetchError(null);
-            
-            // --- A. Determine Target Events based on Range ---
             const now = new Date();
-            // Filter closed events first
             let targetEvents = allEvents.filter(e => new Date(e.closed_at) < now);
 
             if (rangeMode === 'year') {
@@ -104,14 +95,11 @@ const RankTrendView: React.FC = () => {
                 const s = parseInt(idRange.start);
                 const e = parseInt(idRange.end);
                 
-                // Validate inputs
                 if (isNaN(s) || isNaN(e)) {
-                    // Don't fetch if inputs are invalid/empty
                     setTrendData([]); 
                     return; 
                 }
                 
-                // Validate Range >= 9
                 if (e - s < 8) {
                     setFetchError('自訂範圍須至少包含 9 期活動 (e.g. 1~9)');
                     setTrendData([]);
@@ -128,19 +116,16 @@ const RankTrendView: React.FC = () => {
 
             setIsAnalyzing(true);
             setLoadingProgress(0);
-            setTrendData([]); // Clear previous data to show loading state or keep? Let's clear for clarity.
+            setTrendData([]); 
 
-            // --- B. Batch Fetch Scores ---
             const total = targetEvents.length;
-            const allResults: TrendDataPoint[] = [];
             const BATCH_SIZE = 5;
 
             for (let i = 0; i < total; i += BATCH_SIZE) {
                 if (!alive) break;
                 if (isPaused) {
-                    // Spin while paused
                     await new Promise(r => setTimeout(r, 500));
-                    i -= BATCH_SIZE; // Retry this batch
+                    i -= BATCH_SIZE; 
                     continue;
                 }
 
@@ -156,8 +141,8 @@ const RankTrendView: React.FC = () => {
 
                         const res = await fetch(url, { signal: controller.signal });
                         if (res.ok) {
-                            const txt = await res.text();
-                            const sanitized = txt.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                            const text = await res.text();
+                            const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
                             
                             if (isTop100) {
                                 const json: PastEventApiResponse = JSON.parse(sanitized);
@@ -187,9 +172,6 @@ const RankTrendView: React.FC = () => {
                 }));
 
                 const validPoints = batchResults.filter((r): r is TrendDataPoint => r !== null && r.score > 0);
-                allResults.push(...validPoints);
-
-                // Update intermediate state for better UX (streaming feel)
                 if (alive) {
                     setTrendData(prev => [...prev, ...validPoints].sort((a, b) => a.eventId - b.eventId));
                     setLoadingProgress(Math.round(((i + batch.length) / total) * 100));
@@ -199,7 +181,6 @@ const RankTrendView: React.FC = () => {
             if (alive) setIsAnalyzing(false);
         };
 
-        // Debounce ID range fetching slightly to avoid rapid requests while typing
         const timeoutId = setTimeout(() => {
             fetchTrendData();
         }, 500);
@@ -211,30 +192,13 @@ const RankTrendView: React.FC = () => {
         };
     }, [allEvents, isLoadingList, rangeMode, selectedYear, idRange, selectedRank, isPaused]);
 
-    // Exclusive Filter Handler
-    const handleFilterChange = (type: 'unit' | 'type' | 'banner' | 'story' | 'card', value: string) => {
-        setSelectedUnitFilter('all');
-        setSelectedTypeFilter('all');
-        setSelectedBannerFilter('all');
-        setSelectedStoryFilter('all');
-        setSelectedCardFilter('all');
-
-        switch (type) {
-            case 'unit': setSelectedUnitFilter(value); break;
-            case 'type': setSelectedTypeFilter(value as any); break;
-            case 'banner': setSelectedBannerFilter(value); break;
-            case 'story': setSelectedStoryFilter(value as any); break;
-            case 'card': setSelectedCardFilter(value as any); break;
-        }
-    };
-
     const { chartData, meanValue, medianValue, hasMatchingData } = useMemo(() => {
         const hasActiveFilters = 
-            selectedUnitFilter !== 'all' || 
-            selectedTypeFilter !== 'all' || 
-            selectedBannerFilter !== 'all' || 
-            selectedStoryFilter !== 'all' || 
-            selectedCardFilter !== 'all';
+            filters.unit !== 'all' || 
+            filters.type !== 'all' || 
+            filters.banner !== 'all' || 
+            filters.storyType !== 'all' || 
+            filters.cardType !== 'all';
 
         let visibleCount = 0;
 
@@ -242,11 +206,11 @@ const RankTrendView: React.FC = () => {
             const details = eventDetails[d.eventId];
             let isMatch = true;
 
-            if (selectedUnitFilter !== 'all' && details?.unit !== selectedUnitFilter) isMatch = false;
-            if (selectedTypeFilter !== 'all' && details?.type !== selectedTypeFilter) isMatch = false;
-            if (selectedBannerFilter !== 'all' && details?.banner !== selectedBannerFilter) isMatch = false;
-            if (selectedStoryFilter !== 'all' && details?.storyType !== selectedStoryFilter) isMatch = false;
-            if (selectedCardFilter !== 'all' && details?.cardType !== selectedCardFilter) isMatch = false;
+            if (filters.unit !== 'all' && details?.unit !== filters.unit) isMatch = false;
+            if (filters.type !== 'all' && details?.type !== filters.type) isMatch = false;
+            if (filters.banner !== 'all' && details?.banner !== filters.banner) isMatch = false;
+            if (filters.storyType !== 'all' && details?.storyType !== filters.storyType) isMatch = false;
+            if (filters.cardType !== 'all' && details?.cardType !== filters.cardType) isMatch = false;
 
             if (isMatch) visibleCount++;
 
@@ -260,7 +224,6 @@ const RankTrendView: React.FC = () => {
             };
         });
 
-        // Stats calculation based on *Filtered* (Highlighted) data
         const activeValues = mappedData
             .filter(d => d.isHighlighted)
             .map(d => d.value)
@@ -283,7 +246,7 @@ const RankTrendView: React.FC = () => {
             medianValue: median,
             hasMatchingData: visibleCount > 0
         };
-    }, [trendData, displayMode, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, eventDetails, getEventColor]);
+    }, [trendData, displayMode, filters, eventDetails, getEventColor]);
 
     const formatYAxis = (v: number) => {
         if (v >= 10000) {
@@ -294,13 +257,11 @@ const RankTrendView: React.FC = () => {
 
     return (
         <div className="w-full py-4 animate-fadeIn">
-            {/* Header & Title */}
             <div className="mb-6">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活動榜線趨勢 (Rank Trend)</h2>
                 <p className="text-slate-500 dark:text-slate-400">觀察特定範圍內的排名分數變化趨勢</p>
             </div>
 
-            {/* Range Selection Bar */}
             <div className="bg-slate-100 dark:bg-slate-800/80 rounded-lg p-4 mb-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center">
                 <div className="flex bg-white dark:bg-slate-700 rounded-lg p-1 border border-slate-200 dark:border-slate-600 flex-shrink-0">
                     <button
@@ -373,7 +334,6 @@ const RankTrendView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Error Message for Range */}
             {fetchError && (
                 <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800 flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -381,7 +341,6 @@ const RankTrendView: React.FC = () => {
                 </div>
             )}
 
-            {/* Filters & Stats Bar */}
             <div className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 mb-6 flex flex-col xl:flex-row gap-4 items-start xl:items-center">
                  <div className="flex flex-wrap gap-2 items-center flex-1">
                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">排名:</span>
@@ -395,39 +354,16 @@ const RankTrendView: React.FC = () => {
                      <div className="w-px h-6 bg-slate-200 dark:bg-slate-600 mx-2 hidden sm:block"></div>
 
                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">篩選:</span>
-                     <Select
-                        className="py-1.5 text-xs w-24 sm:w-auto"
-                        value={selectedUnitFilter}
-                        onChange={(val) => handleFilterChange('unit', val)}
-                        options={[{ value: 'all', label: '團體' }, ...UNIT_ORDER.map(u => ({ value: u, label: u }))]}
-                     />
-                     <Select
-                        className="py-1.5 text-xs w-24 sm:w-auto"
-                        value={selectedBannerFilter}
-                        onChange={(val) => handleFilterChange('banner', val)}
-                        options={[{ value: 'all', label: 'Banner' }, ...BANNER_ORDER.map(b => ({ value: b, label: b }))]}
-                     />
-                     <Select
-                        className="py-1.5 text-xs w-24 sm:w-auto"
-                        value={selectedTypeFilter}
-                        onChange={(val) => handleFilterChange('type', val)}
-                        options={[{ value: 'all', label: '類型' }, { value: 'marathon', label: '馬拉松' }, { value: 'cheerful_carnival', label: '歡樂嘉年華' }, { value: 'world_link', label: 'WL' }]}
-                     />
-                     <Select
-                        className="py-1.5 text-xs w-24 sm:w-auto"
-                        value={selectedStoryFilter}
-                        onChange={(val) => handleFilterChange('story', val)}
-                        options={[{ value: 'all', label: '劇情' }, { value: 'unit_event', label: '箱活' }, { value: 'mixed_event', label: '混活' }]}
-                     />
-                     <Select
-                        className="py-1.5 text-xs w-24 sm:w-auto"
-                        value={selectedCardFilter}
-                        onChange={(val) => handleFilterChange('card', val)}
-                        options={[{ value: 'all', label: '卡面' }, { value: 'permanent', label: '常駐' }, { value: 'limited', label: '限定' }, { value: 'special_limited', label: '特殊限定' }]}
+                     <EventFilterGroup 
+                        filters={filters}
+                        onFilterChange={setFilters}
+                        mode="exclusive"
+                        compact={true}
+                        containerClassName="flex flex-wrap gap-2 items-center"
+                        itemClassName="w-24 sm:w-auto"
                      />
                  </div>
 
-                 {/* Stats Badges */}
                  {hasMatchingData && (
                      <div className="flex gap-3 w-full xl:w-auto border-t xl:border-t-0 border-slate-100 dark:border-slate-700/50 pt-2 xl:pt-0 items-center justify-end">
                         <label className="flex items-center gap-1.5 cursor-pointer select-none group">
@@ -451,7 +387,6 @@ const RankTrendView: React.FC = () => {
                  )}
             </div>
 
-            {/* Loading / Content Area */}
             <div className="relative">
                 {isAnalyzing && (
                     <div className="absolute inset-x-0 top-0 z-10 mx-4 mt-4">

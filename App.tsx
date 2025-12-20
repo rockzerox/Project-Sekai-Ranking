@@ -232,12 +232,22 @@ const MainContent: React.FC = () => {
           rankingsTitle = (
               <div className="flex flex-col xl:flex-row xl:items-center justify-between w-full gap-4">
                   <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
-                      <span className="text-slate-400 font-mono text-sm mr-1">#{selectedEvent.id}</span>
-                      <span>{isHighlights ? "精彩片段" : "前百排行榜"} - </span>
-                      {unitLogo && <img src={unitLogo} alt="Logo" className="h-8 w-auto object-contain mr-1" />}
+                      <span className="text-slate-400 font-mono text-sm mr-1">第{selectedEvent.id}期</span>
+                      <span className="font-bold">{isHighlights ? "精彩片段" : "前百排行榜"} - </span>
                       <span style={{ color: color || 'inherit' }} className="mr-2 font-bold">{selectedEvent.name}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${unitStyle}`}>{details?.unit}</span>
-                      {bannerImg && <img src={bannerImg} alt={details?.banner} className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover ml-1" />}
+                      
+                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${unitStyle} text-[10px] font-bold`}>
+                          {unitLogo && <img src={unitLogo} alt="Unit Logo" className="h-3 w-auto object-contain" />}
+                          <span>{details?.unit}</span>
+                      </div>
+                      
+                      {bannerImg && (
+                          <img 
+                            src={bannerImg} 
+                            alt={details?.banner} 
+                            className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover ml-1 shadow-sm" 
+                          />
+                      )}
                   </div>
                   {WorldLinkTabs}
               </div>

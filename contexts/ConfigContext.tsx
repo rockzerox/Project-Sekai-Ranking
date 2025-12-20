@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { EventDetail } from '../types';
-import { CHARACTERS, UNITS } from '../constants';
+import { CHARACTER_MASTER, UNIT_MASTER, getChar } from '../constants';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 
@@ -21,21 +21,17 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                // Fetch from the public folder
                 const response = await fetch('/eventDetail.json');
-                if (!response.ok) {
-                    throw new Error(`Failed to load event details: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Failed to load: ${response.statusText}`);
                 const data = await response.json();
                 setEventDetails(data);
             } catch (err) {
                 console.error("Config Load Error:", err);
-                setError("無法載入活動設定檔，請檢查網路連線或重新整理。");
+                setError("無法載入活動設定檔。");
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchConfig();
     }, []);
 
@@ -43,39 +39,22 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const details = eventDetails[eventId];
         if (!details) return undefined;
 
-        // 1. Banner Character Color
-        if (details.banner && CHARACTERS[details.banner]) {
-            return CHARACTERS[details.banner].color;
-        }
+        // 1. Banner Character Color (Handles both ID and Name)
+        const char = getChar(details.banner);
+        if (char) return char.color;
 
         // 2. Unit Color
-        if (details.unit && UNITS[details.unit]) {
-            return UNITS[details.unit].color;
-        }
+        const unit = UNIT_MASTER[details.unit];
+        if (unit) return unit.color;
         
         // 3. World Link Fallback
-        if (details.type === 'world_link') {
-            return '#33CCBB'; 
-        }
+        if (details.type === 'world_link') return '#33CCBB'; 
         
         return undefined;
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                <LoadingSpinner />
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
-                <ErrorMessage message={error} />
-            </div>
-        );
-    }
+    if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><LoadingSpinner /></div>;
+    if (error) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4"><ErrorMessage message={error} /></div>;
 
     return (
         <ConfigContext.Provider value={{ eventDetails, getEventColor, isLoading }}>
@@ -86,8 +65,6 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
 export const useConfig = (): ConfigContextType => {
     const context = useContext(ConfigContext);
-    if (context === undefined) {
-        throw new Error('useConfig must be used within a ConfigProvider');
-    }
+    if (context === undefined) throw new Error('useConfig must be used within a ConfigProvider');
     return context;
 };

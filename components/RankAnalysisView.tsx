@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, HisekaiBorderApiResponse } from '../types';
-import { WORLD_LINK_IDS, UNIT_ORDER, BANNER_ORDER, calculatePreciseDuration, API_BASE_URL } from '../constants';
+import { WORLD_LINK_IDS, calculatePreciseDuration, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
+import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
 
 interface EventStat {
@@ -44,10 +45,14 @@ const RankAnalysisView: React.FC = () => {
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     
-    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
-    const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
-    const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
-    const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
+    // Step 3: Consolidate event attribute filters into one object
+    const [filters, setFilters] = useState<EventFilterState>({
+        unit: 'all',
+        banner: 'all',
+        type: 'all',
+        storyType: 'all',
+        cardType: 'all'
+    });
 
     // Main Fetching Logic
     useEffect(() => {
@@ -56,7 +61,6 @@ const RankAnalysisView: React.FC = () => {
         const runAnalysis = async () => {
             try {
                 // 1. Fetch Event List
-                // Using Dynamic API Base URL
                 const listRes = await fetchWithRetry(`${API_BASE_URL}/event/list`);
                 const listData: EventSummary[] = await listRes.json();
                 
@@ -70,7 +74,6 @@ const RankAnalysisView: React.FC = () => {
 
                 // 2. Fetch Live Event Data
                 try {
-                    // Using Dynamic API Base URL
                     const [resTop, resBorder] = await Promise.all([
                         fetch(`${API_BASE_URL}/event/live/top100`),
                         fetch(`${API_BASE_URL}/event/live/border`)
@@ -91,13 +94,9 @@ const RankAnalysisView: React.FC = () => {
                         const start = new Date(topData.start_at);
                         const agg = new Date(topData.aggregate_at);
                         
-                        // Check if event is still active (before aggregation)
                         const remainingMs = Math.max(0, agg.getTime() - now.getTime());
                         const isStillActive = remainingMs > 0;
                         
-                        // Duration Logic:
-                        // If active: duration = now - start (Elapsed)
-                        // If ended: duration = agg - start (Total)
                         const durationEnd = isStillActive ? now : agg;
                         const durationMs = Math.max(0, durationEnd.getTime() - start.getTime());
                         const durationDays = durationMs / (1000 * 60 * 60 * 24);
@@ -121,7 +120,7 @@ const RankAnalysisView: React.FC = () => {
                             eventName: topData.name,
                             duration: durationDays,
                             remainingDays: remainingDays,
-                            isLive: isStillActive, // Updated dynamic flag
+                            isLive: isStillActive,
                             top1,
                             top10,
                             top50,
@@ -130,7 +129,6 @@ const RankAnalysisView: React.FC = () => {
                         };
 
                         setProcessedStats(prev => {
-                            // Ensure no duplicates if re-run (though useEffect dependency should prevent)
                             const filtered = prev.filter(p => p.eventId !== liveStat.eventId);
                             return [...filtered, liveStat];
                         });
@@ -144,7 +142,6 @@ const RankAnalysisView: React.FC = () => {
                 for (let i = 0; i < closedEvents.length; i += chunkSize) {
                     if (!alive) return;
                     
-                    // Simple pause check (polling)
                     while (isPaused && alive) {
                         await new Promise(r => setTimeout(r, 500));
                     }
@@ -153,7 +150,6 @@ const RankAnalysisView: React.FC = () => {
                     
                     const chunkPromises = chunk.map(async (event) => {
                         try {
-                            // Using Dynamic API Base URL
                             const [resTop100, resBorder] = await Promise.all([
                                 fetchWithRetry(`${API_BASE_URL}/event/${event.id}/top100`),
                                 fetchWithRetry(`${API_BASE_URL}/event/${event.id}/border`)
@@ -238,23 +234,26 @@ const RankAnalysisView: React.FC = () => {
 
         let filteredStats = processedStats;
 
-        if (selectedUnitFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.unit === selectedUnitFilter);
+        if (filters.unit !== 'all') {
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.unit === filters.unit);
         }
 
-        if (selectedBannerFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.banner === selectedBannerFilter);
+        if (filters.type !== 'all') {
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.type === filters.type);
         }
 
-        if (selectedStoryFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.storyType === selectedStoryFilter);
+        if (filters.banner !== 'all') {
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.banner === filters.banner);
         }
 
-        if (selectedCardFilter !== 'all') {
-            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.cardType === selectedCardFilter);
+        if (filters.storyType !== 'all') {
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.storyType === filters.storyType);
         }
 
-        // Deterministic Sort: Score DESC, then Event ID DESC (Newer wins ties)
+        if (filters.cardType !== 'all') {
+            filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.cardType === filters.cardType);
+        }
+
         const stableSort = (a: EventStat, b: EventStat, valA: number, valB: number) => {
             if (valA !== valB) return valB - valA; 
             return b.eventId - a.eventId; 
@@ -279,7 +278,7 @@ const RankAnalysisView: React.FC = () => {
             top100List: getTop10('top100'),
             borderRankList: getTopBorder(selectedBorderRank)
         };
-    }, [processedStats, selectedBorderRank, displayMode, selectedUnitFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, eventDetails]);
+    }, [processedStats, selectedBorderRank, displayMode, filters, eventDetails]);
 
     const getValue = (stat: EventStat, rawScore: number) => {
         if (displayMode === 'total') return rawScore;
@@ -341,48 +340,13 @@ const RankAnalysisView: React.FC = () => {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">
-                         <Select
-                            value={selectedUnitFilter}
-                            onChange={setSelectedUnitFilter}
-                            containerClassName="min-w-[140px]"
-                            options={[
-                                { value: 'all', label: '所有團體 (All Units)' },
-                                ...UNIT_ORDER.map(unit => ({ value: unit, label: unit }))
-                            ]}
-                         />
-
-                         <Select
-                            value={selectedBannerFilter}
-                            onChange={setSelectedBannerFilter}
-                            containerClassName="min-w-[140px]"
-                            options={[
-                                { value: 'all', label: '所有 Banner' },
-                                ...BANNER_ORDER.map(banner => ({ value: banner, label: banner }))
-                            ]}
-                         />
-
-                         <Select
-                            value={selectedStoryFilter}
-                            onChange={(val) => setSelectedStoryFilter(val as any)}
-                            containerClassName="min-w-[120px]"
-                            options={[
-                                { value: 'all', label: '所有劇情 (All Stories)' },
-                                { value: 'unit_event', label: '箱活' },
-                                { value: 'mixed_event', label: '混活' },
-                                { value: 'world_link', label: 'World Link' }
-                            ]}
-                         />
-
-                         <Select
-                            value={selectedCardFilter}
-                            onChange={(val) => setSelectedCardFilter(val as any)}
-                            containerClassName="min-w-[120px]"
-                            options={[
-                                { value: 'all', label: '所有卡面 (All Cards)' },
-                                { value: 'permanent', label: '常駐' },
-                                { value: 'limited', label: '限定' },
-                                { value: 'special_limited', label: '特殊限定' }
-                            ]}
+                         {/* Step 3: Replace manual selectors with EventFilterGroup */}
+                         <EventFilterGroup 
+                            filters={filters}
+                            onFilterChange={setFilters}
+                            mode="multi"
+                            containerClassName="flex flex-wrap gap-2 items-center"
+                            itemClassName="min-w-[120px]"
                          />
 
                         <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm">

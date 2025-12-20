@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { UNITS, UNIT_ORDER, BANNER_ORDER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../constants';
+import { UNITS, UNIT_ORDER, CHARACTER_MASTER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus, getChar } from '../constants';
 import { useEventList } from '../hooks/useEventList';
 import Select from './ui/Select';
+import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
 
 interface PastEventsViewProps {
@@ -16,14 +16,17 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   const { events, isLoading, error } = useEventList();
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Default year will be set after data load
+  // 保持年份獨立
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
   
-  const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState<'all' | 'marathon' | 'cheerful_carnival' | 'world_link'>('all');
-  const [selectedBannerFilter, setSelectedBannerFilter] = useState<string>('all');
-  const [selectedStoryFilter, setSelectedStoryFilter] = useState<'all' | 'unit_event' | 'mixed_event' | 'world_link'>('all');
-  const [selectedCardFilter, setSelectedCardFilter] = useState<'all' | 'permanent' | 'limited' | 'special_limited'>('all');
+  // Step 3: Consolidate event attribute filters into one object
+  const [filters, setFilters] = useState<EventFilterState>({
+    unit: 'all',
+    type: 'all',
+    banner: 'all',
+    storyType: 'all',
+    cardType: 'all'
+  });
   
   const [sortType, setSortType] = useState<'id' | 'duration'>('id');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -37,7 +40,6 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         if (hasCurrentYear) {
             setSelectedYear(currentYear);
         } else {
-            // Fallback to the latest available year
             const latestYear = new Date(events[0].start_at).getFullYear();
             if (!isNaN(latestYear)) {
                 setSelectedYear(latestYear);
@@ -70,32 +72,28 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         );
     }
 
-    // Unit Filter
-    if (selectedUnitFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.unit === selectedUnitFilter);
+    // Consolidated Attribute Filters
+    if (filters.unit !== 'all') {
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.unit === filters.unit);
     }
 
-    // Type Filter
-    if (selectedTypeFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.type === selectedTypeFilter);
+    if (filters.type !== 'all') {
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.type === filters.type);
     }
 
-    // Banner Filter
-    if (selectedBannerFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.banner === selectedBannerFilter);
+    if (filters.banner !== 'all') {
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.banner === filters.banner);
     }
 
-    // Story Filter
-    if (selectedStoryFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.storyType === selectedStoryFilter);
+    if (filters.storyType !== 'all') {
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.storyType === filters.storyType);
     }
 
-    // Card Filter
-    if (selectedCardFilter !== 'all') {
-        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.cardType === selectedCardFilter);
+    if (filters.cardType !== 'all') {
+        currentEvents = currentEvents.filter(e => eventDetails[e.id]?.cardType === filters.cardType);
     }
 
-    // 2. Year Filter (Only if a specific year is selected)
+    // 2. Year Filter
     if (selectedYear !== 'all') {
         currentEvents = currentEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
     }
@@ -105,19 +103,14 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         if (sortType === 'duration') {
             const durA = calculatePreciseDuration(a.start_at, a.aggregate_at);
             const durB = calculatePreciseDuration(b.start_at, b.aggregate_at);
-            // desc: Longest to Shortest
-            // asc: Shortest to Longest
             if (durA !== durB) {
                 return sortOrder === 'desc' ? durA - durB : durB - durA;
             }
-            // Secondary sort by ID desc always
             return b.id - a.id;
         }
-        
-        // Default ID sort
         return sortOrder === 'desc' ? b.id - a.id : a.id - b.id;
     });
-  }, [events, selectedYear, searchTerm, selectedUnitFilter, selectedTypeFilter, selectedBannerFilter, selectedStoryFilter, selectedCardFilter, sortOrder, sortType, eventDetails]);
+  }, [events, selectedYear, searchTerm, filters, sortOrder, sortType, eventDetails]);
 
   const toggleSortOrder = () => {
       setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
@@ -215,6 +208,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
           </div>
 
           <div className="flex flex-wrap gap-3 w-full xl:w-auto">
+             {/* 排序控制項保持不變 */}
              <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
                  <select
                     value={sortType}
@@ -238,60 +232,13 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                  </button>
              </div>
 
-             <Select
-                value={selectedUnitFilter}
-                onChange={setSelectedUnitFilter}
-                containerClassName="min-w-[140px]"
-                options={[
-                    { value: 'all', label: '所有團體 (All Units)' },
-                    ...UNIT_ORDER.map(unit => ({ value: unit, label: unit }))
-                ]}
-             />
-
-             <Select
-                value={selectedTypeFilter}
-                onChange={(val) => setSelectedTypeFilter(val as any)}
-                containerClassName="min-w-[140px]"
-                options={[
-                    { value: 'all', label: '所有類型 (All Types)' },
-                    { value: 'marathon', label: '馬拉松' },
-                    { value: 'cheerful_carnival', label: '歡樂嘉年華' },
-                    { value: 'world_link', label: 'World Link' }
-                ]}
-             />
-
-             <Select
-                value={selectedBannerFilter}
-                onChange={setSelectedBannerFilter}
-                containerClassName="min-w-[140px]"
-                options={[
-                    { value: 'all', label: '所有 Banner' },
-                    ...BANNER_ORDER.map(banner => ({ value: banner, label: banner }))
-                ]}
-             />
-
-             <Select
-                value={selectedStoryFilter}
-                onChange={(val) => setSelectedStoryFilter(val as any)}
-                containerClassName="min-w-[120px]"
-                options={[
-                    { value: 'all', label: '所有劇情 (All Stories)' },
-                    { value: 'unit_event', label: '箱活' },
-                    { value: 'mixed_event', label: '混活' },
-                    { value: 'world_link', label: 'World Link' }
-                ]}
-             />
-
-             <Select
-                value={selectedCardFilter}
-                onChange={(val) => setSelectedCardFilter(val as any)}
-                containerClassName="min-w-[120px]"
-                options={[
-                    { value: 'all', label: '所有卡面 (All Cards)' },
-                    { value: 'permanent', label: '常駐' },
-                    { value: 'limited', label: '限定' },
-                    { value: 'special_limited', label: '特殊限定' }
-                ]}
+             {/* Step 3: Replace 5 manual Selects with EventFilterGroup */}
+             <EventFilterGroup 
+                filters={filters}
+                onFilterChange={setFilters}
+                mode="multi"
+                containerClassName="flex flex-wrap gap-3 items-center"
+                itemClassName="min-w-[120px] xl:min-w-[140px]"
              />
           </div>
       </div>
@@ -314,6 +261,9 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 const eventColor = getEventColor(event.id);
                 
                 const unitImg = getAssetUrl(unitLabel, 'unit');
+                
+                const bannerChar = getChar(details.banner);
+                const bannerName = bannerChar ? bannerChar.name : details.banner;
                 const bannerImg = getAssetUrl(details.banner, 'character');
                 const eventLogoUrl = getAssetUrl(event.id.toString(), 'event');
 
@@ -402,11 +352,11 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                             
                             {details.banner && (
                                 <div className="flex items-center gap-2 mb-3 mt-1">
-                                    <span className="text-xs text-slate-400">Banner: {details.banner}</span>
+                                    <span className="text-xs text-slate-400">Banner: {bannerName}</span>
                                     {bannerImg && (
                                         <img 
                                             src={bannerImg} 
-                                            alt={details.banner} 
+                                            alt={bannerName} 
                                             className="w-6 h-6 rounded-full border border-slate-200 dark:border-slate-600 object-cover"
                                         />
                                     )}

@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { UserProfileResponse, UserCharacter } from '../types';
+import { UserProfileResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
-import { getAssetUrl, CHARACTERS, UNITS, API_BASE_URL } from '../constants';
+import { getAssetUrl, CHARACTER_MASTER, UNIT_ORDER, API_BASE_URL, getChar } from '../constants';
 import Card from './ui/Card';
 
 const difficultyStyles: Record<string, string> = {
@@ -15,22 +15,15 @@ const difficultyStyles: Record<string, string> = {
   append: 'text-fuchsia-600 dark:text-fuchsia-400'
 };
 
-// Unit Definition for Grid Layout
-const UNIT_ROWS = [
-    { name: "Virtual Singer", chars: ["初音未來", "鏡音鈴", "鏡音連", "巡音流歌", "MEIKO", "KAITO"], ids: [21, 22, 23, 24, 25, 26] },
-    { name: "Leo/need", chars: ["星乃一歌", "天馬咲希", "望月穗波", "日野森志步"], ids: [1, 2, 3, 4] },
-    { name: "MORE MORE JUMP!", chars: ["花里實乃理", "桐谷遙", "桃井愛莉", "日野森雫"], ids: [5, 6, 7, 8] },
-    { name: "Vivid BAD SQUAD", chars: ["小豆澤心羽", "白石杏", "東雲彰人", "青柳冬彌"], ids: [9, 10, 11, 12] },
-    { name: "Wonderlands × Showtime", chars: ["天馬司", "鳳笑夢", "草薙寧寧", "神代類"], ids: [13, 14, 15, 16] },
-    { name: "25點，Nightcord見。", chars: ["宵崎奏", "朝比奈真冬", "東雲繪名", "曉山瑞希"], ids: [17, 18, 19, 20] }
-];
-
-const ID_NAME_MAP: Record<number, string> = {};
-UNIT_ROWS.forEach(unit => {
-    unit.ids.forEach((id, idx) => {
-        ID_NAME_MAP[id] = unit.chars[idx];
-    });
-});
+// 角色 ID 歸屬單位映射 (與 PJSK 官方數據一致)
+const CHAR_TO_UNIT_MAP: Record<string, string> = {
+    "1": "Leo/need", "2": "Leo/need", "3": "Leo/need", "4": "Leo/need",
+    "5": "MORE MORE JUMP!", "6": "MORE MORE JUMP!", "7": "MORE MORE JUMP!", "8": "MORE MORE JUMP!",
+    "9": "Vivid BAD SQUAD", "10": "Vivid BAD SQUAD", "11": "Vivid BAD SQUAD", "12": "Vivid BAD SQUAD",
+    "13": "Wonderlands × Showtime", "14": "Wonderlands × Showtime", "15": "Wonderlands × Showtime", "16": "Wonderlands × Showtime",
+    "17": "25點，Nightcord見。", "18": "25點，Nightcord見。", "19": "25點，Nightcord見。", "20": "25點，Nightcord見。",
+    "21": "Virtual Singer", "22": "Virtual Singer", "23": "Virtual Singer", "24": "Virtual Singer", "25": "Virtual Singer", "26": "Virtual Singer"
+};
 
 const PlayerProfileView: React.FC = () => {
     const [userIdInput, setUserIdInput] = useState('');
@@ -42,7 +35,6 @@ const PlayerProfileView: React.FC = () => {
         const input = userIdInput.trim();
         if (!input) return;
         
-        // Security: Input Validation (Digits only)
         if (!/^\d+$/.test(input)) {
             setError('ID 格式錯誤：請只輸入數字 (Invalid ID Format)');
             return;
@@ -53,7 +45,6 @@ const PlayerProfileView: React.FC = () => {
         setProfileData(null);
 
         try {
-            // Using Dynamic API Base URL
             const response = await fetch(`${API_BASE_URL}/user/${input}/profile`);
             if (!response.ok) {
                 if (response.status === 404) {
@@ -63,6 +54,7 @@ const PlayerProfileView: React.FC = () => {
             }
             
             const textData = await response.text();
+            // 處理 BigInt 問題
             const sanitizedData = textData.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
             const data: UserProfileResponse = JSON.parse(sanitizedData);
             
@@ -91,6 +83,7 @@ const PlayerProfileView: React.FC = () => {
     const renderCharacterRanks = () => {
         if (!profileData?.userCharacters) return null;
 
+        // 依照 UNIT_ORDER 過濾出非 Mix 的單位進行顯示
         return (
             <Card 
                 title={
@@ -102,52 +95,50 @@ const PlayerProfileView: React.FC = () => {
                 className="mt-6"
             >
                 <div className="space-y-6">
-                    {UNIT_ROWS.map((unit) => {
-                        const unitLogoUrl = getAssetUrl(unit.name, 'unit');
-                        const unitColor = UNITS[unit.name]?.color || '#94a3b8';
+                    {UNIT_ORDER.filter(u => u !== 'Mix').map((unitName) => {
+                        const unitChars = Object.values(CHARACTER_MASTER).filter(c => CHAR_TO_UNIT_MAP[c.id] === unitName);
+                        if (unitChars.length === 0) return null;
 
                         return (
-                            <div key={unit.name} className="flex flex-col gap-3">
+                            <div key={unitName} className="flex flex-col gap-3">
                                 {/* Unit Header */}
                                 <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700/30 pb-1">
-                                    {unitLogoUrl && (
-                                        <img src={unitLogoUrl} alt={unit.name} className="h-5 w-auto object-contain" />
+                                    {getAssetUrl(unitName, 'unit') && (
+                                        <img src={getAssetUrl(unitName, 'unit')} alt={unitName} className="h-5 w-auto object-contain" />
                                     )}
                                     <span 
                                         className="text-xs font-bold uppercase tracking-wider"
-                                        style={{ color: unitColor }}
+                                        style={{ color: unitChars[0].color }}
                                     >
-                                        {unit.name}
+                                        {unitName}
                                     </span>
                                 </div>
 
-                                {/* Character Grid - Fixed Alignment */}
+                                {/* Character Grid */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                    {unit.ids.map((charId) => {
-                                        const charName = ID_NAME_MAP[charId];
-                                        const charData = profileData.userCharacters?.find(c => c.characterId === charId);
+                                    {unitChars.map((char) => {
+                                        const charData = profileData.userCharacters?.find(c => String(c.characterId) === char.id);
                                         const rank = charData?.characterRank || 0;
-                                        const imgUrl = getAssetUrl(charName, 'character');
-                                        const charColor = CHARACTERS[charName]?.color || '#999';
+                                        const imgUrl = getAssetUrl(char.id, 'character');
 
                                         return (
-                                            <div key={charId} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-100 dark:border-slate-800/50">
+                                            <div key={char.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-100 dark:border-slate-800/50">
                                                 {imgUrl && (
                                                     <div className="relative w-10 h-10 flex-shrink-0">
                                                         <img 
                                                             src={imgUrl} 
-                                                            alt={charName} 
+                                                            alt={char.name} 
                                                             className="w-full h-full rounded-full border-2 object-cover"
-                                                            style={{ borderColor: charColor }}
+                                                            style={{ borderColor: char.color }}
                                                         />
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col justify-center min-w-0">
                                                     <span 
                                                         className="text-[10px] font-bold leading-none mb-1 truncate"
-                                                        style={{ color: charColor }}
+                                                        style={{ color: char.color }}
                                                     >
-                                                        {charName}
+                                                        {char.name}
                                                     </span>
                                                     <span className="text-sm font-black text-slate-700 dark:text-white leading-none font-mono">
                                                         Lv.{rank}

@@ -269,7 +269,7 @@ const LineChart: React.FC<LineChartProps> = ({
                                 
                                 <div className="flex flex-col gap-1 mt-1 bg-black/30 p-2 rounded-lg border border-white/5">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">分佈值</span>
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">分數 (Score)</span>
                                         <span className="text-sm font-mono font-black text-white">
                                             {valueFormatter(point.value)}
                                         </span>

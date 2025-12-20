@@ -28,15 +28,15 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
             features: [
                 { id: 'live', title: '現時活動', description: '查看目前正在進行中的活動即時排名、分數預測及時速分析。', charColor: CHARACTERS['星乃一歌'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
                 { id: 'past', title: '歷代活動', description: '瀏覽 Project Sekai 台服過往所有活動的榜單紀錄與詳細資訊。', charColor: CHARACTERS['天馬咲希'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-                { id: 'distribution', title: '活動分布概況', description: '以熱力圖檢視活動時間分布，分析角色/團體的活動密集度與空窗期。', charColor: CHARACTERS['望月穗波'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" /></svg> }
+                { id: 'distribution', title: '活動分布概況', description: '檢視活動時間分布，呈現角色/團體的活動密集度與空窗期。', charColor: CHARACTERS['望月穗波'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" /></svg> }
             ]
         },
         {
             category: "分析 SEKAI",
             color: "#88DD44", // MMJ Green
             features: [
-                { id: 'comparison', title: '活動比較分析', description: '選擇任意兩期過往活動，透過圖表比較其分數線趨勢與競爭激烈程度。', charColor: CHARACTERS['花里實乃理'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 18l4-6 4 4 10-10 M3 14l4-6 4 4 10-10" /></svg> },
-                { id: 'analysis', title: '活動榜線排名', description: '查詢歷代活動在特定排名 (如 Top 100, Top 1000) 的最高分紀錄排行。', charColor: CHARACTERS['桐谷遙'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 20v-4h3v4M11 20v-8h3v8M16 20v-13h3v13" /></svg> },
+                { id: 'comparison', title: '活動比較分析', description: '選擇任兩期過往活動，透過圖表比較分數線趨勢與競爭激烈程度。', charColor: CHARACTERS['花里實乃理'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 18l4-6 4 4 10-10 M3 14l4-6 4 4 10-10" /></svg> },
+                { id: 'analysis', title: '活動榜線排名', description: '查詢歷代活動在特定排名的最高分紀錄排行。', charColor: CHARACTERS['桐谷遙'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 20v-4h3v4M11 20v-8h3v8M16 20v-13h3v13" /></svg> },
                 { id: 'trend', title: '活動榜線趨勢', description: '以折線圖觀察歷代活動特定排名分數隨期數變化的趨勢。', charColor: CHARACTERS['桃井愛莉'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> }
             ]
         },
@@ -44,7 +44,7 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
             category: "推角 SEKAI",
             color: "#EE1166", // VBS Pink
             features: [
-                { id: 'worldLink', title: 'World Link 分析', description: '針對 World Link 特殊活動類型的綜合分析，包含各角色章節排名。', charColor: CHARACTERS['小豆澤心羽'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> }
+                { id: 'worldLink', title: 'World Link 分析', description: 'World Link 特殊活動類型的綜合分析，包含各角色章節排名。', charColor: CHARACTERS['小豆澤心羽'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> }
             ]
         },
         {
@@ -52,7 +52,7 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
             color: "#FF9900", // WxS Orange
             features: [
                 { id: 'playerAnalysis', title: '活躍玩家分析', description: '分析歷代活動中的活躍玩家，查看上榜次數最多的玩家排行。', charColor: CHARACTERS['天馬司'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> },
-                { id: 'playerProfile', title: '玩家狀態查詢', description: '輸入玩家 ID，查詢該玩家的詳細資料、綜合力組成與歌曲通關狀況。', charColor: CHARACTERS['鳳笑夢'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> }
+                { id: 'playerProfile', title: '玩家狀態查詢', description: '查詢該玩家的詳細資料、綜合力組成與歌曲通關狀況。', charColor: CHARACTERS['鳳笑夢'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> }
             ]
         },
         {

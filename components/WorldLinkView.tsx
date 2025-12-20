@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { PastEventApiResponse, PastEventBorderApiResponse, WorldBloomChapter, WorldBloomChapterBorder } from '../types';
 import CollapsibleSection from './CollapsibleSection';
-import { CHARACTERS, WORLD_LINK_IDS, WORLD_LINK_ROUND_1_IDS, WORLD_LINK_ROUND_2_IDS, EVENT_CHAPTER_ORDER, getAssetUrl, EVENT_CHAR_MAP, API_BASE_URL } from '../constants';
+import { CHARACTER_MASTER, WORLD_LINK_ROUND_1_IDS, WORLD_LINK_ROUND_2_IDS, EVENT_CHAPTER_ORDER, getAssetUrl, EVENT_CHAR_MAP, API_BASE_URL, getChar } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
 
@@ -10,6 +9,7 @@ const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
 interface AggregatedCharStat {
     charName: string;
+    charId: string;
     color: string;
     eventId: number;
     top1: number;
@@ -42,10 +42,10 @@ const HorizontalBarChart: React.FC<{
             {sortedData.map((char, idx) => {
                 const val = getValue(char);
                 const percentage = maxVal > 0 ? (val / maxVal) * 100 : 0;
-                const charImg = getAssetUrl(char.charName, 'character');
+                const charImg = getAssetUrl(char.charId, 'character');
                 
                 return (
-                    <div key={`${char.eventId}-${char.charName}`} className="flex items-center text-xs sm:text-sm group">
+                    <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group">
                         <div 
                             className="w-24 sm:w-32 flex-shrink-0 text-right pr-3 truncate font-bold"
                             style={{ color: char.color }}
@@ -97,16 +97,12 @@ const RankShape: React.FC<{ rank: number; color: string }> = ({ rank, color }) =
         case 1000:
             return <svg viewBox="0 0 10 10" className={classes}><polygon points="5,1 6.3,3.5 9,3.9 7,5.7 7.5,8.5 5,7.2 2.5,8.5 3,5.7 1,3.9 3.7,3.5" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
         case 2000:
-            // Hexagon
             return <svg viewBox="0 0 10 10" className={classes}><path d="M2.5 1 L7.5 1 L10 5 L7.5 9 L2.5 9 L0 5 Z" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
         case 5000:
-            // Inverted Triangle
             return <svg viewBox="0 0 10 10" className={classes}><polygon points="1,1 9,1 5,9" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
         case 10000:
-            // Cross
             return <svg viewBox="0 0 10 10" className={classes}><path d="M2 2 L8 8 M8 2 L2 8" stroke={color} strokeWidth="2.5" /></svg>;
         case 50000:
-            // Diamond
             return <svg viewBox="0 0 10 10" className={classes}><rect x="2.5" y="2.5" width="5" height="5" transform="rotate(45 5 5)" fill={color} stroke={stroke} strokeWidth="1" /></svg>;
         default:
             return <div className="w-2 h-2 rounded-full bg-white" />;
@@ -121,7 +117,6 @@ const GlobalScoreChart: React.FC<{
     
     const getVal = (char: AggregatedCharStat, raw: number) => displayMode === 'daily' ? Math.ceil(raw / char.duration) : raw;
 
-    // Determine Base Value
     const getBaseValue = (char: AggregatedCharStat) => {
         if (globalBase === 'T100') return getVal(char, char.top100);
         return getVal(char, char.borders[500] || 0);
@@ -152,10 +147,10 @@ const GlobalScoreChart: React.FC<{
             {sortedData.map((char, idx) => {
                 const val = getBaseValue(char);
                 const barWidth = (val / globalMax) * 100;
-                const charImg = getAssetUrl(char.charName, 'character');
+                const charImg = getAssetUrl(char.charId, 'character');
                 
                 return (
-                    <div key={`${char.eventId}-${char.charName}`} className="flex items-center text-xs sm:text-sm group">
+                    <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group">
                         <div 
                             className="w-24 sm:w-32 flex-shrink-0 text-right pr-3 truncate font-bold"
                             style={{ color: char.color }}
@@ -241,7 +236,6 @@ const WorldLinkView: React.FC = () => {
             for (let i = 0; i < total; i++) {
                 const eventId = targetIds[i];
                 try {
-                    // Using Dynamic API Base URL
                     const [resTop, resBorder] = await Promise.all([
                         fetch(`${API_BASE_URL}/event/${eventId}/top100`),
                         fetch(`${API_BASE_URL}/event/${eventId}/border`)
@@ -263,22 +257,19 @@ const WorldLinkView: React.FC = () => {
                         chaptersBorder = json.userWorldBloomChapterRankingBorders || [];
                     }
 
-                    const charMap = EVENT_CHAR_MAP[eventId] || {};
+                    const charIdToNameMap = EVENT_CHAR_MAP[eventId] || {};
                     const chapterList = EVENT_CHAPTER_ORDER[eventId] || [];
                     
-                    // Determine chapter duration
-                    // Event 140 (VS): 2 days
-                    // Others (Unit): 3 days
                     const duration = eventId === 140 ? 2 : 3;
 
-                    Object.keys(charMap).forEach(key => {
-                        const charId = Number(key);
-                        const charName = charMap[charId];
+                    Object.keys(charIdToNameMap).forEach(key => {
+                        const charId = key; // 已經是 string ID
+                        const charInfo = getChar(charId);
                         
-                        const topData = chaptersTop.find(c => c.gameCharacterId === charId)?.rankings || [];
+                        const topData = chaptersTop.find(c => String(c.gameCharacterId) === charId)?.rankings || [];
                         const getScore = (r: number) => topData.find(x => x.rank === r)?.score || 0;
 
-                        const charBorderObj = chaptersBorder.find(c => c.gameCharacterId === charId);
+                        const charBorderObj = chaptersBorder.find(c => String(c.gameCharacterId) === charId);
                         const borderData = charBorderObj?.borderRankings || [];
                         
                         const borderScores: Record<number, number> = {};
@@ -286,17 +277,16 @@ const WorldLinkView: React.FC = () => {
                             borderScores[b.rank] = b.score;
                         });
 
-                        const orderIndex = chapterList.indexOf(charName);
+                        const orderIndex = chapterList.indexOf(charInfo?.name || "");
                         const chapterOrder = orderIndex >= 0 ? orderIndex + 1 : 0;
 
-                        // Only add if there is some data (optional, but keeps clean if API returns nothing)
-                        // Actually better to check if score > 0 to filter out place-holders
                         const maxScore = Math.max(getScore(1), getScore(100), borderScores[1000] || 0);
                         
-                        if (maxScore > 0) {
+                        if (maxScore > 0 && charInfo) {
                             tempStats.push({
-                                charName,
-                                color: CHARACTERS[charName]?.color || '#999',
+                                charName: charInfo.name,
+                                charId: charInfo.id,
+                                color: charInfo.color,
                                 eventId,
                                 top1: getScore(1),
                                 top10: getScore(10),
@@ -335,7 +325,7 @@ const WorldLinkView: React.FC = () => {
     };
 
     const renderRow = (stat: AggregatedCharStat, idx: number, value: number) => (
-        <tr key={`${stat.eventId}-${stat.charName}`} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+        <tr key={`${stat.eventId}-${stat.charId}`} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
             <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
                 {idx + 1}
             </td>
@@ -386,7 +376,6 @@ const WorldLinkView: React.FC = () => {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">
-                        {/* Round Switcher */}
                         <div className="flex bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
                             <button
                                 onClick={() => setCurrentRound(1)}
@@ -410,7 +399,6 @@ const WorldLinkView: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Mode Switcher */}
                         <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
                             <button
                                 onClick={() => setDisplayMode('total')}
@@ -451,7 +439,6 @@ const WorldLinkView: React.FC = () => {
                         </div>
                     </div>
                 ) : aggregatedData.length === 0 ? (
-                    /* Empty State */
                     <div className="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 animate-fadeIn">
                         <div className="bg-slate-200 dark:bg-slate-700 p-4 rounded-full mb-4">
                             <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

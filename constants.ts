@@ -1,3 +1,4 @@
+
 export const WORLD_LINK_ROUND_1_IDS = [112, 118, 124, 130, 137, 140];
 export const WORLD_LINK_ROUND_2_IDS = [163, 167, 170, 171, 176, 179];
 export const WORLD_LINK_IDS = [...WORLD_LINK_ROUND_1_IDS, ...WORLD_LINK_ROUND_2_IDS];
@@ -139,7 +140,7 @@ export const getChar = (idOrName: string) => {
 // 輔助函式：根據名稱取得團體資訊
 export const getUnit = (name: string) => UNIT_MASTER[name];
 
-// --- 3. Step 2: Option Generators for UI Components ---
+// --- 3. Option Generators for UI Components ---
 
 export const getUnitOptions = (allLabel: string | null = '所有團體 (All Units)') => {
     const options = UNIT_ORDER.map(u => ({ value: u, label: u }));
@@ -206,19 +207,54 @@ export const EVENT_CHAR_MAP: Record<number, Record<number, string>> = {
 
 const BASE_IMAGE_URL = "https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking";
 
-export const getAssetUrl = (idOrName: string | undefined, type: 'character' | 'unit' | 'event'): string | undefined => {
+/**
+ * 取得資源 URL
+ * @param idOrName 資源 ID 或名稱
+ * @param type 類型: 
+ *   - event: 活動 Logo (png)
+ *   - character: 傳統 Q 版頭像 (Chibi 目錄, png)
+ *   - character_full: 角色全身圖 (Chra 目錄, webp)
+ *   - character_q: 新版 Q 版圖 (Q 目錄, webp)
+ *   - unit: 團體 Logo (png)
+ *   - unit_full: 團體完整版 Logo (png)
+ */
+export const getAssetUrl = (
+    idOrName: string | undefined, 
+    type: 'character' | 'character_full' | 'character_q' | 'unit' | 'unit_full' | 'event'
+): string | undefined => {
     if (!idOrName) return undefined;
+
+    // 活動 Logo
     if (type === 'event') return `${BASE_IMAGE_URL}/event_logo/${idOrName}.png`;
 
-    if (type === 'character') {
+    // 角色相關
+    if (type.startsWith('character')) {
         const char = getChar(idOrName);
         if (!char) return undefined;
-        return `${BASE_IMAGE_URL}/Chibi/${char.filename}.png`;
-    } else if (type === 'unit') {
+        
+        if (type === 'character_full') {
+            return `${BASE_IMAGE_URL}/Chra/${char.id}.webp`;
+        } else if (type === 'character_q') {
+            return `${BASE_IMAGE_URL}/Q/${char.id}.webp`;
+        } else {
+            // 預設為原本的 Chibi png
+            return `${BASE_IMAGE_URL}/Chibi/${char.filename}.png`;
+        }
+    } 
+    
+    // 團體相關
+    if (type.startsWith('unit')) {
         const unit = getUnit(idOrName);
         if (!unit || !unit.filename) return undefined;
-        return `${BASE_IMAGE_URL}/logo/${unit.filename}.png`;
+        
+        if (type === 'unit_full') {
+            const fullFilename = unit.filename.replace('_logo', '_full_logo');
+            return `${BASE_IMAGE_URL}/logo/${fullFilename}.png`;
+        } else {
+            return `${BASE_IMAGE_URL}/logo/${unit.filename}.png`;
+        }
     }
+
     return undefined;
 };
 

@@ -17,6 +17,8 @@ import RankAnalysisView from './components/RankAnalysisView';
 import RankTrendView from './components/RankTrendView';
 import PlayerAnalysisView from './components/PlayerAnalysisView';
 import WorldLinkView from './components/WorldLinkView';
+import UnitAnalysisView from './components/UnitAnalysisView';
+import CharacterAnalysisView from './components/CharacterAnalysisView';
 import ResourceEstimatorView from './components/ResourceEstimatorView';
 import PlayerProfileView from './components/PlayerProfileView';
 import EventDistributionView from './components/EventDistributionView';
@@ -80,7 +82,7 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
 };
 
 const MainContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -357,6 +359,8 @@ const MainContent: React.FC = () => {
           case 'analysis': return <RankAnalysisView />;
           case 'trend': return <RankTrendView />;
           case 'worldLink': return <WorldLinkView />;
+          case 'unitAnalysis': return <UnitAnalysisView />;
+          case 'characterAnalysis': return <CharacterAnalysisView />;
           case 'playerAnalysis': return <PlayerAnalysisView />;
           case 'resourceEstimator': return <ResourceEstimatorView />;
           case 'playerProfile': return <PlayerProfileView />;

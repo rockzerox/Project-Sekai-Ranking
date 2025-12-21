@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { SortOption } from './types';
+import { SortOption, EventSummary } from './types';
 import SearchBar from './components/SearchBar';
 import RankingList from './components/RankingList';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -22,7 +23,7 @@ import EventDistributionView from './components/EventDistributionView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
-import { UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS } from './constants';
+import { UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS, API_BASE_URL } from './constants';
 import { useRankings } from './hooks/useRankings';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 
@@ -83,6 +84,7 @@ const MainContent: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
+  const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
   const { eventDetails, getEventColor } = useConfig();
   const [activeChapter, setActiveChapter] = useState<string>('all');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -91,6 +93,19 @@ const MainContent: React.FC = () => {
       rankings, setRankings, worldLinkChapters, isLoading, error, eventName, liveEventId, liveEventTiming, lastUpdated,
       cachedLiveRankings, cachedPastRankings, fetchLiveRankings, fetchBorderRankings, fetchPastRankings, fetchPastBorderRankings, setEventName
   } = useRankings();
+
+  useEffect(() => {
+    const fetchAllEvents = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/event/list`);
+            if (res.ok) {
+                const data = await res.json();
+                setAllEvents(data);
+            }
+        } catch (e) { console.error(e); }
+    };
+    fetchAllEvents();
+  }, []);
 
   useEffect(() => {
       if (theme === 'dark') document.documentElement.classList.add('dark');
@@ -205,7 +220,7 @@ const MainContent: React.FC = () => {
       if (isWorldLink && selectedEvent) {
           const chapters = EVENT_CHAPTER_ORDER[selectedEvent.id] || [];
           WorldLinkTabs = (
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar ml-auto">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                   <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
                   {chapters.map(charName => {
                       const isActive = activeChapter === charName;
@@ -223,31 +238,10 @@ const MainContent: React.FC = () => {
       }
 
       if (isPastMode && selectedEvent) {
-          const details = eventDetails[selectedEvent.id];
-          const color = getEventColor(selectedEvent.id);
-          const unitLogo = getAssetUrl(details?.unit, 'unit');
-          const bannerImg = getAssetUrl(details?.banner, 'character');
-          const unitStyle = UNITS[details?.unit]?.style || "bg-slate-500 text-white";
-
           rankingsTitle = (
-              <div className="flex flex-col xl:flex-row xl:items-center justify-between w-full gap-4">
-                  <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl">
-                      <span className="text-slate-400 font-mono text-sm mr-1">第{selectedEvent.id}期</span>
-                      <span className="font-bold">{isHighlights ? "精彩片段" : "前百排行榜"} - </span>
-                      <span style={{ color: color || 'inherit' }} className="mr-2 font-bold">{selectedEvent.name}</span>
-                      
-                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${unitStyle} text-[10px] font-bold`}>
-                          {unitLogo && <img src={unitLogo} alt="Unit Logo" className="h-3 w-auto object-contain" />}
-                          <span>{details?.unit}</span>
-                      </div>
-                      
-                      {bannerImg && (
-                          <img 
-                            src={bannerImg} 
-                            alt={details?.banner} 
-                            className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover ml-1 shadow-sm" 
-                          />
-                      )}
+              <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                      <span className="font-bold">{isHighlights ? "精彩片段" : "前百排行榜"}</span>
                   </div>
                   {WorldLinkTabs}
               </div>
@@ -260,12 +254,9 @@ const MainContent: React.FC = () => {
                 <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={isPastMode ? selectedEvent?.id : undefined} />
             </CollapsibleSection>
             <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-                    <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
-                        <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
+                    <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
                 </div>
                 <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} aggregateAt={currentView === 'live' ? liveEventTiming?.aggregateAt : undefined} />
             </CollapsibleSection>
@@ -280,35 +271,86 @@ const MainContent: React.FC = () => {
               return (
                   <div className="animate-fadeIn">
                       <div className="mb-6">
-                          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">現時活動 (Live Event)</h2>
-                          <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
-                              <div className="flex items-center gap-3">
-                                  {liveEventId && <img src={getAssetUrl(liveEventId.toString(), 'event') || ''} alt="Logo" className="h-12 w-auto object-contain rounded-md" onError={(e) => e.currentTarget.style.display = 'none'} />}
+                          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">現時活動 (Live Event)</h2>
+                          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                              <div className="flex items-center gap-4 flex-1">
+                                  {liveEventId && <img src={getAssetUrl(liveEventId.toString(), 'event') || ''} alt="Logo" className="h-14 w-auto object-contain rounded-md" onError={(e) => e.currentTarget.style.display = 'none'} />}
                                   <div>
                                       <div className="flex flex-wrap items-center gap-2">
-                                          <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: getEventColor(liveEventId!) || '#06b6d4' }}>{eventName}</h2>
+                                          <h2 className="text-xl sm:text-2xl font-bold" style={{ color: getEventColor(liveEventId!) || '#06b6d4' }}>{eventName}</h2>
                                           {liveEventTiming && <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />}
                                       </div>
-                                      <p className="text-slate-500 dark:text-slate-400 text-sm">最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}</p>
+                                      <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}</p>
                                   </div>
                               </div>
+                              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
                           </div>
                       </div>
                       {renderRankingUI()}
                   </div>
               );
           case 'past':
-              if (selectedEvent) return (
-                  <>
-                      <div className="mb-6">
-                          <button onClick={() => setSelectedEvent(null)} className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 font-bold mb-4 transition-colors">
-                              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                              返回列表 (Back)
-                          </button>
-                      </div>
-                      {renderRankingUI()}
-                  </>
-              );
+              if (selectedEvent) {
+                  const details = eventDetails[selectedEvent.id];
+                  const color = getEventColor(selectedEvent.id);
+                  const unitLogo = getAssetUrl(details?.unit, 'unit');
+                  const bannerImg = getAssetUrl(details?.banner, 'character');
+                  const eventLogo = getAssetUrl(selectedEvent.id.toString(), 'event');
+                  const unitStyle = UNITS[details?.unit]?.style || "bg-slate-500 text-white";
+                  
+                  const evtInfo = allEvents.find(e => e.id === selectedEvent.id);
+                  const dateRangeStr = evtInfo ? (() => {
+                      const start = new Date(evtInfo.start_at);
+                      const end = new Date(evtInfo.aggregate_at);
+                      const f = (d: Date) => d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                      const fEnd = (d: Date) => d.toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                      return `${f(start)} ~ ${fEnd(end)}`;
+                  })() : '';
+
+                  return (
+                      <>
+                          <div className="mb-6">
+                              <button onClick={() => setSelectedEvent(null)} className="flex items-center text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 font-bold mb-4 transition-colors">
+                                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                  返回列表 (Back)
+                              </button>
+                              <div className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                  <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                                      {eventLogo && <img src={eventLogo} alt="Logo" className="h-10 sm:h-12 w-auto object-contain rounded flex-shrink-0" />}
+                                      <div className="flex flex-col min-w-0">
+                                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                              <span className="text-slate-400 font-mono text-xs sm:text-sm whitespace-nowrap">第{selectedEvent.id}期</span>
+                                              <span style={{ color: color || 'inherit' }} className="font-black text-lg sm:text-xl truncate">{selectedEvent.name}</span>
+                                              
+                                              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${unitStyle} text-[10px] font-bold flex-shrink-0`}>
+                                                  {unitLogo && <img src={unitLogo} alt="Unit" className="h-3 w-auto" />}
+                                                  <span>{details?.unit}</span>
+                                              </div>
+                                              
+                                              {bannerImg && (
+                                                  <img 
+                                                    src={bannerImg} 
+                                                    alt="Banner" 
+                                                    className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 object-cover shadow-sm flex-shrink-0" 
+                                                  />
+                                              )}
+                                          </div>
+                                          {dateRangeStr && (
+                                              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                                                  {dateRangeStr}
+                                              </span>
+                                          )}
+                                      </div>
+                                  </div>
+                                  <div className="w-full lg:w-auto">
+                                    <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+                                  </div>
+                              </div>
+                          </div>
+                          {renderRankingUI()}
+                      </>
+                  );
+              }
               return <PastEventsView onSelectEvent={(id, name) => setSelectedEvent({ id, name })} />;
           case 'distribution': return <EventDistributionView />;
           case 'comparison': return <EventComparisonView />;

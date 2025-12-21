@@ -35,6 +35,16 @@ interface MonthSegment {
     width: number; // 基於 31 天網格的百分比
 }
 
+// 角色 ID 歸屬單位映射
+const CHAR_TO_UNIT_MAP: Record<string, string> = {
+    "1": "Leo/need", "2": "Leo/need", "3": "Leo/need", "4": "Leo/need",
+    "5": "MORE MORE JUMP!", "6": "MORE MORE JUMP!", "7": "MORE MORE JUMP!", "8": "MORE MORE JUMP!",
+    "9": "Vivid BAD SQUAD", "10": "Vivid BAD SQUAD", "11": "Vivid BAD SQUAD", "12": "Vivid BAD SQUAD",
+    "13": "Wonderlands × Showtime", "14": "Wonderlands × Showtime", "15": "Wonderlands × Showtime", "16": "Wonderlands × Showtime",
+    "17": "25點，Nightcord見。", "18": "25點，Nightcord見。", "19": "25點，Nightcord見。", "20": "25點，Nightcord見。",
+    "21": "Virtual Singer", "22": "Virtual Singer", "23": "Virtual Singer", "24": "Virtual Singer", "25": "Virtual Singer", "26": "Virtual Singer"
+};
+
 const getCardTypeInfo = (type: string) => {
     switch(type) {
         case 'permanent': return { label: '常駐', className: 'bg-slate-600 text-white' };
@@ -291,7 +301,7 @@ const EventDistributionView: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-2 sm:p-3 mb-4 shadow-sm">
                 <div className="flex flex-col xl:flex-row gap-4 xl:items-center">
                     <div className="flex-1 flex flex-col gap-2">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">角色 (按 ID 篩選)</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">角色</span>
                         <div className="flex flex-wrap gap-1.5">
                             {Object.values(CHARACTER_MASTER).map(char => {
                                 const isS = filter.type === 'character' && filter.value === char.id;
@@ -314,7 +324,7 @@ const EventDistributionView: React.FC = () => {
                     <div className="xl:hidden w-full h-px bg-slate-200 dark:bg-slate-700 opacity-40"></div>
 
                     <div className="xl:w-auto flex flex-col gap-2">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">團體 (Unit)</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">團體</span>
                         <div className="flex flex-wrap xl:flex-nowrap gap-2 justify-start xl:pr-2">
                             {UNIT_ORDER.filter(u => u !== 'Mix').map(unit => (
                                 <button key={unit} onClick={() => setFilter(prev => (prev.type==='unit'&&prev.value===unit) ? { ...prev, type:'all', value:'all'} : { ...prev, type:'unit', value:unit })} disabled={filter.type==='character'} className={`h-8 px-1.5 sm:px-2 rounded-xl transition-all flex items-center border flex-shrink-0 ${filter.type==='unit'&&filter.value===unit ? 'bg-slate-100 dark:bg-slate-700 border-cyan-500 shadow-md scale-105' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:scale-105'} ${filter.type==='character' ? 'opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -439,16 +449,16 @@ const EventDistributionView: React.FC = () => {
                         <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 pr-6 rounded-2xl border border-slate-100 dark:border-slate-700 w-full xl:w-auto shadow-inner">
                             {(() => {
                                 const char = getChar(filter.value);
-                                const cUnit = filter.type === 'unit' ? filter.value : (char ? "Leo/need" : "Mix"); // Simplification for display
-                                const members = ["星乃一歌", "天馬咲希", "望月穗波", "日野森志步"]; // Placeholder for actual unit logic
+                                const targetUnitName = filter.type === 'unit' ? filter.value : (char ? CHAR_TO_UNIT_MAP[char.id] : "Mix");
+                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => CHAR_TO_UNIT_MAP[c.id] === targetUnitName);
+
                                 return (
                                     <>
-                                        <div className={`p-2 rounded-xl ${filter.type==='unit' ? 'bg-white dark:bg-slate-700 shadow-lg ring-2 ring-cyan-500/20' : 'opacity-70 grayscale'}`}>
-                                            <img src={getAssetUrl(cUnit, 'unit')} alt={cUnit} className="h-10 w-auto object-contain" />
+                                        <div className={`p-2 rounded-xl bg-white dark:bg-slate-700 shadow-lg ring-2 ring-cyan-500/20`}>
+                                            <img src={getAssetUrl(targetUnitName, 'unit')} alt={targetUnitName} className="h-10 w-auto object-contain" />
                                         </div>
                                         <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
-                                            {/* 此處僅作示例，實際應讀取單元成員 */}
-                                            {Object.values(CHARACTER_MASTER).slice(0, 4).map(m => {
+                                            {unitMembers.map(m => {
                                                 const isM = filter.type==='character'&&filter.value===m.id;
                                                 return (
                                                     <div key={m.id} className={`relative rounded-full transition-all duration-300 ${isM ? 'ring-2 ring-cyan-500 ring-offset-2 z-10 scale-110 shadow-lg' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0 hover:scale-105'}`} style={{ borderColor: isM ? m.color : 'transparent' }}>

@@ -29,7 +29,6 @@ const SortSelector: React.FC<SortSelectorProps> = ({ activeSort, onSortChange, l
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -52,7 +51,7 @@ const SortSelector: React.FC<SortSelectorProps> = ({ activeSort, onSortChange, l
     <div className="relative w-full sm:w-auto" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full sm:w-64 flex justify-between items-center px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700 hover:border-cyan-500/50 transition-all duration-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+        className="w-full sm:w-60 flex justify-between items-center px-4 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-700 hover:border-cyan-500/50 transition-all duration-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
       >
         <span className="truncate mr-2">{currentLabel}</span>
         <svg

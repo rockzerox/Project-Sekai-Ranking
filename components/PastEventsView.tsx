@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { UNITS, UNIT_ORDER, CHARACTER_MASTER, getAssetUrl, calculateDisplayDuration, calculatePreciseDuration, getEventStatus, getChar } from '../constants';
 import { useEventList } from '../hooks/useEventList';
 import Select from './ui/Select';
+import SearchBar from './SearchBar';
 import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
 
@@ -19,7 +21,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   // 保持年份獨立
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
   
-  // Step 3: Consolidate event attribute filters into one object
+  // Consolidated event attribute filters into one object
   const [filters, setFilters] = useState<EventFilterState>({
     unit: 'all',
     type: 'all',
@@ -30,6 +32,12 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
   
   const [sortType, setSortType] = useState<'id' | 'duration'>('id');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // 計算真正已結束的活動總數
+  const pastEventsTotalCount = useMemo(() => {
+    const now = new Date().getTime();
+    return events.filter(e => new Date(e.closed_at).getTime() < now).length;
+  }, [events]);
 
   // Set default year when events load
   useEffect(() => {
@@ -157,9 +165,10 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
 
   return (
     <div className="w-full animate-fadeIn">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">歷代活動 (Past Events)</h2>
-        <p className="text-slate-500 dark:text-slate-400">Project Sekai 台服活動存檔</p>
+      {/* 標頭還原樣貌 */}
+      <div className="mb-6">
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">歷代活動 (Past Events)</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">目前收錄 {pastEventsTotalCount} 個已結束活動數據，點擊可查看詳細榜單。</p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 pb-1">
@@ -188,32 +197,17 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         ))}
       </div>
 
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6">
-          <div className="relative w-full xl:w-64">
-            <input
-            type="text"
-            placeholder={`搜尋活動... (期數/名稱)`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-            />
-            <svg
-                className="absolute left-3 top-3 w-5 h-5 text-slate-400"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-            >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-wrap gap-3 items-center w-full">
+             {/* 搜尋列：移回工具列，保持 py-1.5 */}
+             <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
-          <div className="flex flex-wrap gap-3 w-full xl:w-auto">
-             {/* 排序控制項保持不變 */}
-             <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+             {/* 排序控制項：保持一致高度 */}
+             <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800 shadow-sm h-[34px]">
                  <select
                     value={sortType}
                     onChange={(e) => setSortType(e.target.value as 'id' | 'duration')}
-                    className="bg-transparent text-slate-700 dark:text-slate-300 text-sm font-bold p-2.5 outline-none border-r border-slate-300 dark:border-slate-700 cursor-pointer"
+                    className="bg-transparent text-slate-700 dark:text-slate-300 text-xs font-bold p-1.5 px-3 outline-none border-r border-slate-300 dark:border-slate-700 cursor-pointer"
                  >
                      <option value="id">依照期數</option>
                      <option value="duration">依照天數</option>
@@ -221,24 +215,24 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                  
                  <button
                     onClick={toggleSortOrder}
-                    className="px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    className="px-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
                     title={sortOrder === 'desc' ? "降冪 (由大到小 / 由新到舊)" : "升冪 (由小到大 / 由舊到新)"}
                  >
                     {sortOrder === 'desc' ? (
-                        <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                        <svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
                     ) : (
-                        <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                        <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
                     )}
                  </button>
              </div>
 
-             {/* Step 3: Replace 5 manual Selects with EventFilterGroup */}
+             {/* 屬性篩選群組 */}
              <EventFilterGroup 
                 filters={filters}
                 onFilterChange={setFilters}
                 mode="multi"
                 containerClassName="flex flex-wrap gap-3 items-center"
-                itemClassName="min-w-[120px] xl:min-w-[140px]"
+                itemClassName="min-w-[110px]"
              />
           </div>
       </div>

@@ -17,36 +17,22 @@ interface EventDetail {
   banner: string;
 }
 
-/**
- * Edge Config Key 淨化對照表
- */
 const UNIT_KEY_MAP: Record<string, string> = {
   "Leo/need": "leo_need",
   "MORE MORE JUMP!": "more_more_jump",
   "Vivid BAD SQUAD": "vivid_bad_squad",
   "Wonderlands × Showtime": "wonderlands_showtime",
-  "25點，Nightcord見。": "25ji",
-  "Virtual Singer": "virtual_singer",
-  "Mix": "mix"
+  "25點，Nightcord見。": "25ji"
 };
 
-/**
- * 取得符合 Vercel 規範的安全 Key (僅限英數、底線、連字號)
- */
-function getSafeUnitKey(unitName: string): string {
-  return UNIT_KEY_MAP[unitName] || unitName.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+function getSafeUnitKey(unitName: string): string | null {
+  return UNIT_KEY_MAP[unitName] || null;
 }
 
-/**
- * 計算單條 U(K) 曲線
- * @param eventIds 需要計算的活動 ID 列表
- * @param scoreMap 原始分數數據映射
- */
-function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScore>) {
+function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScore>): number[] | null {
   const N = eventIds.length;
   if (N === 0) return null;
 
-  // 建立 100 個 Set，分別存放前 K 名內出現過的所有玩家 ID
   const sets: Set<string>[] = Array.from({ length: 100 }, () => new Set());
 
   for (const id of eventIds) {
@@ -56,7 +42,6 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
     for (const entry of event.data) {
       const r = entry.rank;
       if (r >= 1 && r <= 100) {
-        // 玩家出現在名次 r，代表他在所有 k >= r 的 Set 中都屬於「出現過的人」
         for (let k = r; k <= 100; k++) {
           sets[k - 1].add(entry.userId);
         }
@@ -64,40 +49,55 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
     }
   }
 
-  // 轉換為數據點 [{k, u}]
   return sets.map((s, index) => {
     const k = index + 1;
-    const uniqueCount = s.size;
-    const totalSlots = N * k;
-    const u = (uniqueCount / totalSlots) * 100;
-    return { k, u: parseFloat(u.toFixed(2)) };
+    const u = (s.size / (N * k)) * 100;
+    return parseFloat(u.toFixed(2));
   });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 安全檢查：驗證是否有 Vercel Token 與 Edge Config
   const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN;
-  // 保留您手動寫入的 EDGE_CONFIG_STORE_ID
+  const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
   const EDGE_CONFIG_STORE_ID = 'ecfg_z4ancf0ixtfwwjnv2anmwd136h0x';
 
   if (!VERCEL_TOKEN || !EDGE_CONFIG_STORE_ID) {
-    return res.status(500).json({ error: 'Missing Vercel credentials in environment variables.' });
+    return res.status(500).json({ error: 'Missing Vercel credentials.' });
   }
 
   try {
-    // 1. 讀取數據源 (Blob) - 保留您手動更新的 Blob URL
+    // 1. 讀取數據源 (Blob)
     const blobUrl = 'https://kilyz3e8atuyf098.public.blob.vercel-storage.com/event_score/event_score.json';
     const scoreRes = await fetch(blobUrl);
-    if (!scoreRes.ok) throw new Error('Failed to fetch event_score.json from Blob.');
     const scoreMap: Record<string, EventScore> = await scoreRes.json();
+    const sourceEventCount = Object.keys(scoreMap).length;
 
-    // 2. 讀取活動詳細設定
+    // 2. 檢查現有緩存狀態 (從 Edge Config 讀取 structure_global)
+    // 目的：避免無意義的重複寫入消耗 Blob 額度
+    const currentConfigRes = await fetch(
+      `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/item/structure_global`,
+      { headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}` } }
+    );
+    
+    if (currentConfigRes.ok) {
+        const currentGlobal: any = await currentConfigRes.json();
+        // 如果數據源中的活動數量與緩存一致，則不需要更新
+        if (currentGlobal && currentGlobal.eventCount === sourceEventCount) {
+            return res.status(200).json({ 
+                success: true, 
+                message: 'Data is already up to date. Skipping write to save credits.',
+                eventCount: sourceEventCount,
+                lastUpdatedAt: currentGlobal.updatedAt
+            });
+        }
+    }
+
+    // 3. 執行彙整計算 (僅在有新活動時執行)
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers['host'];
     const detailRes = await fetch(`${protocol}://${host}/eventDetail.json`);
     const eventDetails: Record<string, EventDetail> = await detailRes.json();
 
-    // 3. 分組索引
     const groups = {
       global: [] as string[],
       units: {} as Record<string, string[]>,
@@ -105,95 +105,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     Object.entries(eventDetails).forEach(([id, detail]) => {
-      // 排除 World Link
-      if (detail.storyType === 'world_link') return;
-      if (!scoreMap[id]) return;
+      if (detail.storyType === 'world_link' || !scoreMap[id]) return;
+      if (detail.unit === "Virtual Singer" || detail.unit === "Mix") return;
 
-      // Global
       groups.global.push(id);
-
-      // Units
       if (!groups.units[detail.unit]) groups.units[detail.unit] = [];
       groups.units[detail.unit].push(id);
 
-      // Characters (1-20, 箱活 only)
       if (detail.storyType === 'unit_event') {
         const charId = detail.banner;
-        const charIdNum = parseInt(charId);
-        if (charIdNum >= 1 && charIdNum <= 20) {
+        if (parseInt(charId) >= 1 && parseInt(charId) <= 20) {
           if (!groups.chars[charId]) groups.chars[charId] = [];
           groups.chars[charId].push(id);
         }
       }
     });
 
-    // 4. 循環計算所有曲線
-    const cachePayload: any[] = [];
     const updatedAt = new Date().toISOString();
+    const edgeConfigItems: any[] = [];
+    const charDataStore: Record<string, any> = {};
 
-    // A. Global
+    // Global & Units -> Edge Config
     const globalData = calculateUKCurve(groups.global, scoreMap);
     if (globalData) {
-      cachePayload.push({
-        operation: 'upsert',
-        key: 'structure_global',
+      edgeConfigItems.push({
+        operation: 'upsert', key: 'structure_global',
         value: { name: '整體遊戲', eventCount: groups.global.length, data: globalData, updatedAt }
       });
     }
 
-    // B. Units
     for (const [unitName, ids] of Object.entries(groups.units)) {
+      const safeKey = getSafeUnitKey(unitName);
+      if (!safeKey) continue;
       const data = calculateUKCurve(ids, scoreMap);
       if (data) {
-        // 使用淨化後的安全 Key
-        const safeKey = getSafeUnitKey(unitName);
-        cachePayload.push({
-          operation: 'upsert',
-          key: `structure_unit_${safeKey}`,
+        edgeConfigItems.push({
+          operation: 'upsert', key: `structure_unit_${safeKey}`,
           value: { name: unitName, eventCount: ids.length, data, updatedAt }
         });
       }
     }
 
-    // C. Characters
+    // Characters -> Pack for Blob
     for (const [charId, ids] of Object.entries(groups.chars)) {
       const data = calculateUKCurve(ids, scoreMap);
       if (data) {
-        cachePayload.push({
-          operation: 'upsert',
-          key: `structure_char_${charId}`,
-          value: { charId, eventCount: ids.length, data, updatedAt }
-        });
+        charDataStore[charId] = { charId, eventCount: ids.length, data, updatedAt };
       }
     }
 
-    // 5. 批量更新 Edge Config (使用 Vercel REST API)
-    const edgeConfigUpdateRes = await fetch(
-      `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${VERCEL_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ items: cachePayload }),
-      }
-    );
+    // 4. 執行寫入
+    await fetch(`https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: edgeConfigItems }),
+    });
 
-    if (!edgeConfigUpdateRes.ok) {
-      const errText = await edgeConfigUpdateRes.text();
-      throw new Error(`Edge Config Update Failed: ${errText}`);
+    if (BLOB_TOKEN) {
+      await fetch(`https://api.vercel.com/v1/blob/structure_chars.json`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${BLOB_TOKEN}`, 'x-api-version': '6' },
+        body: JSON.stringify(charDataStore)
+      });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Ranking structure synchronized successfully.',
-      curvesGenerated: cachePayload.length,
-      updatedAt
+    res.status(200).json({ 
+        success: true, 
+        message: 'New data detected. Cache updated successfully.',
+        edgeItems: edgeConfigItems.length, 
+        charItems: Object.keys(charDataStore).length, 
+        updatedAt 
     });
 
   } catch (error: any) {
-    console.error('Aggregator Error:', error);
     res.status(500).json({ error: error.message });
   }
 }

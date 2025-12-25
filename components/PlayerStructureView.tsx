@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { CHARACTER_MASTER, UNIT_MASTER, UNIT_ORDER, getAssetUrl } from '../constants';
 import LoadingSpinner from './LoadingSpinner';
@@ -13,7 +12,7 @@ interface StructureData {
     name?: string;
     charId?: string;
     eventCount: number;
-    data: UKPoint[];
+    data: number[]; // 新格式：純數字陣列
     updatedAt: string;
 }
 
@@ -24,11 +23,13 @@ const PlayerStructureView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [hoveredPoint, setHoveredPoint] = useState<UKPoint | null>(null);
 
-    // 取得當前主題色
+    // 排除不提供查詢的單位
+    const SUPPORTED_UNITS = ["Leo/need", "MORE MORE JUMP!", "Vivid BAD SQUAD", "Wonderlands × Showtime", "25點，Nightcord見。"];
+
     const themeColor = useMemo(() => {
         if (filter.type === 'unit') return UNIT_MASTER[filter.id]?.color || '#06b6d4';
         if (filter.type === 'char') return CHARACTER_MASTER[filter.id]?.color || '#06b6d4';
-        return '#06b6d4'; // Global Cyan
+        return '#06b6d4'; 
     }, [filter]);
 
     useEffect(() => {
@@ -52,9 +53,9 @@ const PlayerStructureView: React.FC = () => {
 
     // SVG 繪圖計算
     const chartContent = useMemo(() => {
-        if (!data || data.data.length === 0) return null;
+        if (!data || !data.data || data.data.length === 0) return null;
 
-        const points = data.data;
+        const points = data.data; // 這是 number[]
         const width = 1000;
         const height = 400;
         const padding = { top: 20, right: 30, bottom: 40, left: 50 };
@@ -62,7 +63,8 @@ const PlayerStructureView: React.FC = () => {
         const getX = (k: number) => padding.left + ((k - 1) / 99) * (width - padding.left - padding.right);
         const getY = (u: number) => padding.top + (1 - u / 100) * (height - padding.top - padding.bottom);
 
-        const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.k)} ${getY(p.u)}`).join(' ');
+        // 轉換 number[] 為座標點
+        const pathD = points.map((u, i) => `${i === 0 ? 'M' : 'L'} ${getX(i + 1)} ${getY(u)}`).join(' ');
         const areaD = `${pathD} L ${getX(100)} ${getY(0)} L ${getX(1)} ${getY(0)} Z`;
 
         return { getX, getY, pathD, areaD, width, height, padding };
@@ -74,10 +76,13 @@ const PlayerStructureView: React.FC = () => {
         const rect = svg.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * chartContent.width;
         
-        // 找出最接近的 K
         const k = Math.round(((x - chartContent.padding.left) / (chartContent.width - chartContent.padding.left - chartContent.padding.right)) * 99) + 1;
-        const point = data.data.find(p => p.k === Math.max(1, Math.min(100, k)));
-        if (point) setHoveredPoint(point);
+        const clampedK = Math.max(1, Math.min(100, k));
+        const u = data.data[clampedK - 1];
+        
+        if (u !== undefined) {
+            setHoveredPoint({ k: clampedK, u });
+        }
     };
 
     return (
@@ -87,10 +92,8 @@ const PlayerStructureView: React.FC = () => {
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">分析排名競爭的「不重複率」，量化各名次區間的階級固化與流動情形。</p>
             </div>
 
-            {/* 篩選列 */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-6 shadow-sm">
                 <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
-                    {/* 全局按鈕 */}
                     <button 
                         onClick={() => setFilter({ type: 'global', id: '' })}
                         className={`px-4 py-2 rounded-xl font-black text-sm transition-all border ${filter.type === 'global' ? 'bg-slate-900 text-white border-transparent shadow-lg' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
@@ -100,9 +103,8 @@ const PlayerStructureView: React.FC = () => {
 
                     <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
 
-                    {/* 團體篩選 */}
                     <div className="flex flex-wrap gap-2">
-                        {UNIT_ORDER.filter(u => u !== 'Mix').map(unit => (
+                        {SUPPORTED_UNITS.map(unit => (
                             <button 
                                 key={unit}
                                 onClick={() => setFilter({ type: 'unit', id: unit })}
@@ -116,7 +118,6 @@ const PlayerStructureView: React.FC = () => {
 
                     <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
 
-                    {/* 角色篩選 (排除 21-26) */}
                     <div className="flex flex-wrap gap-1.5 flex-1">
                         {Object.values(CHARACTER_MASTER).slice(0, 20).map(char => (
                             <button 
@@ -124,8 +125,7 @@ const PlayerStructureView: React.FC = () => {
                                 onClick={() => setFilter({ type: 'char', id: char.id })}
                                 className={`w-8 h-8 rounded-full border-2 transition-all relative overflow-hidden ${filter.type === 'char' && filter.id === char.id ? 'scale-110 z-10 shadow-lg ring-2 ring-offset-2 dark:ring-offset-slate-900' : 'opacity-30 grayscale hover:opacity-100 hover:grayscale-0'}`}
                                 style={{ 
-                                    borderColor: filter.type === 'char' && filter.id === char.id ? char.color : 'transparent',
-                                    outlineColor: char.color
+                                    borderColor: filter.type === 'char' && filter.id === char.id ? char.color : 'transparent'
                                 }}
                             >
                                 <img src={getAssetUrl(char.id, 'character')} alt={char.name} className="w-full h-full object-cover" />
@@ -135,7 +135,6 @@ const PlayerStructureView: React.FC = () => {
                 </div>
             </div>
 
-            {/* 主圖表區 */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden relative mb-6">
                 {isLoading && (
                     <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-20 flex items-center justify-center">
@@ -159,7 +158,7 @@ const PlayerStructureView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="p-4 sm:p-10 relative group">
+                <div className="p-4 sm:p-10 relative group min-h-[300px]">
                     {chartContent && data && (
                         <svg 
                             viewBox={`0 0 ${chartContent.width} ${chartContent.height}`} 
@@ -167,149 +166,51 @@ const PlayerStructureView: React.FC = () => {
                             onMouseMove={handleMouseMove}
                             onMouseLeave={() => setHoveredPoint(null)}
                         >
-                            {/* 網格線 */}
                             {[0, 25, 50, 75, 100].map(val => (
                                 <g key={val}>
-                                    <line 
-                                        x1={chartContent.padding.left} 
-                                        y1={chartContent.getY(val)} 
-                                        x2={chartContent.width - chartContent.padding.right} 
-                                        y2={chartContent.getY(val)} 
-                                        stroke="currentColor" 
-                                        className="text-slate-100 dark:text-slate-800" 
-                                        strokeWidth="1"
-                                    />
-                                    <text 
-                                        x={chartContent.padding.left - 10} 
-                                        y={chartContent.getY(val)} 
-                                        className="text-[14px] fill-slate-400 font-mono font-bold" 
-                                        textAnchor="end" 
-                                        alignmentBaseline="middle"
-                                    >
-                                        {val}%
-                                    </text>
+                                    <line x1={chartContent.padding.left} y1={chartContent.getY(val)} x2={chartContent.width - chartContent.padding.right} y2={chartContent.getY(val)} stroke="currentColor" className="text-slate-100 dark:text-slate-800" strokeWidth="1" />
+                                    <text x={chartContent.padding.left - 10} y={chartContent.getY(val)} className="text-[14px] fill-slate-400 font-mono font-bold" textAnchor="end" alignmentBaseline="middle">{val}%</text>
                                 </g>
                             ))}
-
-                            {/* X 軸標籤 */}
                             {[1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(k => (
-                                <text 
-                                    key={k} 
-                                    x={chartContent.getX(k)} 
-                                    y={chartContent.height - 10} 
-                                    className="text-[14px] fill-slate-400 font-mono font-bold" 
-                                    textAnchor="middle"
-                                >
-                                    {k}
-                                </text>
+                                <text key={k} x={chartContent.getX(k)} y={chartContent.height - 10} className="text-[14px] fill-slate-400 font-mono font-bold" textAnchor="middle">{k}</text>
                             ))}
-                            <text 
-                                x={chartContent.width / 2 + 20} 
-                                y={chartContent.height + 5} 
-                                className="text-[12px] fill-slate-300 font-black uppercase tracking-widest" 
-                                textAnchor="middle"
-                            >
-                                名次範圍 (Rank K)
-                            </text>
+                            <text x={chartContent.width / 2 + 20} y={chartContent.height + 5} className="text-[12px] fill-slate-300 font-black uppercase tracking-widest" textAnchor="middle">名次範圍 (Rank K)</text>
 
-                            {/* 曲線與填充 */}
-                            <path 
-                                d={chartContent.areaD} 
-                                fill={themeColor} 
-                                fillOpacity="0.05" 
-                                className="transition-all duration-700"
-                            />
-                            <path 
-                                d={chartContent.pathD} 
-                                fill="none" 
-                                stroke={themeColor} 
-                                strokeWidth="4" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                className="transition-all duration-700 drop-shadow-lg"
-                            />
+                            <path d={chartContent.areaD} fill={themeColor} fillOpacity="0.05" className="transition-all duration-700" />
+                            <path d={chartContent.pathD} fill="none" stroke={themeColor} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-700 drop-shadow-lg" />
 
-                            {/* Hover 提示線 */}
                             {hoveredPoint && (
                                 <g className="animate-fadeIn">
-                                    <line 
-                                        x1={chartContent.getX(hoveredPoint.k)} 
-                                        y1={chartContent.padding.top} 
-                                        x2={chartContent.getX(hoveredPoint.k)} 
-                                        y2={chartContent.height - chartContent.padding.bottom} 
-                                        stroke={themeColor} 
-                                        strokeWidth="1" 
-                                        strokeDasharray="4 4" 
-                                    />
-                                    <circle 
-                                        cx={chartContent.getX(hoveredPoint.k)} 
-                                        cy={chartContent.getY(hoveredPoint.u)} 
-                                        r="6" 
-                                        fill={themeColor} 
-                                        stroke="white" 
-                                        strokeWidth="2" 
-                                        className="shadow-xl"
-                                    />
-                                    <rect 
-                                        x={chartContent.getX(hoveredPoint.k) - 45} 
-                                        y={chartContent.getY(hoveredPoint.u) - 50} 
-                                        width="90" 
-                                        height="40" 
-                                        rx="8" 
-                                        fill="#1e293b" 
-                                    />
-                                    <text 
-                                        x={chartContent.getX(hoveredPoint.k)} 
-                                        y={chartContent.getY(hoveredPoint.u) - 25} 
-                                        textAnchor="middle" 
-                                        className="fill-white font-mono font-black text-[16px]"
-                                    >
-                                        {hoveredPoint.u}%
-                                    </text>
+                                    <line x1={chartContent.getX(hoveredPoint.k)} y1={chartContent.padding.top} x2={chartContent.getX(hoveredPoint.k)} y2={chartContent.height - chartContent.padding.bottom} stroke={themeColor} strokeWidth="1" strokeDasharray="4 4" />
+                                    <circle cx={chartContent.getX(hoveredPoint.k)} cy={chartContent.getY(hoveredPoint.u)} r="6" fill={themeColor} stroke="white" strokeWidth="2" />
+                                    <rect x={chartContent.getX(hoveredPoint.k) - 45} y={chartContent.getY(hoveredPoint.u) - 50} width="90" height="40" rx="8" fill="#1e293b" />
+                                    <text x={chartContent.getX(hoveredPoint.k)} y={chartContent.getY(hoveredPoint.u) - 25} textAnchor="middle" className="fill-white font-mono font-black text-[16px]">{hoveredPoint.u}%</text>
                                 </g>
                             )}
                         </svg>
                     )}
-
                     {!isLoading && error && <div className="py-20"><ErrorMessage message={error} /></div>}
                 </div>
             </div>
 
-            {/* 進階說明區 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-slate-100 dark:bg-slate-800/40 rounded-3xl p-6 border border-slate-200 dark:border-slate-700">
                     <h4 className="text-lg font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                         <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         指標計算邏輯
                     </h4>
-                    <div className="space-y-4">
-                        <div className="bg-white dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
-                            <p className="text-[10px] text-slate-400 font-black uppercase mb-1">計算公式 (Formula)</p>
-                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 font-mono">
-                                U(K) = (前 K 名內出現過的不重複玩家總數 / (採計活動總數 × K)) × 100%
-                            </p>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                            此指標衡量的是**「名次流動性」**。如果數值接近 100%，代表每一期在該名次區間出現的都是不同的人；反之，若數值極低，則代表該名次區間長期被同一群核心玩家佔據。
-                        </p>
+                    <div className="bg-white dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-4">
+                        <p className="text-[10px] text-slate-400 font-black uppercase mb-1">計算公式 (Formula)</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 font-mono">U(K) = (前 K 名不重複玩家 / (活動數 × K)) × 100%</p>
                     </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                        數值越高代表流動性越強。
+                    </p>
                 </div>
-
                 <div className="bg-slate-100 dark:bg-slate-800/40 rounded-3xl p-6 border border-slate-200 dark:border-slate-700">
-                    <h4 className="text-lg font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                        解讀與應用
-                    </h4>
-                    <ul className="space-y-3">
-                        <li className="flex gap-3">
-                            <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center flex-shrink-0 text-[10px] font-black">1</div>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium"><strong className="text-slate-800 dark:text-slate-200">高 K 值的 U(K) 下降：</strong> 代表整體遊戲的入榜門檻正在變高，或者是死忠衝榜玩家比例增加。</p>
-                        </li>
-                        <li className="flex gap-3">
-                            <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center flex-shrink-0 text-[10px] font-black">2</div>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium"><strong className="text-slate-800 dark:text-slate-200">角色間的差異：</strong> 比較不同角色的曲線，可以發現哪些角色的粉絲群體「階級固化」最明顯（例如總是同一群人在拿 Top 10）。</p>
-                        </li>
-                    </ul>
+                   <h4 className="text-lg font-black text-slate-800 dark:text-white mb-4">數據說明</h4>
+                   <p className="text-xs text-slate-500 dark:text-slate-400">目前排除 Virtual Singer 與 Mix 類活動，僅統計 5 大團體與 20 位角色。數據於新活動結算資料導入後自動更新。</p>
                 </div>
             </div>
 

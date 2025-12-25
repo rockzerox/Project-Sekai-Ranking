@@ -12,7 +12,8 @@
     "react-dom": "^19.2.0",
     "react": "^19.2.0",
     "@vercel/node": "^5.5.15",
-    "@vercel/blob": "^2.0.0"
+    "@vercel/blob": "^2.0.0",
+    "@vercel/edge-config": "^1.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

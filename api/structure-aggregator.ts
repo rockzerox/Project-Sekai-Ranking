@@ -1,5 +1,4 @@
 
-import { list, get } from '@vercel/blob';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // 定義數據結構
@@ -66,15 +65,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. 讀取數據源 (Blob)
+    // 1. 讀取數據源 (Blob) - 使用標準 fetch 直接讀取公開連結
     const blobUrl = 'https://project-sekai-ranking-blob.public.blob.vercel-storage.com/event_score/event_score.json';
     const scoreRes = await fetch(blobUrl);
     if (!scoreRes.ok) throw new Error('Failed to fetch event_score.json from Blob.');
     const scoreMap: Record<string, EventScore> = await scoreRes.json();
 
-    // 2. 讀取活動詳細設定 (從專案內部或 URL)
-    // 註：這裡假設 eventDetail.json 已部署在專案根目錄或可透過絕對路徑讀取
-    // 為了 Serverless 安全性，建議從部署後的 public URL 讀取
+    // 2. 讀取活動詳細設定
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers['host'];
     const detailRes = await fetch(`${protocol}://${host}/eventDetail.json`);
@@ -149,7 +146,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 5. 批量更新 Edge Config (使用 Vercel REST API)
-    // 註：Token 僅作為 Authorization Header 使用，不進行硬編碼
     const edgeConfigUpdateRes = await fetch(
       `https://api.vercel.com/v1/edge-config/${CONFIG_ID}/items`,
       {

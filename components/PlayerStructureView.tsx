@@ -1,39 +1,322 @@
 
-import React from 'react';
-import { CHARACTERS } from '../constants';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CHARACTER_MASTER, UNIT_MASTER, UNIT_ORDER, getAssetUrl } from '../constants';
+import LoadingSpinner from './LoadingSpinner';
+import ErrorMessage from './ErrorMessage';
+
+interface UKPoint {
+    k: number;
+    u: number;
+}
+
+interface StructureData {
+    name?: string;
+    charId?: string;
+    eventCount: number;
+    data: UKPoint[];
+    updatedAt: string;
+}
 
 const PlayerStructureView: React.FC = () => {
-    const emuColor = CHARACTERS['鳳笑夢'].color;
+    const [filter, setFilter] = useState<{ type: 'global' | 'unit' | 'char', id: string }>({ type: 'global', id: '' });
+    const [data, setData] = useState<StructureData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [hoveredPoint, setHoveredPoint] = useState<UKPoint | null>(null);
+
+    // 取得當前主題色
+    const themeColor = useMemo(() => {
+        if (filter.type === 'unit') return UNIT_MASTER[filter.id]?.color || '#06b6d4';
+        if (filter.type === 'char') return CHARACTER_MASTER[filter.id]?.color || '#06b6d4';
+        return '#06b6d4'; // Global Cyan
+    }, [filter]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const url = `/api/structure-data?type=${filter.type}${filter.id ? `&id=${encodeURIComponent(filter.id)}` : ''}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('無法取得該分類的結構數據');
+                const json = await res.json();
+                setData(json);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, [filter]);
+
+    // SVG 繪圖計算
+    const chartContent = useMemo(() => {
+        if (!data || data.data.length === 0) return null;
+
+        const points = data.data;
+        const width = 1000;
+        const height = 400;
+        const padding = { top: 20, right: 30, bottom: 40, left: 50 };
+
+        const getX = (k: number) => padding.left + ((k - 1) / 99) * (width - padding.left - padding.right);
+        const getY = (u: number) => padding.top + (1 - u / 100) * (height - padding.top - padding.bottom);
+
+        const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.k)} ${getY(p.u)}`).join(' ');
+        const areaD = `${pathD} L ${getX(100)} ${getY(0)} L ${getX(1)} ${getY(0)} Z`;
+
+        return { getX, getY, pathD, areaD, width, height, padding };
+    }, [data]);
+
+    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        if (!chartContent || !data) return;
+        const svg = e.currentTarget;
+        const rect = svg.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * chartContent.width;
+        
+        // 找出最接近的 K
+        const k = Math.round(((x - chartContent.padding.left) / (chartContent.width - chartContent.padding.left - chartContent.padding.right)) * 99) + 1;
+        const point = data.data.find(p => p.k === Math.max(1, Math.min(100, k)));
+        if (point) setHoveredPoint(point);
+    };
 
     return (
-        <div className="w-full min-h-[60vh] flex flex-col items-center justify-center animate-fadeIn text-center p-6">
-            <div className="relative mb-8">
-                <div 
-                    className="w-24 h-24 rounded-3xl flex items-center justify-center bg-white dark:bg-slate-800 shadow-xl border-2 animate-bounce"
-                    style={{ borderColor: emuColor, color: emuColor }}
-                >
-                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                </div>
-                <div className="absolute -bottom-2 -right-2 bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded-full shadow-lg">
-                    COMING SOON
+        <div className="w-full animate-fadeIn pb-10">
+            <div className="mb-6">
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">玩家排名結構 (Player Structure)</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">分析排名競爭的「不重複率」，量化各名次區間的階級固化與流動情形。</p>
+            </div>
+
+            {/* 篩選列 */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-6 shadow-sm">
+                <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+                    {/* 全局按鈕 */}
+                    <button 
+                        onClick={() => setFilter({ type: 'global', id: '' })}
+                        className={`px-4 py-2 rounded-xl font-black text-sm transition-all border ${filter.type === 'global' ? 'bg-slate-900 text-white border-transparent shadow-lg' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+                    >
+                        整體遊戲 (Global)
+                    </button>
+
+                    <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
+
+                    {/* 團體篩選 */}
+                    <div className="flex flex-wrap gap-2">
+                        {UNIT_ORDER.filter(u => u !== 'Mix').map(unit => (
+                            <button 
+                                key={unit}
+                                onClick={() => setFilter({ type: 'unit', id: unit })}
+                                className={`p-1.5 rounded-xl border-2 transition-all ${filter.type === 'unit' && filter.id === unit ? 'scale-110 shadow-md bg-slate-50 dark:bg-slate-700' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'}`}
+                                style={{ borderColor: filter.type === 'unit' && filter.id === unit ? UNIT_MASTER[unit].color : 'transparent' }}
+                            >
+                                <img src={getAssetUrl(unit, 'unit')} alt={unit} className="w-8 h-8 object-contain" />
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
+
+                    {/* 角色篩選 (排除 21-26) */}
+                    <div className="flex flex-wrap gap-1.5 flex-1">
+                        {Object.values(CHARACTER_MASTER).slice(0, 20).map(char => (
+                            <button 
+                                key={char.id}
+                                onClick={() => setFilter({ type: 'char', id: char.id })}
+                                className={`w-8 h-8 rounded-full border-2 transition-all relative overflow-hidden ${filter.type === 'char' && filter.id === char.id ? 'scale-110 z-10 shadow-lg ring-2 ring-offset-2 dark:ring-offset-slate-900' : 'opacity-30 grayscale hover:opacity-100 hover:grayscale-0'}`}
+                                style={{ 
+                                    borderColor: filter.type === 'char' && filter.id === char.id ? char.color : 'transparent',
+                                    outlineColor: char.color
+                                }}
+                            >
+                                <img src={getAssetUrl(char.id, 'character')} alt={char.name} className="w-full h-full object-cover" />
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
-            
-            <h2 className="text-3xl font-black text-slate-800 dark:text-white mb-4 tracking-tight">
-                玩家排名結構 <span style={{ color: emuColor }}>施工中</span>
-            </h2>
-            
-            <p className="text-slate-500 dark:text-slate-400 max-w-md leading-relaxed font-bold">
-                我們正在開發利用「不重複率」來量化排名流動性的分析工具。<br/>
-                這項功能將揭示不同團體與角色活動中的階級固化情形，敬請期待！
-            </p>
 
-            <div className="mt-10 flex gap-3">
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: emuColor }}></div>
-                <div className="w-2 h-2 rounded-full animate-pulse delay-75" style={{ backgroundColor: emuColor }}></div>
-                <div className="w-2 h-2 rounded-full animate-pulse delay-150" style={{ backgroundColor: emuColor }}></div>
+            {/* 主圖表區 */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden relative mb-6">
+                {isLoading && (
+                    <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-20 flex items-center justify-center">
+                        <LoadingSpinner />
+                    </div>
+                )}
+
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                    <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Mobility Curve</span>
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                            {filter.type === 'global' ? '全伺服器' : (filter.type === 'unit' ? filter.id : CHARACTER_MASTER[filter.id]?.name)}
+                            <span className="text-sm font-bold text-slate-400">前 K 名不重複率 U(K)</span>
+                        </h3>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Analyzed Sessions</span>
+                        <span className="text-lg font-black text-cyan-600 dark:text-cyan-400 font-mono">
+                            {data?.eventCount || 0} <span className="text-xs font-bold text-slate-400">期活動</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div className="p-4 sm:p-10 relative group">
+                    {chartContent && data && (
+                        <svg 
+                            viewBox={`0 0 ${chartContent.width} ${chartContent.height}`} 
+                            className="w-full h-auto overflow-visible select-none"
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={() => setHoveredPoint(null)}
+                        >
+                            {/* 網格線 */}
+                            {[0, 25, 50, 75, 100].map(val => (
+                                <g key={val}>
+                                    <line 
+                                        x1={chartContent.padding.left} 
+                                        y1={chartContent.getY(val)} 
+                                        x2={chartContent.width - chartContent.padding.right} 
+                                        y2={chartContent.getY(val)} 
+                                        stroke="currentColor" 
+                                        className="text-slate-100 dark:text-slate-800" 
+                                        strokeWidth="1"
+                                    />
+                                    <text 
+                                        x={chartContent.padding.left - 10} 
+                                        y={chartContent.getY(val)} 
+                                        className="text-[14px] fill-slate-400 font-mono font-bold" 
+                                        textAnchor="end" 
+                                        alignmentBaseline="middle"
+                                    >
+                                        {val}%
+                                    </text>
+                                </g>
+                            ))}
+
+                            {/* X 軸標籤 */}
+                            {[1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(k => (
+                                <text 
+                                    key={k} 
+                                    x={chartContent.getX(k)} 
+                                    y={chartContent.height - 10} 
+                                    className="text-[14px] fill-slate-400 font-mono font-bold" 
+                                    textAnchor="middle"
+                                >
+                                    {k}
+                                </text>
+                            ))}
+                            <text 
+                                x={chartContent.width / 2 + 20} 
+                                y={chartContent.height + 5} 
+                                className="text-[12px] fill-slate-300 font-black uppercase tracking-widest" 
+                                textAnchor="middle"
+                            >
+                                名次範圍 (Rank K)
+                            </text>
+
+                            {/* 曲線與填充 */}
+                            <path 
+                                d={chartContent.areaD} 
+                                fill={themeColor} 
+                                fillOpacity="0.05" 
+                                className="transition-all duration-700"
+                            />
+                            <path 
+                                d={chartContent.pathD} 
+                                fill="none" 
+                                stroke={themeColor} 
+                                strokeWidth="4" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                className="transition-all duration-700 drop-shadow-lg"
+                            />
+
+                            {/* Hover 提示線 */}
+                            {hoveredPoint && (
+                                <g className="animate-fadeIn">
+                                    <line 
+                                        x1={chartContent.getX(hoveredPoint.k)} 
+                                        y1={chartContent.padding.top} 
+                                        x2={chartContent.getX(hoveredPoint.k)} 
+                                        y2={chartContent.height - chartContent.padding.bottom} 
+                                        stroke={themeColor} 
+                                        strokeWidth="1" 
+                                        strokeDasharray="4 4" 
+                                    />
+                                    <circle 
+                                        cx={chartContent.getX(hoveredPoint.k)} 
+                                        cy={chartContent.getY(hoveredPoint.u)} 
+                                        r="6" 
+                                        fill={themeColor} 
+                                        stroke="white" 
+                                        strokeWidth="2" 
+                                        className="shadow-xl"
+                                    />
+                                    <rect 
+                                        x={chartContent.getX(hoveredPoint.k) - 45} 
+                                        y={chartContent.getY(hoveredPoint.u) - 50} 
+                                        width="90" 
+                                        height="40" 
+                                        rx="8" 
+                                        fill="#1e293b" 
+                                    />
+                                    <text 
+                                        x={chartContent.getX(hoveredPoint.k)} 
+                                        y={chartContent.getY(hoveredPoint.u) - 25} 
+                                        textAnchor="middle" 
+                                        className="fill-white font-mono font-black text-[16px]"
+                                    >
+                                        {hoveredPoint.u}%
+                                    </text>
+                                </g>
+                            )}
+                        </svg>
+                    )}
+
+                    {!isLoading && error && <div className="py-20"><ErrorMessage message={error} /></div>}
+                </div>
+            </div>
+
+            {/* 進階說明區 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-slate-100 dark:bg-slate-800/40 rounded-3xl p-6 border border-slate-200 dark:border-slate-700">
+                    <h4 className="text-lg font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        指標計算邏輯
+                    </h4>
+                    <div className="space-y-4">
+                        <div className="bg-white dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                            <p className="text-[10px] text-slate-400 font-black uppercase mb-1">計算公式 (Formula)</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 font-mono">
+                                U(K) = (前 K 名內出現過的不重複玩家總數 / (採計活動總數 × K)) × 100%
+                            </p>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                            此指標衡量的是**「名次流動性」**。如果數值接近 100%，代表每一期在該名次區間出現的都是不同的人；反之，若數值極低，則代表該名次區間長期被同一群核心玩家佔據。
+                        </p>
+                    </div>
+                </div>
+
+                <div className="bg-slate-100 dark:bg-slate-800/40 rounded-3xl p-6 border border-slate-200 dark:border-slate-700">
+                    <h4 className="text-lg font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        解讀與應用
+                    </h4>
+                    <ul className="space-y-3">
+                        <li className="flex gap-3">
+                            <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center flex-shrink-0 text-[10px] font-black">1</div>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium"><strong className="text-slate-800 dark:text-slate-200">高 K 值的 U(K) 下降：</strong> 代表整體遊戲的入榜門檻正在變高，或者是死忠衝榜玩家比例增加。</p>
+                        </li>
+                        <li className="flex gap-3">
+                            <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center flex-shrink-0 text-[10px] font-black">2</div>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium"><strong className="text-slate-800 dark:text-slate-200">角色間的差異：</strong> 比較不同角色的曲線，可以發現哪些角色的粉絲群體「階級固化」最明顯（例如總是同一群人在拿 Top 10）。</p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div className="mt-8 text-center">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em]">
+                    Data Last Updated: {data ? new Date(data.updatedAt).toLocaleString() : 'N/A'}
+                </p>
             </div>
         </div>
     );

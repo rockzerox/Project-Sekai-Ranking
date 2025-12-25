@@ -18,7 +18,8 @@ const Pagination: React.FC<PaginationProps> = ({
   activeSort 
 }) => {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const isHighlightsDisabled = activeSort && activeSort !== 'score';
+  // 現在允許在 'score' 或 'dailyAvg' 時進入精彩片段
+  const isHighlightsDisabled = activeSort && activeSort !== 'score' && activeSort !== 'dailyAvg';
 
   const pageButtons = [];
   const safeTotalPages = currentPage === 'highlights' ? 5 : totalPages; 
@@ -59,7 +60,7 @@ const Pagination: React.FC<PaginationProps> = ({
               ? 'bg-slate-800 text-slate-600 cursor-not-allowed border-slate-700'
               : 'bg-slate-700 text-pink-300 border-pink-500/30 hover:bg-pink-900/30 hover:border-pink-500'
         }`}
-        title={isHighlightsDisabled ? "僅在總分排序時可用" : "查看特定排名分數線"}
+        title={isHighlightsDisabled ? "僅在總分或日均排序時可用" : "查看特定排名分數線"}
       >
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

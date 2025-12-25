@@ -41,7 +41,7 @@ export const calculateMin = (numbers: number[]): number => {
     return Math.min(...numbers);
 };
 
-// 分數格式化為中文億萬
+// 分數格式化為中文億萬（一般顯示用，包含「約」）
 export const formatScoreToChinese = (score: number): string => {
     if (score >= 100000000) {
         const yi = Math.floor(score / 100000000);
@@ -52,4 +52,17 @@ export const formatScoreToChinese = (score: number): string => {
         return `約 ${wan.toLocaleString()} 萬`;
     }
     return score.toLocaleString();
+};
+
+// 圖表專用分數格式化（不含「約」，支援億/萬單位）
+export const formatScoreForChart = (score: number): string => {
+    if (score >= 100000000) {
+        const yi = Math.floor(score / 100000000);
+        const wan = Math.floor((score % 100000000) / 10000);
+        return wan > 0 ? `${yi}億${wan}萬` : `${yi}億`;
+    } else if (score >= 10000) {
+        const wan = Math.floor(score / 10000);
+        return `${wan}萬`;
+    }
+    return Math.round(score).toLocaleString();
 };

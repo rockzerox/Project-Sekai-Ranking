@@ -9,7 +9,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useConfig } from '../contexts/ConfigContext';
 
 type StoryType = 'unit_event' | 'world_link';
-const STORY_TYPES: {id: StoryType, label: string}[] = [
+const STORY_TYPES: { id: StoryType, label: string }[] = [
     { id: 'unit_event', label: '箱活' },
     { id: 'world_link', label: 'World Link' }
 ];
@@ -164,11 +164,13 @@ const UnitAnalysisView: React.FC = () => {
         </div>
     );
 
+    const storyLabel = useMemo(() => STORY_TYPES.find(t => t.id === storyType)?.label || '箱活', [storyType]);
+
     return (
         <div className="w-full animate-fadeIn pb-4 max-h-screen overflow-y-auto no-scrollbar">
             <div className="mb-4">
                 <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1">團推分析 (Unit Analysis)</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">以團體視角整合歷代數據，分析活動分數趨勢與玩家忠誠度。</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">以團體視角整合歷代數據，分析活動分數趨勢與玩家參與分佈。</p>
             </div>
 
             <div 
@@ -199,8 +201,9 @@ const UnitAnalysisView: React.FC = () => {
                         <p className="text-slate-700 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed flex flex-wrap items-center">
                             <span>在共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.count}</span> 期</span>
                             <span className="px-1" style={{ color: unitThemeColor }}>{selectedUnit}</span>
-                            <span>{STORY_TYPES.find(t => t.id === storyType)?.label} 中，共有 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家取得過前百名次。</span>
-                            <span className="md:ml-1">不重複玩家百分比率為 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.uniquenessRatio}%</span>。</span>
+                            <span className="px-1" style={{ color: unitThemeColor }}>{storyLabel}</span>
+                            <span>活動中，共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名，</span>
+                            <span className="md:ml-1">前百名不同玩家比例為 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.uniquenessRatio}%</span>。</span>
                         </p>
                     </div>
                 </div>
@@ -302,8 +305,8 @@ const UnitAnalysisView: React.FC = () => {
                                             </div>
                                             
                                             {logoUrl && (
-                                                <div className="w-24 sm:w-32 flex-shrink-0 flex items-center">
-                                                    <img src={logoUrl} alt="evt" className="w-full h-auto max-h-16 object-contain rounded drop-shadow-sm" />
+                                                <div className="w-24 h-11 flex-shrink-0 flex items-center bg-white/5 rounded p-1">
+                                                    <img src={logoUrl} alt="evt" className="w-full h-full object-contain" />
                                                 </div>
                                             )}
 

@@ -199,13 +199,12 @@ const CharacterAnalysisView: React.FC = () => {
         <div className="w-full animate-fadeIn pb-4 max-h-screen overflow-y-auto no-scrollbar relative">
             <div className="mb-6 px-1">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">推角分析 (Character Analytics)</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">以角色視角整合統計數據，分析 Banner 活動的熱度分佈與玩家忠誠度。</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">以角色視角整合統計數據，分析 Banner 活動的熱度分佈與玩家參與分佈。</p>
             </div>
 
             <div className="bg-white/10 dark:bg-slate-800/10 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden mb-6 relative z-10">
-                {/* 1. 角色篩選列：電腦版一字全展開 / 手機版維持輪播 */}
                 <div className="py-2.5 bg-black/20 dark:bg-white/5 border-b border-white/5">
-                    {/* 手機版：輪播 (md:hidden) */}
+                    {/* 手機版：輪播 */}
                     <div className="flex md:hidden items-center justify-center gap-1 sm:gap-6">
                         <button onMouseDown={() => startScrolling('prev')} onMouseUp={stopScrolling} onMouseLeave={stopScrolling} className="p-2 text-slate-400 hover:text-white transition-colors active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg></button>
                         <div className="flex items-center gap-2 sm:gap-4">
@@ -221,7 +220,7 @@ const CharacterAnalysisView: React.FC = () => {
                         <button onMouseDown={() => startScrolling('next')} onMouseUp={stopScrolling} onMouseLeave={stopScrolling} className="p-2 text-slate-400 hover:text-white transition-colors active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg></button>
                     </div>
 
-                    {/* 電腦版：一行全展開 (hidden md:flex) */}
+                    {/* 電腦版：全展開 */}
                     <div className="hidden md:flex flex-wrap items-center justify-center gap-2 px-4 max-h-[50px] overflow-y-auto no-scrollbar">
                         {charArray.map((char) => {
                             const isActive = activeCharId === char.id;
@@ -255,8 +254,8 @@ const CharacterAnalysisView: React.FC = () => {
                             <p className="text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed">
                                 在共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count}</span> 期 
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span> 
-                                Banner <span className="px-1" style={{ color: charThemeColor }}>{storyLabel}</span> 活動中，共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家進入過前百。
-                                不重複玩家率為 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count > 0 ? ((uniquePlayers/(stats.count*100))*100).toFixed(1) : "0.0"}%</span>。
+                                <span className="px-1" style={{ color: charThemeColor }}>{storyLabel}</span> 活動中，共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名， 
+                                前百名不同玩家比例為 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count > 0 ? ((uniquePlayers/(stats.count*100))*100).toFixed(1) : "0.0"}%</span>。
                             </p>
                         )}
                     </div>
@@ -309,10 +308,9 @@ const CharacterAnalysisView: React.FC = () => {
                 {/* 3. 右欄：個人活動紀錄 */}
                 <div className="lg:col-span-5 bg-white/10 dark:bg-slate-800/10 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                     <div className="px-5 py-4 border-b border-white/10 bg-black/20 flex items-center justify-between gap-2">
-                        {/* 左側：標題與排序並排 */}
                         <div className="flex items-center gap-3 min-w-0">
                             <h3 className="font-black text-sm text-slate-800 dark:text-white flex items-center gap-2 flex-shrink-0">
-                                <svg className="w-4 h-4" style={{ color: charThemeColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                                <svg className="w-4 h-4" style={{ color: charThemeColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                                 <span className="hidden sm:inline">個人活動紀錄</span>
                                 <span className="sm:hidden">紀錄</span>
                             </h3>
@@ -324,7 +322,6 @@ const CharacterAnalysisView: React.FC = () => {
                             )}
                         </div>
 
-                        {/* 右側：分頁控制項 */}
                         {!isWlMode && totalPages > 1 && (
                             <div className="flex items-center gap-2 bg-black/30 px-2 py-1 rounded-full border border-white/10 flex-shrink-0 scale-90 sm:scale-100">
                                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="text-slate-400 hover:text-white disabled:opacity-20"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg></button>

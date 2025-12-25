@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { getAssetUrl } from '../constants';
 
@@ -244,13 +245,34 @@ const LineChart: React.FC<LineChartProps> = ({
                     );
                 })}
 
-                {/* ENHANCED TOOLTIP HIT AREAS */}
+                {/* 修正後的精準 Tooltip 定位邏輯 */}
                 {points.map((point, index) => {
                     const eventLogoUrl = isTrend ? getAssetUrl(point.rank?.toString(), 'event') : undefined;
                     
+                    // 動態計算 Tooltip 位置與箭頭位置
+                    // 右側閾值 70%，提早翻轉避免溢出
+                    let tooltipLeft = "50%";
+                    let tooltipTranslate = "-50%";
+                    let arrowLeft = "50%";
+
+                    if (point.x > 70) {
+                        // 右側邊界區：靠右對齊並向左展開，保留 12px 安全間距
+                        tooltipLeft = "calc(100% - 12px)";
+                        tooltipTranslate = "-100%";
+                        arrowLeft = "90%";
+                    } else if (point.x < 20) {
+                        // 左側邊界區：靠左對齊並向右展開
+                        tooltipLeft = "0%";
+                        tooltipTranslate = "0%";
+                        arrowLeft = "10%";
+                    }
+
                     return (
                         <div key={`hit-${index}`} className="absolute w-4 h-4 -ml-[8px] -mt-[8px] rounded-full cursor-pointer z-20 hover:bg-white/10 group" style={{ left: `${point.x}%`, top: `${point.y}%` }}>
-                            <div className="hidden group-hover:flex absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl z-50 border border-slate-700 pointer-events-none backdrop-blur-md animate-fadeIn flex-col gap-2">
+                            <div 
+                                className={`hidden group-hover:flex absolute bottom-full mb-3 ${isMobile ? 'w-[210px]' : 'w-64'} bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl z-50 border border-slate-700 pointer-events-none backdrop-blur-md animate-fadeIn flex-col gap-2`}
+                                style={{ left: tooltipLeft, transform: `translateX(${tooltipTranslate})` }}
+                            >
                                 <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
                                     <span className="text-xs font-mono text-cyan-400 font-black">
                                         {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
@@ -275,7 +297,8 @@ const LineChart: React.FC<LineChartProps> = ({
                                         </span>
                                     </div>
                                 </div>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-slate-900/95"></div>
+                                {/* 動態箭頭 */}
+                                <div className="absolute top-full border-[6px] border-transparent border-t-slate-900/95 -translate-x-1/2" style={{ left: arrowLeft }}></div>
                             </div>
                         </div>
                     );

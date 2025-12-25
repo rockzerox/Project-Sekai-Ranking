@@ -21,11 +21,12 @@ import UnitAnalysisView from './components/UnitAnalysisView';
 import CharacterAnalysisView from './components/CharacterAnalysisView';
 import ResourceEstimatorView from './components/ResourceEstimatorView';
 import PlayerProfileView from './components/PlayerProfileView';
+import PlayerStructureView from './components/PlayerStructureView';
 import EventDistributionView from './components/EventDistributionView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
-import { UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS, API_BASE_URL } from './constants';
+import { UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS, API_BASE_URL, calculatePreciseDuration } from './constants';
 import { useRankings } from './hooks/useRankings';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 
@@ -82,7 +83,7 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
 };
 
 const MainContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'resourceEstimator' | 'playerProfile'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -157,10 +158,27 @@ const MainContent: React.FC = () => {
 
   useEffect(() => { if (currentPage !== 'highlights') setCurrentPage(1); }, [searchTerm, sortOption, currentView, selectedEvent]);
 
+  // 計算活動目前的時長 (天)
+  const currentEventDuration = useMemo(() => {
+      if (currentView === 'live' && liveEventTiming) {
+          const now = Date.now();
+          const start = new Date(liveEventTiming.startAt).getTime();
+          const agg = new Date(liveEventTiming.aggregateAt).getTime();
+          return Math.max(0.01, (Math.min(now, agg) - start) / 86400000);
+      } else if (currentView === 'past' && selectedEvent) {
+          const evt = allEvents.find(e => e.id === selectedEvent.id);
+          if (evt) return calculatePreciseDuration(evt.start_at, evt.aggregate_at);
+      }
+      return 1;
+  }, [currentView, liveEventTiming, selectedEvent, allEvents]);
+
   const sortedAndFilteredRankings = useMemo(() => {
     const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));
     const sorted = [...filtered].sort((a, b) => {
         if (sortOption === 'score') return b.score - a.score;
+        if (sortOption === 'dailyAvg') {
+            return (b.score / currentEventDuration) - (a.score / currentEventDuration);
+        }
         if (sortOption === 'lastPlayedAt') {
             if(!a.lastPlayedAt) return 1; if(!b.lastPlayedAt) return -1;
             return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
@@ -173,7 +191,7 @@ const MainContent: React.FC = () => {
     });
     if (currentPage === 'highlights') return sorted;
     return sorted.map((entry, index) => ({ ...entry, rank: index + 1 }));
-  }, [searchTerm, rankings, sortOption, currentPage]);
+  }, [searchTerm, rankings, sortOption, currentPage, currentEventDuration]);
   
   const paginatedRankings = useMemo(() => {
     if (currentPage === 'highlights') return sortedAndFilteredRankings;
@@ -223,13 +241,13 @@ const MainContent: React.FC = () => {
           const chapters = EVENT_CHAPTER_ORDER[selectedEvent.id] || [];
           WorldLinkTabs = (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
+                  <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
                   {chapters.map(charName => {
                       const isActive = activeChapter === charName;
                       const charColor = CHARACTERS[charName]?.color || '#999';
                       const charImg = getAssetUrl(charName, 'character');
                       return (
-                          <button key={charName} onClick={(e) => { e.stopPropagation(); setActiveChapter(charName); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
+                          <button key={charName} onClick={(e) => { e.stopPropagation(); setActiveChapter(charName); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
                               {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
                               {charName}
                           </button>
@@ -260,7 +278,7 @@ const MainContent: React.FC = () => {
                     <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
                     <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
                 </div>
-                <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} aggregateAt={currentView === 'live' ? liveEventTiming?.aggregateAt : undefined} />
+                <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} aggregateAt={currentView === 'live' ? liveEventTiming?.aggregateAt : undefined} eventDuration={currentEventDuration} />
             </CollapsibleSection>
         </div>
       );
@@ -362,6 +380,7 @@ const MainContent: React.FC = () => {
           case 'unitAnalysis': return <UnitAnalysisView />;
           case 'characterAnalysis': return <CharacterAnalysisView />;
           case 'playerAnalysis': return <PlayerAnalysisView />;
+          case 'playerStructure': return <PlayerStructureView />;
           case 'resourceEstimator': return <ResourceEstimatorView />;
           case 'playerProfile': return <PlayerProfileView />;
           default: return <HomeView setCurrentView={setCurrentView} />;

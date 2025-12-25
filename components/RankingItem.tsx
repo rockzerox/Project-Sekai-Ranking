@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import { RankEntry, SortOption, UserProfileResponse } from '../types';
 import CrownIcon from './icons/CrownIcon';
 import TrophyIcon from './icons/TrophyIcon';
+import { formatScoreToChinese } from '../utils/mathUtils';
 
 interface RankingItemProps {
   entry: RankEntry;
   sortOption: SortOption;
   hideStats?: boolean;
   aggregateAt?: string;
+  eventDuration?: number;
 }
 
 const getRankStyles = (rank: number) => {
@@ -51,7 +53,7 @@ const formatLastPlayed = (dateString: string) => {
     });
 }
 
-const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStats: boolean, aggregateAt?: string }> = ({ entry, sortOption, hideStats, aggregateAt }) => {
+const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStats: boolean, aggregateAt?: string, eventDuration?: number }> = ({ entry, sortOption, hideStats, aggregateAt, eventDuration = 1 }) => {
     const renderStat = (value: number, label: string) => (
         <>
             <p className="text-base sm:text-lg font-bold text-cyan-600 dark:text-cyan-400">{Math.round(value).toLocaleString()}</p>
@@ -62,13 +64,13 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
     let giveUpLine: number | null = null;
     let safeLine: number | null = null;
 
+    // 只有在排序為「總分」且有結算時間時才顯示安全線與死心線
     if (hideStats && aggregateAt && sortOption === 'score') {
         const now = Date.now();
         const end = new Date(aggregateAt).getTime();
         const remainingSeconds = (end - now) / 1000;
         
         if (remainingSeconds > 0) {
-            // Calculation based on user request: 100 seconds per game, 68000 points per game
             const maxGain = (remainingSeconds / 100) * 68000;
             const thresholdGiveUp = entry.score - maxGain;
             const thresholdSafe = entry.score + maxGain;
@@ -83,6 +85,14 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
             return <>
                 <p className="text-sm sm:text-base font-bold text-cyan-600 dark:text-cyan-400">{formatLastPlayed(entry.lastPlayedAt)}</p>
                 <p className="text-[10px] sm:text-xs text-slate-500">最後上線</p>
+            </>;
+        case 'dailyAvg':
+            const daily = Math.ceil(entry.score / eventDuration);
+            return <>
+                <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatScoreToChinese(daily)}
+                </p>
+                <p className="text-[10px] sm:text-xs text-slate-500">日均分</p>
             </>;
         // 1 Hour Stats
         case 'last1h_count':
@@ -147,7 +157,7 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
     }
 }
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt }) => {
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { rank, user, stats } = entry;
   const styles = getRankStyles(rank);
@@ -223,7 +233,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
 
         {/* Stats Section */}
         <div className="text-right flex-shrink-0 w-auto min-w-[5rem] sm:min-w-[7rem] px-2">
-          <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} />
+          <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} eventDuration={eventDuration} />
         </div>
 
         {/* Expand Icon - Only show if clickable */}

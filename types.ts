@@ -1,3 +1,4 @@
+
 // The internal representation used by components, which we will map the API response to.
 export interface User {
   id: string;
@@ -28,6 +29,7 @@ export interface RankEntry {
 
 export type SortOption =
   | 'score'
+  | 'dailyAvg'
   | 'lastPlayedAt'
   | 'last1h_count'
   | 'last1h_score'

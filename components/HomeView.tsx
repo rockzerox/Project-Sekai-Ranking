@@ -55,7 +55,8 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
             color: "#FF9900", // WxS Orange
             features: [
                 { id: 'playerAnalysis', title: '活躍玩家分析', description: '分析歷代活動中的活躍玩家，查看上榜次數最多的玩家排行。', charColor: CHARACTERS['天馬司'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> },
-                { id: 'playerProfile', title: '玩家狀態查詢', description: '查詢該玩家的詳細資料、綜合力組成與歌曲通關狀況。', charColor: CHARACTERS['鳳笑夢'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> }
+                { id: 'playerStructure', title: '玩家排名結構', description: '利用前百名玩家不重複率，分析整體、各團體與角色的名次流動與排名固化情形。', charColor: CHARACTERS['鳳笑夢'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> },
+                { id: 'playerProfile', title: '玩家狀態查詢', description: '查詢該玩家的詳細資料、綜合力組成與歌曲通關狀況。', charColor: CHARACTERS['草薙寧寧'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> }
             ]
         },
         {

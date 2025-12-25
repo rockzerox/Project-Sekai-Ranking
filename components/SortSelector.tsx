@@ -10,6 +10,7 @@ interface SortSelectorProps {
 
 const sortOptions: { id: SortOption; label: string }[] = [
   { id: 'score', label: '總分 (Total Score)' },
+  { id: 'dailyAvg', label: '日均分 (Daily Avg)' },
   { id: 'lastPlayedAt', label: '最後上線 (Last Online)' },
   { id: 'last1h_count', label: '1H 次數' },
   { id: 'last1h_score', label: '1H 得分' },
@@ -42,7 +43,7 @@ const SortSelector: React.FC<SortSelectorProps> = ({ activeSort, onSortChange, l
   }, []);
 
   const visibleOptions = limitToScore 
-    ? sortOptions.filter(option => option.id === 'score') 
+    ? sortOptions.filter(option => option.id === 'score' || option.id === 'dailyAvg') 
     : sortOptions;
 
   const currentLabel = sortOptions.find(opt => opt.id === activeSort)?.label || '排序方式';

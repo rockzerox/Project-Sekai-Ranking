@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import ErrorMessage from './ErrorMessage';
@@ -6,6 +7,7 @@ import Select from './ui/Select';
 import Button from './ui/Button';
 import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
+import { formatScoreForChart } from '../utils/mathUtils';
 
 interface SimpleRankData {
     rank: number;
@@ -309,12 +311,8 @@ const EventComparisonView: React.FC = () => {
 
         const yTicks = [0, 0.25, 0.5, 0.75, 1].map(r => {
             const val = maxScore * r;
-            let label = Math.round(val).toLocaleString();
-            if (val >= 10000) {
-                label = `${(val / 10000).toFixed(1)}萬`.replace('.0萬', '萬');
-            }
             return {
-                label,
+                label: formatScoreForChart(val),
                 yPercent: r * 100
             };
         });
@@ -387,7 +385,7 @@ const EventComparisonView: React.FC = () => {
             tooltipValues: getTooltipData(),
             trendStats: getTrendAnalysis(),
             handleMouseMove: (e: React.MouseEvent<HTMLDivElement>) => handleMouseMove(e, getXPercent, maxRank, uniqueRanks),
-            formatY: (val: number) => Math.round(val).toLocaleString()
+            formatY: formatScoreForChart
         };
 
     }, [comparisonData, displayMode, hoveredRank, isMobile, getEventColor]);

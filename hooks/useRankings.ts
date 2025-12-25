@@ -16,7 +16,7 @@ interface UseRankingsReturn {
     error: string | null;
     eventName: string;
     liveEventId: number | null;
-    liveEventTiming: { aggregateAt: string, rankingAnnounceAt: string } | null;
+    liveEventTiming: { startAt: string, aggregateAt: string, rankingAnnounceAt: string } | null;
     lastUpdated: Date | null;
     cachedLiveRankings: RankEntry[];
     cachedPastRankings: RankEntry[];
@@ -41,7 +41,7 @@ export const useRankings = (): UseRankingsReturn => {
     
     const [eventName, setEventName] = useState('Hisekai Live TW Rankings');
     const [liveEventId, setLiveEventId] = useState<number | null>(null);
-    const [liveEventTiming, setLiveEventTiming] = useState<{ aggregateAt: string, rankingAnnounceAt: string } | null>(null);
+    const [liveEventTiming, setLiveEventTiming] = useState<{ startAt: string, aggregateAt: string, rankingAnnounceAt: string } | null>(null);
 
     const transformRankings = (data: any[], isBorder: boolean = false): RankEntry[] => {
         const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
@@ -106,8 +106,9 @@ export const useRankings = (): UseRankingsReturn => {
                 setCachedLiveRankings(transformed);
                 setEventName(responseData.name);
                 if (responseData.id) setLiveEventId(responseData.id);
-                if (responseData.aggregate_at && responseData.ranking_announce_at) {
+                if (responseData.start_at && responseData.aggregate_at && responseData.ranking_announce_at) {
                     setLiveEventTiming({
+                        startAt: responseData.start_at,
                         aggregateAt: responseData.aggregate_at,
                         rankingAnnounceAt: responseData.ranking_announce_at
                     });

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import LineChart from './LineChart';
@@ -7,6 +8,9 @@ import Button from './ui/Button';
 import Input from './ui/Input';
 import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
+import { formatScoreForChart } from '../utils/mathUtils';
+// Fix: Import LoadingSpinner which was used but not imported
+import LoadingSpinner from './LoadingSpinner';
 
 interface TrendDataPoint {
     eventId: number;
@@ -29,17 +33,18 @@ const RankTrendView: React.FC = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
     
     const [selectedRank, setSelectedRank] = useState<number>(100);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
 
-    const [rangeMode, setRangeMode] = useState<'year' | 'id'>('year');
+    // 預設改為 ID 模式
+    const [rangeMode, setRangeMode] = useState<'all' | 'year' | 'id'>('id');
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [idRange, setIdRange] = useState<{start: string, end: string}>({start: '', end: ''});
 
     const [showStatLines, setShowStatLines] = useState(false);
 
-    // Step 3: Consolidate filter states into a single object
     const [filters, setFilters] = useState<EventFilterState>({
         unit: 'all',
         banner: 'all',
@@ -63,8 +68,17 @@ const RankTrendView: React.FC = () => {
                                    .sort((a, b) => b - a); 
                 setAvailableYears(years);
                 
-                if (!years.includes(selectedYear)) {
-                    if (years.length > 0) setSelectedYear(years[0]);
+                if (years.length > 0 && !years.includes(selectedYear)) {
+                    setSelectedYear(years[0]);
+                }
+
+                // 初始化預設範圍：最接近現在的 20 期已結束活動
+                const now = new Date();
+                const pastEvents = sortedEvents.filter(e => new Date(e.closed_at) < now);
+                if (pastEvents.length > 0) {
+                    const latest = pastEvents[pastEvents.length - 1].id;
+                    const startId = Math.max(1, latest - 19);
+                    setIdRange({ start: String(startId), end: String(latest) });
                 }
 
                 setIsLoadingList(false);
@@ -77,7 +91,7 @@ const RankTrendView: React.FC = () => {
         fetchList();
     }, []);
 
-    // 2. Data Fetching Logic (Triggered by Range/Rank changes)
+    // 2. Data Fetching Logic
     useEffect(() => {
         if (isLoadingList || allEvents.length === 0) return;
 
@@ -86,12 +100,26 @@ const RankTrendView: React.FC = () => {
 
         const fetchTrendData = async () => {
             setFetchError(null);
+            setFallbackNotice(null);
             const now = new Date();
-            let targetEvents = allEvents.filter(e => new Date(e.closed_at) < now);
+            let allPastEvents = allEvents.filter(e => new Date(e.closed_at) < now);
+            let targetEvents: EventSummary[] = [];
 
-            if (rangeMode === 'year') {
-                targetEvents = targetEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
+            if (rangeMode === 'all') {
+                targetEvents = allPastEvents;
+            } else if (rangeMode === 'year') {
+                let yearEvents = allPastEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
+                
+                // 智能回退：若該年資料不足 9 筆，自動回退至近 20 期
+                if (yearEvents.length < 9) {
+                    const latest = allPastEvents[allPastEvents.length - 1].id;
+                    targetEvents = allPastEvents.filter(evt => evt.id >= (latest - 19) && evt.id <= latest);
+                    setFallbackNotice(`${selectedYear} 年數據不足 (少於 9 期)，已自動顯示最近 20 期資料。`);
+                } else {
+                    targetEvents = yearEvents;
+                }
             } else {
+                // ID 模式
                 const s = parseInt(idRange.start);
                 const e = parseInt(idRange.end);
                 
@@ -99,14 +127,7 @@ const RankTrendView: React.FC = () => {
                     setTrendData([]); 
                     return; 
                 }
-                
-                if (e - s < 8) {
-                    setFetchError('自訂範圍須至少包含 9 期活動 (e.g. 1~9)');
-                    setTrendData([]);
-                    return;
-                }
-
-                targetEvents = targetEvents.filter(evt => evt.id >= s && evt.id <= e);
+                targetEvents = allPastEvents.filter(evt => evt.id >= s && evt.id <= e);
             }
 
             if (targetEvents.length === 0) {
@@ -164,9 +185,6 @@ const RankTrendView: React.FC = () => {
                             year: new Date(event.start_at).getFullYear()
                         };
                     } catch (e) {
-                        if ((e as Error).name !== 'AbortError') {
-                            console.warn(`Failed to fetch event ${event.id}`);
-                        }
                         return null;
                     }
                 }));
@@ -183,7 +201,7 @@ const RankTrendView: React.FC = () => {
 
         const timeoutId = setTimeout(() => {
             fetchTrendData();
-        }, 500);
+        }, 300);
 
         return () => {
             alive = false;
@@ -248,13 +266,6 @@ const RankTrendView: React.FC = () => {
         };
     }, [trendData, displayMode, filters, eventDetails, getEventColor]);
 
-    const formatYAxis = (v: number) => {
-        if (v >= 10000) {
-            return `${(v / 10000).toFixed(1)}萬`.replace('.0萬', '萬');
-        }
-        return v.toLocaleString();
-    };
-
     return (
         <div className="w-full py-4 animate-fadeIn">
             <div className="mb-6">
@@ -265,6 +276,16 @@ const RankTrendView: React.FC = () => {
             <div className="bg-slate-100 dark:bg-slate-800/80 rounded-lg p-4 mb-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center">
                 <div className="flex bg-white dark:bg-slate-700 rounded-lg p-1 border border-slate-200 dark:border-slate-600 flex-shrink-0">
                     <button
+                        onClick={() => setRangeMode('all')}
+                        className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded transition-all ${
+                            rangeMode === 'all' 
+                            ? 'bg-cyan-500 text-white shadow' 
+                            : 'text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                    >
+                        🌐 全部
+                    </button>
+                    <button
                         onClick={() => setRangeMode('year')}
                         className={`px-3 py-1.5 text-xs sm:text-sm font-bold rounded transition-all ${
                             rangeMode === 'year' 
@@ -272,7 +293,7 @@ const RankTrendView: React.FC = () => {
                             : 'text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
-                        📅 依年份
+                        📅 年份
                     </button>
                     <button
                         onClick={() => setRangeMode('id')}
@@ -282,12 +303,16 @@ const RankTrendView: React.FC = () => {
                             : 'text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
-                        🔢 依期數
+                        🔢 期數
                     </button>
                 </div>
 
                 <div className="flex-1 w-full md:w-auto">
-                    {rangeMode === 'year' ? (
+                    {rangeMode === 'all' ? (
+                        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700/50 px-4 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+                            顯示所有已結束活動資料 (載入時間較長)
+                        </div>
+                    ) : rangeMode === 'year' ? (
                         <Select
                             className="w-full md:max-w-xs"
                             value={selectedYear}
@@ -301,7 +326,7 @@ const RankTrendView: React.FC = () => {
                                 type="number"
                                 value={idRange.start}
                                 onChange={(val) => setIdRange(prev => ({ ...prev, start: val }))}
-                                className="text-center"
+                                className="text-center font-mono font-bold"
                             />
                             <span className="text-slate-400 font-bold">~</span>
                             <Input
@@ -309,7 +334,7 @@ const RankTrendView: React.FC = () => {
                                 type="number"
                                 value={idRange.end}
                                 onChange={(val) => setIdRange(prev => ({ ...prev, end: val }))}
-                                className="text-center"
+                                className="text-center font-mono font-bold"
                             />
                         </div>
                     )}
@@ -334,6 +359,13 @@ const RankTrendView: React.FC = () => {
                 </div>
             </div>
 
+            {fallbackNotice && (
+                <div className="mb-4 p-2 px-4 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs rounded-lg border border-amber-200 dark:border-amber-800 flex items-center animate-fadeIn">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {fallbackNotice}
+                </div>
+            )}
+
             {fetchError && (
                 <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800 flex items-center">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -343,9 +375,9 @@ const RankTrendView: React.FC = () => {
 
             <div className="bg-white dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 mb-6 flex flex-col xl:flex-row gap-4 items-start xl:items-center">
                  <div className="flex flex-wrap gap-2 items-center flex-1">
-                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">排名:</span>
+                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">排名基準:</span>
                      <Select
-                        className="py-1.5 text-xs w-24"
+                        className="py-1.5 text-xs w-32"
                         value={selectedRank}
                         onChange={(val) => setSelectedRank(Number(val))}
                         options={RANK_OPTIONS.map(rank => ({ value: rank, label: `Top ${rank}` }))}
@@ -389,11 +421,11 @@ const RankTrendView: React.FC = () => {
 
             <div className="relative">
                 {isAnalyzing && (
-                    <div className="absolute inset-x-0 top-0 z-10 mx-4 mt-4">
+                    <div className="absolute inset-x-0 top-0 z-10 mx-4 mt-4 animate-fadeIn">
                         <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-between">
                             <div className="flex items-center gap-3 w-full">
                                 <span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse whitespace-nowrap">
-                                    讀取中... ({loadingProgress}%)
+                                    載入數據中... ({loadingProgress}%)
                                 </span>
                                 <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                                     <div 
@@ -406,15 +438,15 @@ const RankTrendView: React.FC = () => {
                                 size="sm"
                                 variant="secondary"
                                 onClick={() => setIsPaused(!isPaused)}
-                                className="ml-3 h-7 text-xs"
+                                className="ml-3 h-7 text-xs font-bold"
                             >
-                                {isPaused ? "繼續" : "暫停"}
+                                {isPaused ? "▶ 繼續" : "⏸ 暫停"}
                             </Button>
                         </div>
                     </div>
                 )}
 
-                <div className={`bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-lg transition-opacity duration-300 ${isAnalyzing ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
+                <div className={`bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-lg transition-opacity duration-300 ${isAnalyzing && trendData.length === 0 ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
                     {trendData.length > 0 ? (
                         hasMatchingData ? (
                             <LineChart 
@@ -423,25 +455,27 @@ const RankTrendView: React.FC = () => {
                                 lineColor="teal"
                                 xAxisLabel="Event ID"
                                 yAxisLabel={displayMode === 'total' ? "Score" : "Daily Avg"}
-                                valueFormatter={(v) => displayMode === 'daily' ? v.toLocaleString() : `${(v/10000).toFixed(1)}萬`}
-                                yAxisFormatter={formatYAxis}
+                                valueFormatter={formatScoreForChart}
+                                yAxisFormatter={formatScoreForChart}
                                 meanValue={showStatLines ? meanValue : undefined}
                                 medianValue={showStatLines ? medianValue : undefined}
                             />
                         ) : (
                             <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-900/20 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-                                <p className="font-bold mb-1">找不到符合條件的結果</p>
-                                <p className="text-sm">在選定的範圍內，沒有活動符合目前的篩選條件。</p>
+                                <p className="font-bold mb-1">找不到符合篩選條件的活動</p>
+                                <p className="text-sm">在選定範圍內，沒有活動符合您設定的過濾條件。</p>
                             </div>
                         )
                     ) : (
                         <div className="h-64 flex flex-col items-center justify-center text-slate-400">
                             {fetchError ? (
                                 <p className="text-sm">{fetchError}</p>
+                            ) : isLoadingList ? (
+                                <LoadingSpinner />
                             ) : (
                                 <>
                                     <p className="font-bold mb-1">準備就緒</p>
-                                    <p className="text-sm">請選擇年份或期數範圍以開始分析</p>
+                                    <p className="text-sm">請選擇模式以觀察分數趨勢</p>
                                 </>
                             )}
                         </div>

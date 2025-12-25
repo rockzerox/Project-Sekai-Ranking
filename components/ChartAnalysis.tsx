@@ -4,6 +4,7 @@ import { RankEntry, SortOption, HisekaiBorderApiResponse, PastEventBorderApiResp
 import LineChart from './LineChart';
 import CrownIcon from './icons/CrownIcon';
 import { API_BASE_URL } from '../constants';
+import { formatScoreForChart } from '../utils/mathUtils';
 
 interface ChartAnalysisProps {
   rankings: RankEntry[];
@@ -29,18 +30,18 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   // Selected Rank for Highlights Safety calculation (Default T200)
   const [selectedHighlightRank, setSelectedHighlightRank] = useState<number>(200);
 
-  // Fetch border data when viewing Score distribution
+  // Fetch border data when viewing Score distribution (or Daily Avg, but chart remains Score)
   useEffect(() => {
     const fetchData = async () => {
-        if (sortOption !== 'score') {
+        const isScoreRelated = sortOption === 'score' || sortOption === 'dailyAvg';
+        if (!isScoreRelated) {
             setBorderData([]);
             return;
         }
 
         try {
             // 1. Fetch Border Data if needed (Highlights or Past Events OR Live T100 for Chaser Calc)
-            // We fetch border data for Live Top 100 as well to calculate T100 Chasers (ranks > 100)
-            const shouldFetchBorder = isHighlights || (!eventId && sortOption === 'score');
+            const shouldFetchBorder = isHighlights || (!eventId && isScoreRelated);
             
             if (shouldFetchBorder) {
                 // Using Dynamic API Base URL
@@ -94,7 +95,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                         const safeCount = topData.top_100_player_rankings.filter(r => r.score > safeThreshold).length;
                         setT100SafeCount(safeCount);
                     } else {
-                        setT100SafeCount(100); // Event ended, all fixed? or 0? irrelevant as calculations stop.
+                        setT100SafeCount(100); 
                     }
                 }
             }
@@ -112,10 +113,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     let data: { label: string, value: number, rank?: number }[] = [];
     let chartTitle = '';
     let formatter = (v: number) => Math.round(v).toLocaleString();
-    let axisFormatter = (v: number) => {
-        if (v >= 10000) return `${(v / 10000).toFixed(1)}萬`.replace('.0萬', '萬');
-        return Math.round(v).toLocaleString();
-    };
+    let axisFormatter = (v: number) => Math.round(v).toLocaleString();
     let chartColor = 'cyan'; 
     let axisY = 'Value';
     
@@ -181,8 +179,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
             if (interpolationPoints.length >= 2) {
                 const giveUpRank = findCutoffRank(interpolationPoints, giveUpScore, 10001);
-                // If score is negative or too low, rank might be extrapolated or clamped.
-                // Assuming normal conditions:
                 if (giveUpRank > 100) {
                     calculatedT100Extended = {
                         chasers: Math.max(0, Math.floor(giveUpRank) - 100),
@@ -193,10 +189,15 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         }
     }
 
-    switch(sortOption) {
+    // 當排序選擇「日均分」時，強制讓圖表渲染「總分」邏輯
+    const effectiveSortForChart = sortOption === 'dailyAvg' ? 'score' : sortOption;
+
+    switch(effectiveSortForChart) {
         case 'score':
             chartTitle = isHighlights ? '精彩片段分佈 (Highlights)' : 'Top 100 總分分佈';
             axisY = '分數 (Score)';
+            formatter = formatScoreForChart;
+            axisFormatter = formatScoreForChart;
             
             if (isHighlights) {
                 variant = 'highlights';
@@ -209,7 +210,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     }))
                     .sort((a, b) => (a.rank || 0) - (b.rank || 0));
 
-                // Live Event Highlights: Calculate Safe/GiveUp for SELECTED RANK
                 if (!eventId && liveAggregateAt) {
                     const now = Date.now();
                     const end = new Date(liveAggregateAt).getTime();
@@ -228,8 +228,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                         if (rankScore > 0) {
                             calculatedSafeThreshold = rankScore + maxGain;
                             calculatedGiveUpThreshold = Math.max(0, rankScore - maxGain);
-
-                            // Note: For T100 in highlights, cutoff might be < 100, which findCutoffRank handles as 0
                             calculatedSafeRankCutoff = findCutoffRank(data, calculatedSafeThreshold, 10000);
                             calculatedGiveUpRankCutoff = findCutoffRank(data, calculatedGiveUpThreshold, 10001);
                         }
@@ -253,9 +251,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                         const maxGain = (remainingSeconds / 100) * 68000;
                         const rank100Score = data.find(r => r.rank === 100)?.value || 0; 
                         calculatedSafeThreshold = rank100Score + maxGain;
-
                         calculatedSafeRankCutoff = findCutoffRank(data, calculatedSafeThreshold, 100);
-
                         const safelySecuredCount = data.filter(r => r.value > calculatedSafeThreshold!).length;
                         calculatedRemainingSlots = Math.max(0, 100 - safelySecuredCount);
                     }
@@ -275,7 +271,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 rank: r.rank
             }));
             chartColor = 'indigo';
-            axisFormatter = (v) => v.toLocaleString(); // Override for minutes
+            axisFormatter = (v) => Math.round(v).toLocaleString(); 
             break;
         default:
             data = isHighlights ? [] : sourceData.map(r => ({ 
@@ -305,7 +301,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
 
   // Derive Dashboard Stats for Highlights
   const dashboardStats = useMemo(() => {
-    // Check undefined only, allow 0
     if (!isHighlights || safeRankCutoff === undefined || giveUpRankCutoff === undefined) return null;
     
     const safe = Math.floor(safeRankCutoff);
@@ -324,7 +319,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 {/* --- Compact Dashboard Badges --- */}
                 
                 {/* 1. Live Top 100 Stats (Remaining + Chasers) */}
-                {!isHighlights && !eventId && sortOption === 'score' && remainingSafeSlots !== undefined && (
+                {!isHighlights && !eventId && (sortOption === 'score' || sortOption === 'dailyAvg') && remainingSafeSlots !== undefined && (
                      <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
                         {/* Remaining Slots (Precise) */}
                         <div 
@@ -403,14 +398,12 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                                     <span className="text-xs font-mono font-bold">{dashboardStats.giveUp < 10000 ? `Rank ${dashboardStats.giveUp}+` : '10000+'}</span>
                                 </div>
                                 
-                                {/* Friendly Disclaimer for Young Players */}
                                 <div 
                                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-500/90 cursor-help group relative"
                                 >
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                     <span className="text-[10px] font-bold">數值為推測僅供參考</span>
                                     
-                                    {/* Tooltip */}
                                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-2 bg-slate-800 text-white text-xs rounded-lg shadow-xl border border-slate-600 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center leading-relaxed">
                                         因為官方只公布特定名次的分數，中間的名次是系統『推算』出來的，實際分數可能會不一樣，請不要完全依賴它來壓線喔！
                                         <div className="absolute -top-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-600"></div>
@@ -423,7 +416,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             </div>
             
             {/* Rank Toggles for Live Highlights */}
-            {isHighlights && !eventId && sortOption === 'score' && (
+            {isHighlights && !eventId && (sortOption === 'score' || sortOption === 'dailyAvg') && (
                 <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 self-start lg:self-auto">
                     {[100, 200, 300, 400, 500, 1000].map(r => (
                         <button

@@ -66,51 +66,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. 讀取數據源 (Blob) - 增加防禦性檢查
     const blobUrl = 'https://kilyz3e8atuyf098.public.blob.vercel-storage.com/event_score/event_score.json';
     const scoreRes = await fetch(blobUrl);
-    if (!scoreRes.ok) throw new Error('Data source (event_score.json) is unavailable.');
+    if (!scoreRes.ok) throw new Error('Data source unavailable.');
     
     const scoreText = await scoreRes.text();
     if (!scoreText) throw new Error('Data source is empty.');
     const scoreMap: Record<string, EventScore> = JSON.parse(scoreText);
     const sourceEventCount = Object.keys(scoreMap).length;
 
-    // 2. 檢查現有緩存狀態
-    let forceUpdate = false;
+    // 檢查現有緩存狀態
     const currentConfigRes = await fetch(
       `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/item/structure_global`,
       { headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}` } }
     );
     
-    if (currentConfigRes.status === 404) {
-        // [初始化容錯]：如果 Key 不存在，標記為強制更新
-        console.log('structure_global not found in Edge Config. Initializing...');
-        forceUpdate = true;
-    } else if (currentConfigRes.ok) {
+    if (currentConfigRes.ok) {
         const configText = await currentConfigRes.text();
         if (configText) {
             const currentGlobal: any = JSON.parse(configText);
             if (currentGlobal && currentGlobal.eventCount === sourceEventCount) {
-                return res.status(200).json({ 
-                    success: true, 
-                    message: 'Data is already up to date. Skipping write.',
-                    eventCount: sourceEventCount
-                });
+                return res.status(200).json({ success: true, message: 'Up to date.' });
             }
-        } else {
-            forceUpdate = true;
         }
-    } else {
-        // 其他 API 錯誤，暫且視為需要更新
-        forceUpdate = true;
     }
 
-    // 3. 執行彙整計算
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers['host'];
     const detailRes = await fetch(`${protocol}://${host}/eventDetail.json`);
-    if (!detailRes.ok) throw new Error('eventDetail.json not found.');
     const eventDetails: Record<string, EventDetail> = await detailRes.json();
 
     const groups = {
@@ -121,12 +104,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     Object.entries(eventDetails).forEach(([id, detail]) => {
       if (detail.storyType === 'world_link' || !scoreMap[id]) return;
-      if (detail.unit === "Virtual Singer" || detail.unit === "Mix") return;
 
+      // Global 現在包含所有非 WL 活動
       groups.global.push(id);
-      if (!groups.units[detail.unit]) groups.units[detail.unit] = [];
-      groups.units[detail.unit].push(id);
 
+      // 單位分組 (排除 VS 與 Mix)
+      if (detail.unit !== "Virtual Singer" && detail.unit !== "Mix") {
+        if (!groups.units[detail.unit]) groups.units[detail.unit] = [];
+        groups.units[detail.unit].push(id);
+      }
+
+      // 角色分組
       if (detail.storyType === 'unit_event') {
         const charId = detail.banner;
         if (parseInt(charId) >= 1 && parseInt(charId) <= 20) {
@@ -140,7 +128,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const edgeConfigItems: any[] = [];
     const charDataStore: Record<string, any> = {};
 
-    // Global & Units -> Edge Config
     const globalData = calculateUKCurve(groups.global, scoreMap);
     if (globalData) {
       edgeConfigItems.push({
@@ -161,7 +148,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Characters -> Pack for Blob
     for (const [charId, ids] of Object.entries(groups.chars)) {
       const data = calculateUKCurve(ids, scoreMap);
       if (data) {
@@ -169,34 +155,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 4. 執行寫入
-    const patchRes = await fetch(`https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`, {
+    // 執行寫入 1: Blob 並獲取連結
+    let blobPublicUrl = '';
+    if (BLOB_TOKEN && Object.keys(charDataStore).length > 0) {
+      const blobUploadRes = await fetch(`https://api.vercel.com/v1/blob/structure_chars.json`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${BLOB_TOKEN}`, 'x-api-version': '6' },
+        body: JSON.stringify(charDataStore)
+      });
+      const blobResult = await blobUploadRes.json();
+      blobPublicUrl = blobResult.url; // 擷取隨機生成的 URL
+    }
+
+    // 執行寫入 2: Edge Config (包含最新的 Blob URL 指針)
+    if (blobPublicUrl) {
+      edgeConfigItems.push({
+        operation: 'upsert', key: 'structure_char_url',
+        value: blobPublicUrl
+      });
+    }
+
+    await fetch(`https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`, {
       method: 'PATCH',
       headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: edgeConfigItems }),
     });
 
-    if (!patchRes.ok) throw new Error(`Edge Config Write Failed: ${patchRes.statusText}`);
-
-    if (BLOB_TOKEN && Object.keys(charDataStore).length > 0) {
-      const blobRes = await fetch(`https://api.vercel.com/v1/blob/structure_chars.json`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${BLOB_TOKEN}`, 'x-api-version': '6' },
-        body: JSON.stringify(charDataStore)
-      });
-      if (!blobRes.ok) throw new Error(`Blob Write Failed: ${blobRes.statusText}`);
-    }
-
-    res.status(200).json({ 
-        success: true, 
-        message: forceUpdate ? 'Initial cache created.' : 'New data detected. Cache updated.',
-        edgeItems: edgeConfigItems.length, 
-        charItems: Object.keys(charDataStore).length, 
-        updatedAt 
-    });
-
+    res.status(200).json({ success: true, updatedAt });
   } catch (error: any) {
-    console.error('Aggregator Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 }

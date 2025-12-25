@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // 定義數據結構
@@ -56,9 +55,9 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // 安全檢查：驗證是否有 Vercel Token 與 Edge Config ID
+  // 安全檢查：驗證是否有 Vercel Token 與 Edge Config
   const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN;
-  const CONFIG_ID = process.env.EDGE_CONFIG_ID;
+  const CONFIG_ID = process.env.EDGE_CONFIG;
 
   if (!VERCEL_TOKEN || !CONFIG_ID) {
     return res.status(500).json({ error: 'Missing Vercel credentials in environment variables.' });

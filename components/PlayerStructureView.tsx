@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { CHARACTER_MASTER, UNIT_MASTER, getAssetUrl } from '../constants';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
+import MaintenanceView from './ui/MaintenanceView';
 
 interface UKPoint {
     k: number;
@@ -17,6 +18,9 @@ interface StructureData {
 }
 
 const PlayerStructureView: React.FC = () => {
+    // --- 內部維護開關 (切換為 false 即可恢復顯示內容) ---
+    const isMaintenance = true;
+
     const [filter, setFilter] = useState<{ type: 'global' | 'unit' | 'char', id: string }>({ type: 'global', id: '' });
     const [data, setData] = useState<StructureData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +36,9 @@ const PlayerStructureView: React.FC = () => {
     }, [filter]);
 
     useEffect(() => {
+        // 如果在維護中，則不進行 API 請求以節省頻寬
+        if (isMaintenance) return;
+
         const fetchData = async () => {
             setIsLoading(true);
             setError(null);
@@ -48,13 +55,13 @@ const PlayerStructureView: React.FC = () => {
             }
         };
         fetchData();
-    }, [filter]);
+    }, [filter, isMaintenance]);
 
     const chartContent = useMemo(() => {
         if (!data || !data.data || data.data.length === 0) return null;
         const points = data.data;
         const width = 1000;
-        const height = 320; // 壓縮高度，原本 400
+        const height = 320; 
         const padding = { top: 20, right: 30, bottom: 40, left: 50 };
 
         const getX = (k: number) => padding.left + ((k - 1) / 99) * (width - padding.left - padding.right);
@@ -77,6 +84,11 @@ const PlayerStructureView: React.FC = () => {
         if (u !== undefined) setHoveredPoint({ k: clampedK, u });
     };
 
+    // --- 維護模式阻擋 ---
+    if (isMaintenance) {
+        return <MaintenanceView title="玩家排名結構 尚未開放" description="我們正在針對各團體與角色的不重複率進行最終的演算法校正，以確保呈現最真實的階級流動趨勢。此功能預計於近期推出，敬請耐心等候。" />;
+    }
+
     const currentTitle = filter.type === 'global' ? '整體遊戲' : (filter.type === 'unit' ? filter.id : CHARACTER_MASTER[filter.id]?.name);
 
     return (
@@ -90,7 +102,7 @@ const PlayerStructureView: React.FC = () => {
                 <div className="flex flex-wrap gap-4 items-center">
                     <button 
                         onClick={() => setFilter({ type: 'global', id: '' })}
-                        className={`px-6 py-1.5 rounded-xl font-black text-sm transition-all border ${filter.type === 'global' ? 'bg-slate-900 text-white border-transparent shadow-lg' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+                        className={`px-6 py-1.5 rounded-xl font-black text-sm transition-all border ${filter.type === 'global' ? 'bg-slate-900 text-white border-transparent shadow-lg' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
                     >
                         All
                     </button>

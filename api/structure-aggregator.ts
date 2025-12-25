@@ -56,10 +56,11 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 安全檢查：驗證是否有 Vercel Token 與 Edge Config
-  const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN;
-  const CONFIG_ID = process.env.EDGE_CONFIG_ID_CUSTOM;
+  const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
+  // const CONFIG_ID = process.env.EDGE_CONFIG_ID_CUSTOM;
+  const EDGE_CONFIG_STORE_ID = 'ecfg_z4ancf0ixtfwwjnv2anmwd136h0x';
 
-  if (!VERCEL_TOKEN || !CONFIG_ID) {
+  if (!VERCEL_TOKEN || !EDGE_CONFIG_STORE_ID) {
     return res.status(500).json({ error: 'Missing Vercel credentials in environment variables.' });
   }
 
@@ -146,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 5. 批量更新 Edge Config (使用 Vercel REST API)
     const edgeConfigUpdateRes = await fetch(
-      `https://api.vercel.com/v1/edge-config/${CONFIG_ID}/items`,
+      `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`,
       {
         method: 'PATCH',
         headers: {

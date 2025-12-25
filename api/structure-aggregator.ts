@@ -18,6 +18,26 @@ interface EventDetail {
 }
 
 /**
+ * Edge Config Key 淨化對照表
+ */
+const UNIT_KEY_MAP: Record<string, string> = {
+  "Leo/need": "leo_need",
+  "MORE MORE JUMP!": "more_more_jump",
+  "Vivid BAD SQUAD": "vivid_bad_squad",
+  "Wonderlands × Showtime": "wonderlands_showtime",
+  "25點，Nightcord見。": "25ji",
+  "Virtual Singer": "virtual_singer",
+  "Mix": "mix"
+};
+
+/**
+ * 取得符合 Vercel 規範的安全 Key (僅限英數、底線、連字號)
+ */
+function getSafeUnitKey(unitName: string): string {
+  return UNIT_KEY_MAP[unitName] || unitName.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+}
+
+/**
  * 計算單條 U(K) 曲線
  * @param eventIds 需要計算的活動 ID 列表
  * @param scoreMap 原始分數數據映射
@@ -57,7 +77,7 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 安全檢查：驗證是否有 Vercel Token 與 Edge Config
   const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN;
-  // const CONFIG_ID = process.env.EDGE_CONFIG_ID_CUSTOM;
+  // 保留您手動寫入的 EDGE_CONFIG_STORE_ID
   const EDGE_CONFIG_STORE_ID = 'ecfg_z4ancf0ixtfwwjnv2anmwd136h0x';
 
   if (!VERCEL_TOKEN || !EDGE_CONFIG_STORE_ID) {
@@ -65,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. 讀取數據源 (Blob) - 使用標準 fetch 直接讀取公開連結
+    // 1. 讀取數據源 (Blob) - 保留您手動更新的 Blob URL
     const blobUrl = 'https://kilyz3e8atuyf098.public.blob.vercel-storage.com/event_score/event_score.json';
     const scoreRes = await fetch(blobUrl);
     if (!scoreRes.ok) throw new Error('Failed to fetch event_score.json from Blob.');
@@ -125,9 +145,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const [unitName, ids] of Object.entries(groups.units)) {
       const data = calculateUKCurve(ids, scoreMap);
       if (data) {
+        // 使用淨化後的安全 Key
+        const safeKey = getSafeUnitKey(unitName);
         cachePayload.push({
           operation: 'upsert',
-          key: `structure_unit_${unitName}`,
+          key: `structure_unit_${safeKey}`,
           value: { name: unitName, eventCount: ids.length, data, updatedAt }
         });
       }

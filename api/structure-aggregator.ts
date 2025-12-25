@@ -57,7 +57,7 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 安全檢查：驗證是否有 Vercel Token 與 Edge Config
   const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN;
-  const CONFIG_ID = process.env.EDGE_CONFIG;
+  const CONFIG_ID = process.env.EDGE_CONFIG_ID_CUSTOM;
 
   if (!VERCEL_TOKEN || !CONFIG_ID) {
     return res.status(500).json({ error: 'Missing Vercel credentials in environment variables.' });
@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 1. 讀取數據源 (Blob) - 使用標準 fetch 直接讀取公開連結
-    const blobUrl = 'https://project-sekai-ranking-blob.public.blob.vercel-storage.com/event_score/event_score.json';
+    const blobUrl = 'https://kilyz3e8atuyf098.public.blob.vercel-storage.com/event_score/event_score.json';
     const scoreRes = await fetch(blobUrl);
     if (!scoreRes.ok) throw new Error('Failed to fetch event_score.json from Blob.');
     const scoreMap: Record<string, EventScore> = await scoreRes.json();

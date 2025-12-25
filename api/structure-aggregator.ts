@@ -56,7 +56,7 @@ function calculateUKCurve(eventIds: string[], scoreMap: Record<string, EventScor
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 安全檢查：驗證是否有 Vercel Token 與 Edge Config
-  const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
+  const VERCEL_TOKEN = process.env.VERCEL_API_TOKEN;
   // const CONFIG_ID = process.env.EDGE_CONFIG_ID_CUSTOM;
   const EDGE_CONFIG_STORE_ID = 'ecfg_z4ancf0ixtfwwjnv2anmwd136h0x';
 

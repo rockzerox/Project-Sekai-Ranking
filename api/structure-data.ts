@@ -22,30 +22,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (type === 'char' && id) {
       const blobBase = 'https://kilyz3e8atuyf098.public.blob.vercel-storage.com';
       const charRes = await fetch(`${blobBase}/structure_chars.json`);
-      if (!charRes.ok) throw new Error('Blob storage unavailable.');
-      const allChars = await charRes.json();
+      
+      if (charRes.status === 404) return res.status(404).json({ error: 'Char cache not initialized.' });
+      if (!charRes.ok) throw new Error('Blob storage temporarily unavailable.');
+      
+      const charText = await charRes.text();
+      if (!charText) throw new Error('Received empty data from Blob.');
+      
+      const allChars = JSON.parse(charText);
       const data = allChars[id as string];
-      if (!data) return res.status(404).json({ error: 'Character data not found.' });
+      
+      if (!data) return res.status(404).json({ error: 'Specific character data not found.' });
       return res.status(200).json(data);
     }
 
     // Global 與 Unit 留在 Edge Config
-    if (!connectionString) throw new Error('Edge Config not configured.');
+    if (!connectionString) throw new Error('Edge Config environment variable is missing.');
     const edgeConfig = createClient(connectionString);
     let key = 'structure_global';
 
     if (type === 'unit' && id) {
       const safeId = getSafeUnitKey(id as string);
-      if (!safeId) return res.status(404).json({ error: 'Unit not supported.' });
+      if (!safeId) return res.status(404).json({ error: 'Selected unit is not supported.' });
       key = `structure_unit_${safeId}`;
     }
 
     const data = await edgeConfig.get(key);
-    if (!data) return res.status(404).json({ error: 'Data not found.' });
+    if (!data) return res.status(404).json({ error: 'Requested analysis data not found in Edge Config.' });
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     return res.status(200).json(data);
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    console.error('Structure Data Error:', error.message);
+    return res.status(500).json({ error: `Internal Server Error: ${error.message}` });
   }
 }

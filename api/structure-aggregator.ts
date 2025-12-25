@@ -66,36 +66,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. 讀取數據源 (Blob)
+    // 1. 讀取數據源 (Blob) - 增加防禦性檢查
     const blobUrl = 'https://kilyz3e8atuyf098.public.blob.vercel-storage.com/event_score/event_score.json';
     const scoreRes = await fetch(blobUrl);
-    const scoreMap: Record<string, EventScore> = await scoreRes.json();
+    if (!scoreRes.ok) throw new Error('Data source (event_score.json) is unavailable.');
+    
+    const scoreText = await scoreRes.text();
+    if (!scoreText) throw new Error('Data source is empty.');
+    const scoreMap: Record<string, EventScore> = JSON.parse(scoreText);
     const sourceEventCount = Object.keys(scoreMap).length;
 
-    // 2. 檢查現有緩存狀態 (從 Edge Config 讀取 structure_global)
-    // 目的：避免無意義的重複寫入消耗 Blob 額度
+    // 2. 檢查現有緩存狀態
+    let forceUpdate = false;
     const currentConfigRes = await fetch(
       `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/item/structure_global`,
       { headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}` } }
     );
     
-    if (currentConfigRes.ok) {
-        const currentGlobal: any = await currentConfigRes.json();
-        // 如果數據源中的活動數量與緩存一致，則不需要更新
-        if (currentGlobal && currentGlobal.eventCount === sourceEventCount) {
-            return res.status(200).json({ 
-                success: true, 
-                message: 'Data is already up to date. Skipping write to save credits.',
-                eventCount: sourceEventCount,
-                lastUpdatedAt: currentGlobal.updatedAt
-            });
+    if (currentConfigRes.status === 404) {
+        // [初始化容錯]：如果 Key 不存在，標記為強制更新
+        console.log('structure_global not found in Edge Config. Initializing...');
+        forceUpdate = true;
+    } else if (currentConfigRes.ok) {
+        const configText = await currentConfigRes.text();
+        if (configText) {
+            const currentGlobal: any = JSON.parse(configText);
+            if (currentGlobal && currentGlobal.eventCount === sourceEventCount) {
+                return res.status(200).json({ 
+                    success: true, 
+                    message: 'Data is already up to date. Skipping write.',
+                    eventCount: sourceEventCount
+                });
+            }
+        } else {
+            forceUpdate = true;
         }
+    } else {
+        // 其他 API 錯誤，暫且視為需要更新
+        forceUpdate = true;
     }
 
-    // 3. 執行彙整計算 (僅在有新活動時執行)
+    // 3. 執行彙整計算
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers['host'];
     const detailRes = await fetch(`${protocol}://${host}/eventDetail.json`);
+    if (!detailRes.ok) throw new Error('eventDetail.json not found.');
     const eventDetails: Record<string, EventDetail> = await detailRes.json();
 
     const groups = {
@@ -155,29 +170,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 4. 執行寫入
-    await fetch(`https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`, {
+    const patchRes = await fetch(`https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_STORE_ID}/items`, {
       method: 'PATCH',
       headers: { 'Authorization': `Bearer ${VERCEL_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: edgeConfigItems }),
     });
 
-    if (BLOB_TOKEN) {
-      await fetch(`https://api.vercel.com/v1/blob/structure_chars.json`, {
+    if (!patchRes.ok) throw new Error(`Edge Config Write Failed: ${patchRes.statusText}`);
+
+    if (BLOB_TOKEN && Object.keys(charDataStore).length > 0) {
+      const blobRes = await fetch(`https://api.vercel.com/v1/blob/structure_chars.json`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${BLOB_TOKEN}`, 'x-api-version': '6' },
         body: JSON.stringify(charDataStore)
       });
+      if (!blobRes.ok) throw new Error(`Blob Write Failed: ${blobRes.statusText}`);
     }
 
     res.status(200).json({ 
         success: true, 
-        message: 'New data detected. Cache updated successfully.',
+        message: forceUpdate ? 'Initial cache created.' : 'New data detected. Cache updated.',
         edgeItems: edgeConfigItems.length, 
         charItems: Object.keys(charDataStore).length, 
         updatedAt 
     });
 
   } catch (error: any) {
+    console.error('Aggregator Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 }

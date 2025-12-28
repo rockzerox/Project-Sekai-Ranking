@@ -1,9 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import TrophyIcon from './icons/TrophyIcon';
 import { CHARACTERS } from '../constants';
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  charColor: string;
+}
+
+interface NavGroup {
+  category: string;
+  color: string;
+  items: NavItem[];
+}
+
 interface SidebarProps {
-  currentView: 'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile';
+  currentView: string;
   setCurrentView: (view: any) => void;
   isOpen: boolean;
   toggleSidebar: () => void;
@@ -12,6 +25,52 @@ interface SidebarProps {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    category: "查榜 SEKAI",
+    color: "#4455DD", // Leo/need Blue
+    items: [
+      { id: 'live', label: "現時活動", charColor: CHARACTERS['1'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
+      { id: 'past', label: "歷代活動", charColor: CHARACTERS['2'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+      { id: 'distribution', label: "活動分布概況", charColor: CHARACTERS['3'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" /></svg> },
+    ]
+  },
+  {
+    category: "分析 SEKAI",
+    color: "#88DD44", // MORE MORE JUMP! Green
+    items: [
+      { id: 'comparison', label: "活動比較分析", charColor: CHARACTERS['5'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 18l4-6 4 4 10-10 M3 14l4-6 4 4 10-10" /></svg> },
+      { id: 'analysis', label: "活動榜線排名", charColor: CHARACTERS['6'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 20v-4h3v4M11 20v-8h3v8M16 20v-13h3v13" /></svg> },
+      { id: 'trend', label: "活動榜線趨勢", charColor: CHARACTERS['7'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> },
+    ]
+  },
+  {
+    category: "推角 SEKAI",
+    color: "#EE1166", // Vivid BAD SQUAD Pink
+    items: [
+      { id: 'worldLink', label: "World Link 分析", charColor: CHARACTERS['9'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+      { id: 'unitAnalysis', label: "團推分析", charColor: "#00BBDD", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
+      { id: 'characterAnalysis', label: "推角分析", charColor: "#FF7722", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> },
+    ]
+  },
+  {
+    category: "玩家 SEKAI",
+    color: "#FF9900", // Wonderlands × Showtime Orange
+    items: [
+      { id: 'playerAnalysis', label: "活躍玩家分析", charColor: CHARACTERS['13'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> },
+      { id: 'playerStructure', label: "玩家排名結構", charColor: CHARACTERS['14'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> },
+      { id: 'playerProfile', label: "玩家狀態查詢", charColor: CHARACTERS['15'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> },
+    ]
+  },
+  {
+    category: "工具 SEKAI",
+    color: "#884499", // 25點，Nightcord見。 Purple
+    items: [
+      { id: 'resourceEstimator', label: "預估資源計算機", charColor: CHARACTERS['17'].color, icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> },
+    ]
+  }
+];
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   currentView, 
@@ -23,67 +82,149 @@ const Sidebar: React.FC<SidebarProps> = ({
   theme,
   toggleTheme
 }) => {
-  
-  const navItems = [
-    { id: 'home', label: "首頁看板", groupColor: "#06b6d4", charColor: "#fff", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1" /></svg> },
-    { id: 'live', label: "現時活動", groupColor: "#4455DD", charColor: CHARACTERS['1'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
-    { id: 'past', label: "歷代活動", groupColor: "#4455DD", charColor: CHARACTERS['2'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-    { id: 'distribution', label: "活動分布概況", groupColor: "#4455DD", charColor: CHARACTERS['3'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" /></svg> },
-    { id: 'comparison', label: "活動比較分析", groupColor: "#88DD44", charColor: CHARACTERS['5'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 18l4-6 4 4 10-10 M3 14l4-6 4 4 10-10" /></svg> },
-    { id: 'analysis', label: "活動榜線排名", groupColor: "#88DD44", charColor: CHARACTERS['6'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 20v-4h3v4M11 20v-8h3v8M16 20v-13h3v13" /></svg> },
-    { id: 'trend', label: "活動榜線趨勢", groupColor: "#88DD44", charColor: CHARACTERS['7'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> },
-    { id: 'worldLink', label: "World Link 分析", groupColor: "#EE1166", charColor: CHARACTERS['9'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-    { id: 'unitAnalysis', label: "團推分析", groupColor: "#EE1166", charColor: CHARACTERS['10'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
-    { id: 'characterAnalysis', label: "推角分析", groupColor: "#FF7722", charColor: "#fff", icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> },
-    { id: 'playerAnalysis', label: "活躍玩家分析", groupColor: "#FF9900", charColor: CHARACTERS['13'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> },
-    { id: 'playerStructure', label: "玩家排名結構", groupColor: "#FF9900", charColor: CHARACTERS['14'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> },
-    { id: 'playerProfile', label: "玩家狀態查詢", groupColor: "#FF9900", charColor: CHARACTERS['15'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> },
-    { id: 'resourceEstimator', label: "預估資源計算機", groupColor: "#884499", charColor: CHARACTERS['17'].color, icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> }
-  ];
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["查榜 SEKAI"]));
 
-  const itemClass = (viewId: string) => `
-    w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 text-left font-black group 
+  // 當 currentView 改變時，自動展開該功能所屬的分組
+  useEffect(() => {
+    const parentGroup = NAV_GROUPS.find(group => 
+      group.items.some(item => item.id === currentView)
+    );
+    if (parentGroup && !expandedGroups.has(parentGroup.category)) {
+      setExpandedGroups(prev => new Set(prev).add(parentGroup.category));
+    }
+  }, [currentView]);
+
+  const toggleGroup = (category: string) => {
+    if (isCollapsed) return; 
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
+
+  const itemClass = (viewId: string, charColor: string) => `
+    w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-left font-bold group relative
     ${currentView === viewId
-      ? 'shadow-xl scale-[1.02]'
-      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-200'
+      ? 'bg-slate-100 dark:bg-slate-700/50 shadow-sm translate-x-1'
+      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30 hover:text-slate-900 dark:hover:text-slate-200'
     } 
-    ${isCollapsed ? 'justify-center px-2' : ''}
+    ${isCollapsed ? 'justify-center px-0' : ''}
   `;
 
   return (
     <>
       {isOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={toggleSidebar} />}
-      <aside className={`fixed md:sticky top-0 h-screen z-30 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform transition-all duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 ${isCollapsed ? 'w-20' : 'w-72'}`}>
-        <div className={`p-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3 h-20 ${isCollapsed ? 'justify-center' : ''}`}>
-           <div className="bg-cyan-500/10 dark:bg-cyan-500/20 p-2 rounded-lg flex-shrink-0"><TrophyIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" /></div>
-           {!isCollapsed && <h1 className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">Hi Sekai TW</h1>}
+      <aside className={`fixed md:sticky top-0 h-screen z-30 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform transition-all duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 ${isCollapsed ? 'w-20' : 'w-60'}`}>
+        
+        {/* Header Section */}
+        <div className={`p-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3 h-20 overflow-hidden ${isCollapsed ? 'justify-center' : ''}`}>
+           <button 
+             onClick={() => setCurrentView('home')}
+             className="bg-cyan-500/10 dark:bg-cyan-500/20 p-2 rounded-lg flex-shrink-0 hover:scale-110 transition-transform active:scale-95"
+           >
+             <TrophyIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+           </button>
+           {!isCollapsed && (
+             <div className="flex flex-col min-w-0">
+               <h1 className="font-black text-lg text-slate-900 dark:text-white tracking-tighter truncate">Hi Sekai TW</h1>
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Database</span>
+             </div>
+           )}
         </div>
-        <nav className="p-4 space-y-2 flex-1 custom-scrollbar overflow-y-auto">
-          {navItems.map((item) => (
-            <button 
-                key={item.id} 
-                onClick={() => { setCurrentView(item.id); if (window.innerWidth < 768) toggleSidebar(); }} 
-                className={itemClass(item.id)} 
-                style={currentView === item.id ? { backgroundColor: item.groupColor, color: item.charColor } : {}} 
-                title={item.label}
-            >
-                <div className="flex-shrink-0" style={{ color: currentView === item.id ? item.charColor : 'inherit' }}>{item.icon}</div>
-                {!isCollapsed && <span className="whitespace-nowrap overflow-hidden text-sm font-black">{item.label}</span>}
-            </button>
-          ))}
+
+        {/* Navigation Groups */}
+        <nav className="p-3 space-y-3 flex-1 custom-scrollbar overflow-y-auto select-none">
+          {NAV_GROUPS.map((group) => {
+            const isExpanded = expandedGroups.has(group.category) || isCollapsed;
+            const isGroupActive = group.items.some(item => item.id === currentView);
+
+            return (
+              <div key={group.category} className="space-y-1">
+                {/* Group Header */}
+                {!isCollapsed && (
+                  <button 
+                    onClick={() => toggleGroup(group.category)}
+                    className="w-full flex items-center justify-between px-2 py-1 group/header"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-3 rounded-full" style={{ backgroundColor: group.color }}></div>
+                      <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-colors ${isGroupActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover/header:text-slate-600 dark:group-hover/header:text-slate-300'}`}>
+                        {group.category}
+                      </span>
+                    </div>
+                    <svg 
+                      className={`w-3 h-3 text-slate-300 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Group Items */}
+                <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+                  <div className="overflow-hidden space-y-1">
+                    {group.items.map((item) => (
+                      <button 
+                        key={item.id} 
+                        onClick={() => { setCurrentView(item.id); if (window.innerWidth < 768) toggleSidebar(); }} 
+                        className={itemClass(item.id, item.charColor)}
+                        title={isCollapsed ? item.label : undefined}
+                      >
+                        <div 
+                          className="flex-shrink-0 transition-transform group-hover:scale-110" 
+                          style={{ color: currentView === item.id ? item.charColor : 'inherit' }}
+                        >
+                          {item.icon}
+                        </div>
+                        {!isCollapsed && (
+                          <span className={`whitespace-nowrap overflow-hidden text-sm font-black transition-colors ${currentView === item.id ? 'text-slate-900 dark:text-white' : ''}`}>
+                            {item.label}
+                          </span>
+                        )}
+                        {/* Active Indicator Dot */}
+                        {currentView === item.id && !isCollapsed && (
+                          <div className="absolute left-0 w-1 h-4 rounded-r-full" style={{ backgroundColor: item.charColor }}></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </nav>
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2">
-            <button onClick={toggleTheme} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors w-full flex justify-center items-center gap-2">
-                {theme === 'dark' ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>}
-                {!isCollapsed && <span className="text-xs font-bold">切換主題</span>}
+
+        {/* Footer Actions */}
+        <div className="p-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-1.5">
+            <button 
+              onClick={toggleTheme} 
+              className={`p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}
+            >
+                {theme === 'dark' 
+                  ? <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> 
+                  : <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                }
+                {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-wider">切換主題</span>}
             </button>
-            <button onClick={toggleCollapse} className="hidden md:flex p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors w-full justify-center">
-                <svg className={`w-5 h-5 transform transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+            
+            <button 
+              onClick={toggleCollapse} 
+              className={`hidden md:flex p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}
+            >
+                <svg className={`w-5 h-5 transform transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+                {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-wider">收合選單</span>}
             </button>
         </div>
+
         {!isCollapsed && (
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/30 text-[10px] text-center text-slate-400 font-bold border-t border-slate-200 dark:border-slate-700">
-                非官方粉絲製作網站<br/>Data by <a href="https://hisekai.org" target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">Hi Sekai API</a>
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/30 text-[8px] text-center text-slate-400 font-bold border-t border-slate-200 dark:border-slate-700">
+                非官方粉絲製作網站<br/>
+                Data by <a href="https://hisekai.org" target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">Hi Sekai API</a>
             </div>
         )}
       </aside>

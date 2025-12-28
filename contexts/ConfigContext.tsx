@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { EventDetail, WorldLinkInfo } from '../types';
 import { UNIT_MASTER, getChar } from '../constants';
@@ -67,7 +68,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     const getWlIdsByRound = (round: number): number[] => {
-        return Object.entries(wlDetails)
+        // Fix: Explicitly cast Object.entries result to handle potential inference issues with numeric keys in Record
+        return (Object.entries(wlDetails) as [string, WorldLinkInfo][])
             .filter(([, info]) => info.round === round)
             .map(([id]) => Number(id))
             .sort((a, b) => a - b);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
-import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL, getAssetUrl, getChar, getUnit } from '../constants';
+import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL, getAssetUrl, getChar } from '../constants';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { useConfig } from '../contexts/ConfigContext';
@@ -34,16 +34,6 @@ interface MonthSegment {
     left: number; // 基於 31 天網格的百分比
     width: number; // 基於 31 天網格的百分比
 }
-
-// 角色 ID 歸屬單位映射 (Value 改為 ID)
-const CHAR_TO_UNIT_MAP: Record<string, string> = {
-    "1": "1", "2": "1", "3": "1", "4": "1",
-    "5": "2", "6": "2", "7": "2", "8": "2",
-    "9": "3", "10": "3", "11": "3", "12": "3",
-    "13": "4", "14": "4", "15": "4", "16": "4",
-    "17": "5", "18": "5", "19": "5", "20": "5",
-    "21": "0", "22": "0", "23": "0", "24": "0", "25": "0", "26": "0"
-};
 
 const getCardTypeInfo = (type: string) => {
     switch(type) {
@@ -245,22 +235,43 @@ const EventDistributionView: React.FC = () => {
         const mixedCount = filtered.filter(e => e.storyType === 'mixed_event').length;
         const wlCount = filtered.filter(e => e.storyType === 'world_link').length;
         
-        let maxInterval = 0, minInterval = Infinity, charUnitCount = 0, charMixedCount = 0;
+        let unitMaxInterval = 0, unitMinInterval = Infinity;
+        let mixedMaxInterval = 0, mixedMinInterval = Infinity;
+        let charUnitCount = 0, charMixedCount = 0;
+
         if (filter.type === 'character') {
             const charId = filter.value;
             const charEvents = events.filter(e => e.bannerCharId === charId);
             charUnitCount = charEvents.filter(e => e.storyType === 'unit_event').length;
             charMixedCount = charEvents.filter(e => e.storyType === 'mixed_event').length;
+            
+            // 箱活間隔
             const uEvents = charEvents.filter(e => e.storyType === 'unit_event').sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
             if (uEvents.length >= 2) {
                 for (let i = 0; i < uEvents.length - 1; i++) {
                     const diff = Math.round((uEvents[i+1].startDate.getTime() - uEvents[i].startDate.getTime()) / 86400000);
-                    if (diff > maxInterval) maxInterval = diff;
-                    if (diff < minInterval) minInterval = diff;
+                    if (diff > unitMaxInterval) unitMaxInterval = diff;
+                    if (diff < unitMinInterval) unitMinInterval = diff;
                 }
-            } else minInterval = 0;
+            } else unitMinInterval = 0;
+
+            // 混活間隔
+            const mEvents = charEvents.filter(e => e.storyType === 'mixed_event').sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+            if (mEvents.length >= 2) {
+                for (let i = 0; i < mEvents.length - 1; i++) {
+                    const diff = Math.round((mEvents[i+1].startDate.getTime() - mEvents[i].startDate.getTime()) / 86400000);
+                    if (diff > mixedMaxInterval) mixedMaxInterval = diff;
+                    if (diff < mixedMinInterval) mixedMinInterval = diff;
+                }
+            } else mixedMinInterval = 0;
         }
-        return { totalCount, unitCount, mixedCount, wlCount, charUnitCount, charMixedCount, maxInterval, minInterval: minInterval === Infinity ? 0 : minInterval };
+
+        return { 
+            totalCount, unitCount, mixedCount, wlCount, 
+            charUnitCount, charMixedCount, 
+            unitMaxInterval, unitMinInterval: unitMinInterval === Infinity ? 0 : unitMinInterval,
+            mixedMaxInterval, mixedMinInterval: mixedMinInterval === Infinity ? 0 : mixedMinInterval
+        };
     }, [events, filter]);
 
     const handleWheel = (e: React.WheelEvent) => {
@@ -450,9 +461,9 @@ const EventDistributionView: React.FC = () => {
                     <div className="flex flex-col xl:flex-row gap-6 w-full items-start xl:items-center">
                         <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 pr-6 rounded-2xl border border-slate-100 dark:border-slate-700 w-full xl:w-auto shadow-inner">
                             {(() => {
-                                const targetUnitId = filter.type === 'unit' ? filter.value : CHAR_TO_UNIT_MAP[filter.value];
+                                const targetUnitId = filter.type === 'unit' ? filter.value : CHARACTER_MASTER[filter.value]?.unit || "99";
                                 const unitInfo = UNIT_MASTER[targetUnitId];
-                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => CHAR_TO_UNIT_MAP[c.id] === targetUnitId);
+                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => c.unit === targetUnitId);
 
                                 return (
                                     <>
@@ -473,8 +484,8 @@ const EventDistributionView: React.FC = () => {
                                 );
                             })()}
                         </div>
-                        <div className="flex-1 flex flex-col sm:flex-row gap-8 sm:gap-12 items-center w-full px-4">
-                            <div className="flex gap-10 text-sm">
+                        <div className="flex-1 flex flex-col sm:flex-row gap-8 sm:gap-6 items-center w-full px-4">
+                            <div className="flex gap-8 text-sm">
                                 <div className="flex flex-col"><span className="text-[10px] text-slate-400 font-black uppercase mb-1">總期數</span><span className="font-mono font-black text-3xl dark:text-white">{stats.totalCount}</span></div>
                                 <div className="w-px h-12 bg-slate-200 dark:bg-slate-700"></div>
                                 {filter.type === 'unit' ? (
@@ -484,11 +495,20 @@ const EventDistributionView: React.FC = () => {
                                 )}
                             </div>
                             {filter.type === 'character' && (
-                                <div className="flex-1 w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 flex items-center justify-around shadow-inner">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">箱活間隔分析</span>
-                                    <div className="flex gap-8">
-                                        <div className="flex items-baseline gap-2"><span className="text-xs text-emerald-500 font-black uppercase">Min</span><span className="font-mono font-black text-2xl dark:text-white">{stats.minInterval}</span><span className="text-[10px] text-slate-400 font-bold">天</span></div>
-                                        <div className="flex items-baseline gap-2"><span className="text-xs text-rose-500 font-black uppercase">Max</span><span className="font-mono font-black text-2xl dark:text-white">{stats.maxInterval}</span><span className="text-[10px] text-slate-400 font-bold">天</span></div>
+                                <div className="flex-1 w-full grid grid-cols-2 gap-3">
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center shadow-inner">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">箱活間隔</span>
+                                        <div className="flex gap-4">
+                                            <div className="flex items-baseline gap-1"><span className="text-[9px] text-emerald-500 font-black">MIN</span><span className="font-mono font-black text-xl dark:text-white">{stats.unitMinInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
+                                            <div className="flex items-baseline gap-1"><span className="text-[9px] text-rose-500 font-black">MAX</span><span className="font-mono font-black text-xl dark:text-white">{stats.unitMaxInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center shadow-inner">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">混活間隔</span>
+                                        <div className="flex gap-4">
+                                            <div className="flex items-baseline gap-1"><span className="text-[9px] text-emerald-500 font-black">MIN</span><span className="font-mono font-black text-xl dark:text-white">{stats.mixedMinInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
+                                            <div className="flex items-baseline gap-1"><span className="text-[9px] text-rose-500 font-black">MAX</span><span className="font-mono font-black text-xl dark:text-white">{stats.mixedMaxInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
+                                        </div>
                                     </div>
                                 </div>
                             )}

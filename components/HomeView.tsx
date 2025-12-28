@@ -69,12 +69,23 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
 
     return (
         <div className="w-full animate-fadeIn py-6 px-4 max-w-[1800px] mx-auto">
-            <div className="text-center mb-12">
-                <div className="inline-block p-4 bg-cyan-500/10 rounded-full mb-4 ring-4 ring-cyan-500/10">
-                    <TrophyIcon className="w-12 h-12 text-cyan-600 dark:text-cyan-400" />
+            <div className="text-center mb-10">
+                {/* 標題列：[ICON][站名][ICON] 佈局 */}
+                <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="p-2.5 bg-cyan-500/10 rounded-full ring-2 ring-cyan-500/10 transition-transform hover:rotate-12 duration-500">
+                        <TrophyIcon className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    
+                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                        Hi Sekai TW Rankings
+                    </h1>
+                    
+                    <div className="p-2.5 bg-cyan-500/10 rounded-full ring-2 ring-cyan-500/10 transition-transform hover:-rotate-12 duration-500">
+                        <TrophyIcon className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+                    </div>
                 </div>
-                <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-3 tracking-tight">Hi Sekai TW Rankings</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-3xl mx-auto font-bold leading-relaxed">
+
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-3xl mx-auto font-bold leading-relaxed px-4">
                     提供 Project Sekai 台服最完整的排名數據查詢、歷代活動存檔以及多維度的數據分析工具。
                 </p>
             </div>

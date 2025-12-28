@@ -92,8 +92,9 @@ const CharacterAnalysisView: React.FC = () => {
             setCurrentPage(1);
             setWlRankInfo(null);
 
+            const now = new Date();
+
             if (isWlMode) {
-                // 從 wlDetails 中抓取活動 ID
                 const targetWlIds = Object.keys(wlDetails).map(Number).sort((a,b) => a - b);
                 const allCharScores: {id: string, total: number, daily: number, wlId: number, wlName: string, chapterOrder: number}[] = [];
                 
@@ -107,7 +108,7 @@ const CharacterAnalysisView: React.FC = () => {
                         const chapters = rankTarget <= 100 ? json.userWorldBloomChapterRankings : json.userWorldBloomChapterRankingBorders;
                         
                         const wlInfo = wlDetails[wlId];
-                        const duration = wlInfo?.chDavg || 3; // 從 JSON 讀取
+                        const duration = wlInfo?.chDavg || 3; 
                         const eventInfo = events.find(e => e.id === wlId);
                         
                         chapters?.forEach((chap: any) => {
@@ -136,7 +137,6 @@ const CharacterAnalysisView: React.FC = () => {
                 return;
             }
 
-            const now = new Date();
             const filteredEvents = events.filter(e => {
                 const d = eventDetails[e.id];
                 return d && new Date(e.closed_at) <= now && d.banner === activeCharId && (storyType === 'all' || d.storyType === storyType);
@@ -179,6 +179,36 @@ const CharacterAnalysisView: React.FC = () => {
         runAnalysis();
         return () => { isMounted = false; abortController.abort(); };
     }, [events, activeCharId, storyType, rankTarget, eventDetails, wlDetails]);
+
+    // --- 計算「目前活動期數」與「四星卡次數」 ---
+    const { currentLiveId, totalStarCards } = useMemo(() => {
+        if (events.length === 0 || !eventDetails) return { currentLiveId: 0, totalStarCards: 0 };
+        
+        const now = new Date();
+        // 核心：僅計算「當下時間已開始」的活動期數
+        const startedEvents = events.filter(e => new Date(e.start_at) <= now);
+        if (startedEvents.length === 0) return { currentLiveId: 0, totalStarCards: 0 };
+        
+        const maxStartedId = Math.max(...startedEvents.map(e => e.id));
+        let starCount = 0;
+        
+        Object.entries(eventDetails).forEach(([id, detail]) => {
+            // 禁止計算未來期數
+            if (Number(id) > maxStartedId) return;
+            if (!detail["4starcard"]) return;
+            
+            const cards = detail["4starcard"].split(',');
+            cards.forEach(cardStr => {
+                // 虛擬歌手歸一化處理 (如 21-1, 21-2 皆歸為 21)
+                const baseId = cardStr.split('-')[0].trim();
+                if (baseId === activeCharId) {
+                    starCount++;
+                }
+            });
+        });
+        
+        return { currentLiveId: maxStartedId, totalStarCards: starCount };
+    }, [events, eventDetails, activeCharId]);
 
     const { stats, paginatedData, totalPages } = useMemo(() => {
         const scores = analyzedData.map(d => d.score);
@@ -264,7 +294,8 @@ const CharacterAnalysisView: React.FC = () => {
                                 在共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count}</span> 期 
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span> 
                                 <span className="px-1" style={{ color: charThemeColor }}>{storyLabel}</span> 活動中，共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名， 
-                                前百名不同玩家比例為 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count > 0 ? ((uniquePlayers/(stats.count*100))*100).toFixed(1) : "0.0"}%</span>。
+                                前百名內不同玩家比例為 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count > 0 ? ((uniquePlayers/(stats.count*100))*100).toFixed(1) : "0.0"}%</span>。
+                                截至 <span className="text-xl px-0.5 font-mono" style={{ color: charThemeColor }}>{currentLiveId}</span> 期為止，不計FES及合作聯動，共有 <span className="text-xl px-0.5 font-mono" style={{ color: charThemeColor }}>{totalStarCards}</span> 張四星卡。
                             </p>
                         )}
                     </div>

@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { getAssetUrl } from '../constants';
 
@@ -76,7 +75,9 @@ const LineChart: React.FC<LineChartProps> = ({
   const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
   const yRange = yDomainMax - yDomainMin || 1;
 
-  const isSafeLineVisible = safeThreshold !== undefined && safeThreshold <= yDomainMax;
+  // 判斷線條是否在顯示範圍內
+  const isSafeLineVisible = safeThreshold !== undefined && safeThreshold >= yDomainMin && safeThreshold <= yDomainMax;
+  const isGiveUpLineVisible = giveUpThreshold !== undefined && giveUpThreshold >= yDomainMin && giveUpThreshold <= yDomainMax;
 
   const minRank = sortedData[0].rank || 1;
   const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
@@ -203,11 +204,13 @@ const LineChart: React.FC<LineChartProps> = ({
                         <style>{`:root { --color-cyan-500: #06b6d4; }`}</style>
                     </defs>
 
+                    {/* 安全區渲染 */}
                     {isSafeLineVisible && safeThreshold !== undefined && safeRankCutoff !== undefined && (
                         <rect x="0" y="0" width={getXPercent(safeRankCutoff)} height={100} fill="rgba(16, 185, 129, 0.2)" className="transition-all duration-500" />
                     )}
 
-                    {giveUpThreshold !== undefined && giveUpRankCutoff !== undefined && (
+                    {/* 死心區渲染 - 修改點：增加 isGiveUpLineVisible 判斷 */}
+                    {isGiveUpLineVisible && giveUpThreshold !== undefined && giveUpRankCutoff !== undefined && (
                         <rect x={getXPercent(giveUpRankCutoff)} y="0" width={100 - getXPercent(giveUpRankCutoff)} height={100} fill="rgba(244, 63, 94, 0.2)" className="transition-all duration-500" />
                     )}
 
@@ -229,11 +232,13 @@ const LineChart: React.FC<LineChartProps> = ({
                         <line x1="0" y1={getYPercent(medianValue)} x2="100" y2={getYPercent(medianValue)} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />
                     )}
 
+                    {/* 安全線顯示 */}
                     {isSafeLineVisible && safeThreshold !== undefined && (
                         <line x1="0" y1={getYPercent(safeThreshold)} x2="100" y2={getYPercent(safeThreshold)} stroke="#10b981" strokeWidth="1" strokeDasharray="4 2" strokeOpacity="0.7" vectorEffect="non-scaling-stroke" />
                     )}
 
-                    {giveUpThreshold !== undefined && (
+                    {/* 死心線顯示 - 修改點：增加 isGiveUpLineVisible 判斷 */}
+                    {isGiveUpLineVisible && giveUpThreshold !== undefined && (
                         <line x1="0" y1={getYPercent(giveUpThreshold)} x2="100" y2={getYPercent(giveUpThreshold)} stroke="#f43f5e" strokeWidth="1" strokeDasharray="4 2" strokeOpacity="0.7" vectorEffect="non-scaling-stroke" />
                     )}
                 </svg>
@@ -245,23 +250,18 @@ const LineChart: React.FC<LineChartProps> = ({
                     );
                 })}
 
-                {/* 修正後的精準 Tooltip 定位邏輯 */}
                 {points.map((point, index) => {
                     const eventLogoUrl = isTrend ? getAssetUrl(point.rank?.toString(), 'event') : undefined;
                     
-                    // 動態計算 Tooltip 位置與箭頭位置
-                    // 右側閾值 70%，提早翻轉避免溢出
                     let tooltipLeft = "50%";
                     let tooltipTranslate = "-50%";
                     let arrowLeft = "50%";
 
                     if (point.x > 70) {
-                        // 右側邊界區：靠右對齊並向左展開，保留 12px 安全間距
                         tooltipLeft = "calc(100% - 12px)";
                         tooltipTranslate = "-100%";
                         arrowLeft = "90%";
                     } else if (point.x < 20) {
-                        // 左側邊界區：靠左對齊並向右展開
                         tooltipLeft = "0%";
                         tooltipTranslate = "0%";
                         arrowLeft = "10%";
@@ -297,7 +297,6 @@ const LineChart: React.FC<LineChartProps> = ({
                                         </span>
                                     </div>
                                 </div>
-                                {/* 動態箭頭 */}
                                 <div className="absolute top-full border-[6px] border-transparent border-t-slate-900/95 -translate-x-1/2" style={{ left: arrowLeft }}></div>
                             </div>
                         </div>

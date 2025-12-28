@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { EventSummary } from '../types';
+import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import { 
-    CHARACTER_MASTER, API_BASE_URL, getAssetUrl, WORLD_LINK_ROUND_1_IDS, EVENT_CHAPTER_ORDER 
+    CHARACTER_MASTER, API_BASE_URL, getAssetUrl 
 } from '../constants';
 import * as Stats from '../utils/mathUtils';
 import LoadingSpinner from './LoadingSpinner';
 import { useConfig } from '../contexts/ConfigContext';
+import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import Select from './ui/Select';
 
 type StoryType = 'all' | 'unit_event' | 'mixed_event' | 'world_link';
@@ -21,7 +21,7 @@ const RANK_OPTIONS = [1, 10, 100, 500, 1000, 5000, 10000].map(r => ({ value: r, 
 const PAGE_SIZE = 5;
 
 const CharacterAnalysisView: React.FC = () => {
-    const { eventDetails, getEventColor } = useConfig();
+    const { eventDetails, getEventColor, wlDetails } = useConfig();
     
     const [activeCharId, setActiveCharId] = useState<string>('1'); 
     const [tempCharId, setTempCharId] = useState<string>('1');
@@ -78,7 +78,7 @@ const CharacterAnalysisView: React.FC = () => {
     }, [tempCharId]);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/event/list`).then(res => res.json()).then(setEvents).catch(console.error);
+        fetchJsonWithBigInt(`${API_BASE_URL}/event/list`).then(setEvents).catch(console.error);
     }, []);
 
     useEffect(() => {
@@ -93,32 +93,42 @@ const CharacterAnalysisView: React.FC = () => {
             setWlRankInfo(null);
 
             if (isWlMode) {
-                const targetWlIds = WORLD_LINK_ROUND_1_IDS;
+                // 從 wlDetails 中抓取活動 ID
+                const targetWlIds = Object.keys(wlDetails).map(Number).sort((a,b) => a - b);
                 const allCharScores: {id: string, total: number, daily: number, wlId: number, wlName: string, chapterOrder: number}[] = [];
+                
                 for (let wlId of targetWlIds) {
                     try {
-                        const res = await fetch(rankTarget <= 100 ? `${API_BASE_URL}/event/${wlId}/top100` : `${API_BASE_URL}/event/${wlId}/border`, { signal: abortController.signal });
-                        const sanitize = (t: string) => t.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        const json = JSON.parse(sanitize(await res.text()));
+                        const url = rankTarget <= 100 
+                            ? `${API_BASE_URL}/event/${wlId}/top100` 
+                            : `${API_BASE_URL}/event/${wlId}/border`;
+                        
+                        const json = await fetchJsonWithBigInt(url, abortController.signal);
                         const chapters = rankTarget <= 100 ? json.userWorldBloomChapterRankings : json.userWorldBloomChapterRankingBorders;
-                        const duration = wlId === 140 ? 2 : 3;
+                        
+                        const wlInfo = wlDetails[wlId];
+                        const duration = wlInfo?.chDavg || 3; // 從 JSON 讀取
                         const eventInfo = events.find(e => e.id === wlId);
+                        
                         chapters?.forEach((chap: any) => {
                             const cid = String(chap.gameCharacterId);
                             const rankings = chap.rankings || chap.borderRankings;
                             const score = rankings?.find((r: any) => r.rank === rankTarget)?.score || 0;
-                            const chapterList = EVENT_CHAPTER_ORDER[wlId] || [];
-                            const charName = CHARACTER_MASTER[cid]?.name;
-                            const order = chapterList.indexOf(charName) + 1;
+                            const order = wlInfo?.chorder.indexOf(cid) + 1 || 0;
+                            
                             if (score > 0) allCharScores.push({ id: cid, total: score, daily: score / duration, wlId: wlId, wlName: eventInfo?.name || "World Link", chapterOrder: order });
                         });
                     } catch(e) {}
                 }
+                
                 if (isMounted) {
                     const myWlData = allCharScores.filter(s => s.id === activeCharId);
                     const currentScore = myWlData[0];
                     if (currentScore) {
-                        setWlRankInfo({ totalRank: allCharScores.filter(s => s.total > currentScore.total).length + 1, dailyRank: allCharScores.filter(s => s.daily > currentScore.daily).length + 1 });
+                        setWlRankInfo({ 
+                            totalRank: allCharScores.filter(s => s.total > currentScore.total).length + 1, 
+                            dailyRank: allCharScores.filter(s => s.daily > currentScore.daily).length + 1 
+                        });
                         setAnalyzedData(myWlData.map(d => ({ id: d.wlId, name: d.wlName, score: d.total, daily: d.daily, isWl: true, chapterOrder: d.chapterOrder })));
                     } else setAnalyzedData([]);
                     setIsLoading(false);
@@ -142,19 +152,20 @@ const CharacterAnalysisView: React.FC = () => {
                 const batchRes = await Promise.all(batch.map(async (evt) => {
                     try {
                         const isT100 = rankTarget <= 100;
-                        const [resScore, resTop100] = await Promise.all([
-                            fetch(isT100 ? `${API_BASE_URL}/event/${evt.id}/top100` : `${API_BASE_URL}/event/${evt.id}/border`, { signal: abortController.signal }),
-                            fetch(`${API_BASE_URL}/event/${evt.id}/top100`, { signal: abortController.signal })
+                        const scoreUrl = isT100 ? `${API_BASE_URL}/event/${evt.id}/top100` : `${API_BASE_URL}/event/${evt.id}/border`;
+                        const top100Url = `${API_BASE_URL}/event/${evt.id}/top100`;
+
+                        const [jsonScore, jsonTop100] = await Promise.all([
+                            fetchJsonWithBigInt(scoreUrl, abortController.signal),
+                            fetchJsonWithBigInt(top100Url, abortController.signal)
                         ]);
-                        const sanitize = (t: string) => t.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
+                        
                         let targetScore = 0;
-                        if (resScore.ok) {
-                            const json = JSON.parse(sanitize(await resScore.text()));
-                            targetScore = (isT100 ? json.rankings : json.borderRankings)?.find((r: any) => r.rank === rankTarget)?.score || 0;
+                        if (jsonScore) {
+                            targetScore = (isT100 ? jsonScore.rankings : jsonScore.borderRankings)?.find((r: any) => r.rank === rankTarget)?.score || 0;
                         }
-                        if (resTop100.ok) {
-                            const json = JSON.parse(sanitize(await resTop100.text()));
-                            json.rankings?.forEach((r: any) => playerIds.add(String(r.userId)));
+                        if (jsonTop100 && jsonTop100.rankings) {
+                            jsonTop100.rankings.forEach((r: any) => playerIds.add(String(r.userId)));
                         }
                         const duration = Math.max(1, Math.round((new Date(evt.aggregate_at).getTime() - new Date(evt.start_at).getTime()) / 86400000));
                         return { id: evt.id, name: evt.name, score: targetScore, daily: targetScore / duration };
@@ -167,7 +178,7 @@ const CharacterAnalysisView: React.FC = () => {
         };
         runAnalysis();
         return () => { isMounted = false; abortController.abort(); };
-    }, [events, activeCharId, storyType, rankTarget, eventDetails]);
+    }, [events, activeCharId, storyType, rankTarget, eventDetails, wlDetails]);
 
     const { stats, paginatedData, totalPages } = useMemo(() => {
         const scores = analyzedData.map(d => d.score);
@@ -204,7 +215,6 @@ const CharacterAnalysisView: React.FC = () => {
 
             <div className="bg-white/10 dark:bg-slate-800/10 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden mb-6 relative z-10">
                 <div className="py-2.5 bg-black/20 dark:bg-white/5 border-b border-white/5">
-                    {/* 手機版：輪播 */}
                     <div className="flex md:hidden items-center justify-center gap-1 sm:gap-6">
                         <button onMouseDown={() => startScrolling('prev')} onMouseUp={stopScrolling} onMouseLeave={stopScrolling} className="p-2 text-slate-400 hover:text-white transition-colors active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg></button>
                         <div className="flex items-center gap-2 sm:gap-4">
@@ -220,7 +230,6 @@ const CharacterAnalysisView: React.FC = () => {
                         <button onMouseDown={() => startScrolling('next')} onMouseUp={stopScrolling} onMouseLeave={stopScrolling} className="p-2 text-slate-400 hover:text-white transition-colors active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg></button>
                     </div>
 
-                    {/* 電腦版：全展開 */}
                     <div className="hidden md:flex flex-wrap items-center justify-center gap-2 px-4 max-h-[50px] overflow-y-auto no-scrollbar">
                         {charArray.map((char) => {
                             const isActive = activeCharId === char.id;
@@ -246,7 +255,7 @@ const CharacterAnalysisView: React.FC = () => {
                         {isWlMode ? (
                             <p className="text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed">
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span>
-                                在第一輪 WL 活動時，於 <span className="px-1 font-mono" style={{ color: charThemeColor }}>T{rankTarget}</span> 
+                                在 WL 活動時，於 <span className="px-1 font-mono" style={{ color: charThemeColor }}>T{rankTarget}</span> 
                                 總分為全角色第 <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.totalRank || '-'}</span> 名，
                                 日均分為全角色第 <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.dailyRank || '-'}</span> 名。
                             </p>
@@ -263,12 +272,10 @@ const CharacterAnalysisView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch relative z-10 px-1">
-                {/* 1. 左欄：全身圖 */}
                 <div className="lg:col-span-3 hidden lg:flex flex-col justify-end bg-black/5 dark:bg-white/5 rounded-3xl overflow-hidden border border-white/5 p-4 min-h-[500px]">
                     <img src={getAssetUrl(activeCharId, 'character_full')} alt="full" className="w-full h-full object-contain object-bottom transition-all duration-700 animate-fadeIn" />
                 </div>
 
-                {/* 2. 中欄：統計數據 */}
                 <div className="lg:col-span-4 flex flex-col gap-4">
                     <div className="bg-white/10 dark:bg-slate-800/10 backdrop-blur-2xl p-4 rounded-2xl border border-white/10 shadow-sm flex flex-col gap-4">
                         <div className="flex gap-2 w-full">
@@ -305,7 +312,6 @@ const CharacterAnalysisView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 3. 右欄：個人活動紀錄 */}
                 <div className="lg:col-span-5 bg-white/10 dark:bg-slate-800/10 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                     <div className="px-5 py-4 border-b border-white/10 bg-black/20 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3 min-w-0">

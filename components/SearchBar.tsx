@@ -4,14 +4,15 @@ import React from 'react';
 interface SearchBarProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  placeholder?: string; // 新增：可選的 placeholder
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, setSearchTerm }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, setSearchTerm, placeholder = "搜尋..." }) => {
   return (
     <div className="relative w-full max-w-[280px]">
       <input
         type="text"
-        placeholder="搜尋玩家名稱..."
+        placeholder={placeholder}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="w-full pl-9 pr-4 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all duration-300"

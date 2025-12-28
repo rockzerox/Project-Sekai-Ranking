@@ -1,13 +1,16 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { EventDetail } from '../types';
-import { CHARACTER_MASTER, UNIT_MASTER, getChar } from '../constants';
+import { EventDetail, WorldLinkInfo } from '../types';
+import { UNIT_MASTER, getChar } from '../constants';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 
 interface ConfigContextType {
     eventDetails: Record<number, EventDetail>;
+    wlDetails: Record<number, WorldLinkInfo>;
     getEventColor: (eventId: number) => string | undefined;
+    isWorldLink: (eventId: number) => boolean;
+    getWlDetail: (eventId: number) => WorldLinkInfo | undefined;
+    getWlIdsByRound: (round: number) => number[];
     isLoading: boolean;
 }
 
@@ -15,49 +18,66 @@ const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [eventDetails, setEventDetails] = useState<Record<number, EventDetail>>({});
+    const [wlDetails, setWlDetails] = useState<Record<number, WorldLinkInfo>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchConfig = async () => {
+        const fetchConfigs = async () => {
             try {
-                const response = await fetch('/eventDetail.json');
-                if (!response.ok) throw new Error(`Failed to load: ${response.statusText}`);
-                const data = await response.json();
-                setEventDetails(data);
+                const [eventRes, wlRes] = await Promise.all([
+                    fetch('eventDetail.json'),
+                    fetch('WorldLinkDetail.json')
+                ]);
+                
+                if (!eventRes.ok || !wlRes.ok) throw new Error("無法讀取設定檔");
+                
+                const eventData = await eventRes.json();
+                const wlData = await wlRes.json();
+                
+                setEventDetails(eventData);
+                setWlDetails(wlData);
             } catch (err) {
                 console.error("Config Load Error:", err);
-                setError("無法載入活動設定檔。");
+                setError("無法載入活動或 World Link 設定檔。");
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchConfig();
+        fetchConfigs();
     }, []);
 
     const getEventColor = (eventId: number): string | undefined => {
         const details = eventDetails[eventId];
         if (!details) return undefined;
-
-        // 1. Banner Character Color (Handles both ID and Name)
         const char = getChar(details.banner);
         if (char) return char.color;
-
-        // 2. Unit Color
         const unit = UNIT_MASTER[details.unit];
         if (unit) return unit.color;
-        
-        // 3. World Link Fallback
         if (details.type === 'world_link') return '#33CCBB'; 
-        
         return undefined;
+    };
+
+    const isWorldLink = (eventId: number): boolean => {
+        return !!wlDetails[eventId] || eventDetails[eventId]?.type === 'world_link';
+    };
+
+    const getWlDetail = (eventId: number): WorldLinkInfo | undefined => {
+        return wlDetails[eventId];
+    };
+
+    const getWlIdsByRound = (round: number): number[] => {
+        return Object.entries(wlDetails)
+            .filter(([, info]) => info.round === round)
+            .map(([id]) => Number(id))
+            .sort((a, b) => a - b);
     };
 
     if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><LoadingSpinner /></div>;
     if (error) return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4"><ErrorMessage message={error} /></div>;
 
     return (
-        <ConfigContext.Provider value={{ eventDetails, getEventColor, isLoading }}>
+        <ConfigContext.Provider value={{ eventDetails, wlDetails, getEventColor, isWorldLink, getWlDetail, getWlIdsByRound, isLoading }}>
             {children}
         </ConfigContext.Provider>
     );

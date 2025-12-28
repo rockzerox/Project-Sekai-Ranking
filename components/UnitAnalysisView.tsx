@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import { 
@@ -7,6 +6,7 @@ import {
 import * as Stats from '../utils/mathUtils';
 import LoadingSpinner from './LoadingSpinner';
 import { useConfig } from '../contexts/ConfigContext';
+import { fetchJsonWithBigInt } from '../hooks/useRankings';
 
 type StoryType = 'unit_event' | 'world_link';
 const STORY_TYPES: { id: StoryType, label: string }[] = [
@@ -18,7 +18,7 @@ const RANK_TARGETS = [1, 10, 100, 500, 1000, 5000, 10000];
 
 const UnitAnalysisView: React.FC = () => {
     const { eventDetails, getEventColor } = useConfig();
-    const [selectedUnit, setSelectedUnit] = useState<string>('Leo/need');
+    const [selectedUnit, setSelectedUnit] = useState<string>('1'); // Leo/need ID
     const [storyType, setStoryType] = useState<StoryType>('unit_event');
     const [rankTarget, setRankTarget] = useState<number>(100);
 
@@ -28,16 +28,16 @@ const UnitAnalysisView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [progress, setProgress] = useState(0);
 
-    const unitThemeColor = UNIT_MASTER[selectedUnit]?.color || '#0891b2';
+    const unitInfo = UNIT_MASTER[selectedUnit];
+    const unitThemeColor = unitInfo?.color || '#0891b2';
 
     useEffect(() => {
         const fetchList = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/event/list`);
-                if (!res.ok) throw new Error('Fail');
-                const data: EventSummary[] = await res.json();
-                setEvents(data);
-            } catch (e) { console.error(e); }
+                // 修正：路徑改為 /event/list
+                const data = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
+                if (data) setEvents(data);
+            } catch (e) { console.error("UnitAnalysis: Failed to fetch event list", e); }
         };
         fetchList();
     }, []);
@@ -79,29 +79,24 @@ const UnitAnalysisView: React.FC = () => {
                 const batchResults = await Promise.all(batch.map(async (evt) => {
                     try {
                         const isT100 = rankTarget <= 100;
+                        // 修正：移除錯誤插入的 /tw
                         const scoreUrl = isT100 
                             ? `${API_BASE_URL}/event/${evt.id}/top100`
                             : `${API_BASE_URL}/event/${evt.id}/border`;
                         
-                        const [resScore, resTop100] = await Promise.all([
-                            fetch(scoreUrl, { signal: abortController.signal }),
-                            fetch(`${API_BASE_URL}/event/${evt.id}/top100`, { signal: abortController.signal })
+                        const [jsonScore, jsonTop100] = await Promise.all([
+                            fetchJsonWithBigInt(scoreUrl, abortController.signal),
+                            fetchJsonWithBigInt(`${API_BASE_URL}/event/${evt.id}/top100`, abortController.signal)
                         ]);
 
-                        const sanitize = (t: string) => t.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        
                         let targetScore = 0;
-                        if (resScore.ok) {
-                            const txt = await resScore.text();
-                            const json = JSON.parse(sanitize(txt));
-                            const rankings = isT100 ? json.rankings : json.borderRankings;
+                        if (jsonScore) {
+                            const rankings = isT100 ? jsonScore.rankings : jsonScore.borderRankings;
                             targetScore = rankings?.find((r: any) => r.rank === rankTarget)?.score || 0;
                         }
 
-                        if (resTop100.ok) {
-                            const txt = await resTop100.text();
-                            const json = JSON.parse(sanitize(txt));
-                            json.rankings?.forEach((r: any) => playerIds.add(String(r.userId)));
+                        if (jsonTop100 && jsonTop100.rankings) {
+                            jsonTop100.rankings.forEach((r: any) => playerIds.add(String(r.userId)));
                         }
 
                         return { id: evt.id, name: evt.name, score: targetScore };
@@ -178,14 +173,14 @@ const UnitAnalysisView: React.FC = () => {
                 style={{ borderColor: `${unitThemeColor}66` }}
             >
                 <div className="flex justify-center gap-6 py-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700">
-                    {UNIT_ORDER.filter(u => u !== 'Mix').map(unit => (
+                    {UNIT_ORDER.filter(u => u !== '99').map(id => (
                         <button 
-                            key={unit}
-                            onClick={() => setSelectedUnit(unit)}
-                            className={`relative transition-all duration-300 ${selectedUnit === unit ? 'scale-110' : 'grayscale opacity-40 hover:grayscale-0 hover:opacity-100'}`}
+                            key={id}
+                            onClick={() => setSelectedUnit(id)}
+                            className={`relative transition-all duration-300 ${selectedUnit === id ? 'scale-110' : 'grayscale opacity-40 hover:grayscale-0 hover:opacity-100'}`}
                         >
-                            <img src={getAssetUrl(unit, 'unit')} alt={unit} className="w-9 h-9 object-contain" />
-                            {selectedUnit === unit && (
+                            <img src={getAssetUrl(id, 'unit')} alt={UNIT_MASTER[id].name} className="w-9 h-9 object-contain" />
+                            {selectedUnit === id && (
                                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full" style={{ backgroundColor: unitThemeColor }}></div>
                             )}
                         </button>
@@ -200,7 +195,7 @@ const UnitAnalysisView: React.FC = () => {
                     <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 px-6 py-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
                         <p className="text-slate-700 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed flex flex-wrap items-center">
                             <span>在共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.count}</span> 期</span>
-                            <span className="px-1" style={{ color: unitThemeColor }}>{selectedUnit}</span>
+                            <span className="px-1" style={{ color: unitThemeColor }}>{unitInfo?.name}</span>
                             <span className="px-1" style={{ color: unitThemeColor }}>{storyLabel}</span>
                             <span>活動中，共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名，</span>
                             <span className="md:ml-1">前百名不同玩家比例為 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.uniquenessRatio}%</span>。</span>

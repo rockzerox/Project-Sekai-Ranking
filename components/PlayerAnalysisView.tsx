@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
 import { UNITS, UNIT_ORDER, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
 import { useConfig } from '../contexts/ConfigContext';
+import { fetchJsonWithBigInt } from '../hooks/useRankings';
 
 interface PlayerStat {
     userId: string;
@@ -40,21 +40,17 @@ const PlayerAnalysisView: React.FC = () => {
     useEffect(() => {
         const fetchList = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/event/list`);
-                const data: EventSummary[] = await response.json();
-                const now = new Date();
-                
-                // 篩選條件：
-                // 1. 已結束的活動 (closed_at < now)
-                // 2. 包含 World Link (原本排除，現在納入，只統計總榜不統計章節)
-                const pastEvents = data
-                    .filter(e => new Date(e.closed_at) < now)
-                    .sort((a, b) => b.id - a.id); // 由新到舊排序 (ID 大 -> 小)
-                
-                setEventsQueue(pastEvents);
-                setTotalEventsCount(pastEvents.length);
+                const data: EventSummary[] = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
+                if (data) {
+                    const now = new Date();
+                    const pastEvents = data
+                        .filter(e => new Date(e.closed_at) < now)
+                        .sort((a, b) => b.id - a.id); 
+                    setEventsQueue(pastEvents);
+                    setTotalEventsCount(pastEvents.length);
+                }
             } catch (e) {
-                console.error("Failed to fetch event list", e);
+                console.error("PlayerAnalysis: Failed to fetch event list", e);
                 setIsAnalyzing(false);
             }
         };
@@ -82,23 +78,17 @@ const PlayerAnalysisView: React.FC = () => {
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
-            // 每次處理 5 個活動，避免請求過於頻繁
             const BATCH_SIZE = 5;
             const currentBatch = eventsQueue.slice(0, BATCH_SIZE);
             const remainingBatch = eventsQueue.slice(BATCH_SIZE);
 
             const fetchPromises = currentBatch.map(async (event) => {
                 try {
-                    const res = await fetch(`${API_BASE_URL}/event/${event.id}/top100`, { 
-                        signal: controller.signal 
-                    });
-
-                    if (res.ok) {
-                        const text = await res.text();
-                        // 處理 BigInt 問題
-                        const sanitized = text.replace(/"(\w*Id|id)"\s*:\s*(\d{15,})/g, '"$1": "$2"');
-                        const data: PastEventApiResponse = JSON.parse(sanitized);
-                        // 回傳 rankings (總榜)，自動忽略 userWorldBloomChapterRankings (章節榜)
+                    const data: PastEventApiResponse = await fetchJsonWithBigInt(
+                        `${API_BASE_URL}/event/${event.id}/top100`, 
+                        controller.signal
+                    );
+                    if (data) {
                         return { rankings: data.rankings, eventId: event.id };
                     }
                     return null;
@@ -145,7 +135,7 @@ const PlayerAnalysisView: React.FC = () => {
                             }
 
                             // 3. 統計 Rank 1-10 的特定次數
-                            if (entry.rank <= 15) { // 稍微放寬統計範圍以支援未來可能的擴充
+                            if (entry.rank <= 15) { 
                                 newStats[userId].specificRankCounts[entry.rank] = (newStats[userId].specificRankCounts[entry.rank] || 0) + 1;
                             }
                         });

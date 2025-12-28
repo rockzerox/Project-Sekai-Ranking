@@ -1,12 +1,27 @@
-
 import React, { useState, useCallback } from 'react';
 import { RankEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
-import { EVENT_CHAR_MAP, API_BASE_URL } from '../constants';
+import { API_BASE_URL } from '../constants';
 
-// Updated to use Dynamic API Base URL
 const API_URL = `${API_BASE_URL}/event/live/top100`;
 const BORDER_API_URL = `${API_BASE_URL}/event/live/border`;
 const BIGINT_REGEX = /"(\w*Id|id)"\s*:\s*(\d{15,})/g;
+
+export const fetchJsonWithBigInt = async (url: string, signal?: AbortSignal) => {
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(`API 請求失敗: ${response.status} (路徑: ${url})`);
+    const contentType = response.headers.get('content-type');
+    const text = await response.text();
+    if (text.trim().startsWith('<!DOCTYPE') || (contentType && contentType.includes('text/html'))) {
+        throw new Error("伺服器回傳了錯誤的格式 (404 Not Found)。");
+    }
+    if (!text || text.trim() === "") return null;
+    const sanitized = text.replace(BIGINT_REGEX, '"$1": "$2"');
+    try {
+        return JSON.parse(sanitized);
+    } catch (e) {
+        throw new Error("解析 JSON 失敗，數據格式不正確。");
+    }
+};
 
 interface UseRankingsReturn {
     rankings: RankEntry[];
@@ -31,226 +46,90 @@ export const useRankings = (): UseRankingsReturn => {
     const [rankings, setRankings] = useState<RankEntry[]>([]);
     const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]);
     const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]);
-    
-    // Store parsed chapter rankings: Key = Character Name, Value = RankEntry[]
     const [worldLinkChapters, setWorldLinkChapters] = useState<Record<string, RankEntry[]>>({});
-    
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    
-    const [eventName, setEventName] = useState('Hisekai Live TW Rankings');
+    const [eventName, setEventName] = useState('載入中...');
     const [liveEventId, setLiveEventId] = useState<number | null>(null);
     const [liveEventTiming, setLiveEventTiming] = useState<{ startAt: string, aggregateAt: string, rankingAnnounceAt: string } | null>(null);
 
-    const transformRankings = (data: any[], isBorder: boolean = false): RankEntry[] => {
+    const transformRankings = (data: any[]): RankEntry[] => {
         const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
-        
         return data.map(item => {
             const stats = item.last_1h_stats ? {
-                last1h: {
-                    count: item.last_1h_stats?.count ?? 0,
-                    score: item.last_1h_stats?.score ?? 0,
-                    speed: item.last_1h_stats?.speed ?? 0,
-                    average: item.last_1h_stats?.average ?? 0,
-                },
-                last3h: {
-                    count: item.last_3h_stats?.count ?? 0,
-                    score: item.last_3h_stats?.score ?? 0,
-                    speed: item.last_3h_stats?.speed ?? 0,
-                    average: item.last_3h_stats?.average ?? 0,
-                },
-                last24h: {
-                    count: item.last_24h_stats?.count ?? 0,
-                    score: item.last_24h_stats?.score ?? 0,
-                    speed: item.last_24h_stats?.speed ?? 0,
-                    average: item.last_24h_stats?.average ?? 0,
-                },
+                last1h: { count: item.last_1h_stats?.count ?? 0, score: item.last_1h_stats?.score ?? 0, speed: item.last_1h_stats?.speed ?? 0, average: item.last_1h_stats?.average ?? 0 },
+                last3h: { count: item.last_3h_stats?.count ?? 0, score: item.last_3h_stats?.score ?? 0, speed: item.last_3h_stats?.speed ?? 0, average: item.last_3h_stats?.average ?? 0 },
+                last24h: { count: item.last_24h_stats?.count ?? 0, score: item.last_24h_stats?.score ?? 0, speed: item.last_24h_stats?.speed ?? 0, average: item.last_24h_stats?.average ?? 0 }
             } : { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat };
-
-            let userId = "";
-            if (item.last_player_info?.profile?.id) userId = String(item.last_player_info.profile.id);
-            else if (item.userId) userId = String(item.userId);
-
-            return {
-                rank: item.rank,
-                score: item.score,
-                lastPlayedAt: item.last_played_at || '',
-                stats: stats,
-                user: {
-                    id: userId,
-                    username: item.name,
-                    display_name: item.name,
-                    avatar: '',
-                    supporter_tier: 0,
-                }
-            };
+            let userId = item.userId ? String(item.userId) : (item.last_player_info?.profile?.id ? String(item.last_player_info.profile.id) : "");
+            return { rank: item.rank, score: item.score, lastPlayedAt: item.last_played_at || '', stats, user: { id: userId, username: item.name || "Unknown", display_name: item.name || "Unknown", avatar: '', supporter_tier: 0 } };
         });
     };
 
     const fetchLiveRankings = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+        setIsLoading(true); setError(null);
         try {
-            const response = await fetch(API_URL);
-            if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
-
-            const textData = await response.text();
-            const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-            const responseData: HisekaiApiResponse = JSON.parse(sanitizedData);
-
+            const responseData: HisekaiApiResponse = await fetchJsonWithBigInt(API_URL);
             if (responseData && Array.isArray(responseData.top_100_player_rankings)) {
                 const transformed = transformRankings(responseData.top_100_player_rankings);
-                
-                setRankings(transformed);
-                setCachedLiveRankings(transformed);
-                setEventName(responseData.name);
+                setRankings(transformed); setCachedLiveRankings(transformed); setEventName(responseData.name);
                 if (responseData.id) setLiveEventId(responseData.id);
                 if (responseData.start_at && responseData.aggregate_at && responseData.ranking_announce_at) {
-                    setLiveEventTiming({
-                        startAt: responseData.start_at,
-                        aggregateAt: responseData.aggregate_at,
-                        rankingAnnounceAt: responseData.ranking_announce_at
-                    });
+                    setLiveEventTiming({ startAt: responseData.start_at, aggregateAt: responseData.aggregate_at, rankingAnnounceAt: responseData.ranking_announce_at });
                 }
                 setLastUpdated(new Date());
-            } else {
-                throw new Error('Unexpected API response format.');
-            }
-        } catch (e) {
-            setError(e instanceof Error ? `取得排名失敗: ${e.message}` : '發生未知錯誤');
-            console.error(e);
-        } finally {
-            setIsLoading(false);
-        }
+            } else throw new Error('無法取得即時活動數據。');
+        } catch (e) { setError(e instanceof Error ? e.message : '取得排名失敗'); } finally { setIsLoading(false); }
     }, []);
 
     const fetchBorderRankings = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+        setIsLoading(true); setError(null);
         try {
-            const response = await fetch(BORDER_API_URL);
-            if (!response.ok) throw new Error(`API request failed with status: ${response.status}`);
-
-            const textData = await response.text();
-            const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-            const responseData: HisekaiBorderApiResponse = JSON.parse(sanitizedData);
-
+            const responseData: HisekaiBorderApiResponse = await fetchJsonWithBigInt(BORDER_API_URL);
             if (responseData && Array.isArray(responseData.border_player_rankings)) {
-                const transformed = transformRankings(responseData.border_player_rankings, true);
-                setRankings(transformed);
+                setRankings(transformRankings(responseData.border_player_rankings));
             }
-        } catch (e) {
-            setError(e instanceof Error ? `取得精彩片段失敗: ${e.message}` : '發生未知錯誤');
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (e) { setError(e instanceof Error ? e.message : '取得精彩片段失敗'); } finally { setIsLoading(false); }
     }, []);
 
     const fetchPastRankings = useCallback(async (eventId: number) => {
-        setIsLoading(true);
-        setError(null);
-        setRankings([]); 
-        setWorldLinkChapters({});
-        
+        setIsLoading(true); setError(null); setRankings([]); setWorldLinkChapters({});
         try {
-            // Using Dynamic API Base URL
-            const response = await fetch(`${API_BASE_URL}/event/${eventId}/top100`);
-            if (!response.ok) throw new Error('Failed to fetch past event rankings');
-
-            const textData = await response.text();
-            const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-            const responseData: PastEventApiResponse = JSON.parse(sanitizedData);
-
+            const responseData: PastEventApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/top100`);
             if (responseData && Array.isArray(responseData.rankings)) {
-                // 1. Process Main Rankings
-                const transformed = transformRankings(responseData.rankings, false);
-                setRankings(transformed);
-                setCachedPastRankings(transformed);
-                
-                // 2. Process Chapter Rankings if available
-                if (responseData.userWorldBloomChapterRankings && responseData.userWorldBloomChapterRankings.length > 0) {
+                const transformed = transformRankings(responseData.rankings);
+                setRankings(transformed); setCachedPastRankings(transformed);
+                if (responseData.userWorldBloomChapterRankings) {
                     const chapterMap: Record<string, RankEntry[]> = {};
-                    const charNameMap = EVENT_CHAR_MAP[eventId] || {};
-
                     responseData.userWorldBloomChapterRankings.forEach(chapter => {
-                        const charName = charNameMap[chapter.gameCharacterId];
-                        if (charName) {
-                            chapterMap[charName] = transformRankings(chapter.rankings, false);
-                        }
+                        chapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.rankings);
                     });
                     setWorldLinkChapters(chapterMap);
                 }
-
-                setLastUpdated(null);
-            } else {
-                throw new Error('Unexpected API response format.');
-            }
-        } catch (e) {
-            setError(e instanceof Error ? `讀取活動失敗: ${e.message}` : '發生未知錯誤');
-            console.error(e);
-        } finally {
-            setIsLoading(false);
-        }
+            } else throw new Error('無法讀取過往活動數據。');
+        } catch (e) { setError(e instanceof Error ? e.message : '讀取過往活動失敗'); } finally { setIsLoading(false); }
     }, []);
 
     const fetchPastBorderRankings = useCallback(async (eventId: number) => {
-        setIsLoading(true);
-        setError(null);
-        setWorldLinkChapters({});
-
+        setIsLoading(true); setError(null); setWorldLinkChapters({});
         try {
-            // Using Dynamic API Base URL
-            const response = await fetch(`${API_BASE_URL}/event/${eventId}/border`);
-            if (!response.ok) throw new Error('Failed to fetch past event highlights');
-
-            const textData = await response.text();
-            const sanitizedData = textData.replace(BIGINT_REGEX, '"$1": "$2"');
-            const responseData: PastEventBorderApiResponse = JSON.parse(sanitizedData);
-
+            const responseData: PastEventBorderApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/border`);
             if (responseData && Array.isArray(responseData.borderRankings)) {
-                // 1. Process Main Border Rankings
-                const transformed = transformRankings(responseData.borderRankings, true);
-                setRankings(transformed);
-
-                // 2. Process Chapter Border Rankings
-                if (responseData.userWorldBloomChapterRankingBorders && responseData.userWorldBloomChapterRankingBorders.length > 0) {
+                setRankings(transformRankings(responseData.borderRankings));
+                if (responseData.userWorldBloomChapterRankingBorders) {
                     const chapterMap: Record<string, RankEntry[]> = {};
-                    const charNameMap = EVENT_CHAR_MAP[eventId] || {};
-
                     responseData.userWorldBloomChapterRankingBorders.forEach(chapter => {
-                        const charName = charNameMap[chapter.gameCharacterId];
-                        if (charName) {
-                            chapterMap[charName] = transformRankings(chapter.borderRankings, true);
-                        }
+                        chapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.borderRankings);
                     });
                     setWorldLinkChapters(chapterMap);
                 }
             }
-        } catch (e) {
-            setError(e instanceof Error ? `取得精彩片段失敗: ${e.message}` : '發生未知錯誤');
-            console.error(e);
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (e) { setError(e instanceof Error ? e.message : '取得精彩片段失敗'); } finally { setIsLoading(false); }
     }, []);
 
     return {
-        rankings,
-        setRankings,
-        worldLinkChapters,
-        isLoading,
-        error,
-        eventName,
-        liveEventId,
-        liveEventTiming,
-        lastUpdated,
-        cachedLiveRankings,
-        cachedPastRankings,
-        fetchLiveRankings,
-        fetchBorderRankings,
-        fetchPastRankings,
-        fetchPastBorderRankings,
-        setEventName
+        rankings, setRankings, worldLinkChapters, isLoading, error, eventName, liveEventId, liveEventTiming, lastUpdated,
+        cachedLiveRankings, cachedPastRankings, fetchLiveRankings, fetchBorderRankings, fetchPastRankings, fetchPastBorderRankings, setEventName
     };
 };

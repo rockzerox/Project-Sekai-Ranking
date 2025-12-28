@@ -1,0 +1,9 @@
+{
+  "112": { "round": 1, "chorder": ["18", "20", "19", "17"], "chDavg": 3, "isfinal": false },
+  "118": { "round": 1, "chorder": ["11", "12", "10", "9"], "chDavg": 3, "isfinal": false },
+  "124": { "round": 1, "chorder": ["16", "14", "15", "13"], "chDavg": 3, "isfinal": false },
+  "130": { "round": 1, "chorder": ["7", "6", "8", "5"], "chDavg": 3, "isfinal": false },
+  "137": { "round": 1, "chorder": ["2", "3", "4", "1"], "chDavg": 3, "isfinal": false },
+  "140": { "round": 1, "chorder": ["24", "22", "25", "23", "26", "21"], "chDavg": 2, "isfinal": false },
+  "163": { "round": 2, "chorder": ["12", "11", "9", "10"], "chDavg": 3, "isfinal": false }
+}

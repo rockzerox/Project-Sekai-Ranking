@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL, getAssetUrl, getChar, getUnit } from '../constants';
@@ -13,7 +12,7 @@ type StoryType = 'all' | 'unit_event' | 'mixed_event' | 'world_link';
 
 interface FilterState {
     type: FilterType;
-    value: string; // 儲存 ID (例如 "1") 或 Unit Name
+    value: string; // 儲存 ID (例如 "1")
     storyType: StoryType;
 }
 
@@ -22,7 +21,8 @@ interface ProcessedEvent extends EventSummary {
     endDate: Date;
     bannerCharId: string;
     bannerCharName: string;
-    unit: string;
+    unitId: string;
+    unitName: string;
     storyType: string;
     cardType: string;
     unitColor: string;
@@ -35,14 +35,14 @@ interface MonthSegment {
     width: number; // 基於 31 天網格的百分比
 }
 
-// 角色 ID 歸屬單位映射
+// 角色 ID 歸屬單位映射 (Value 改為 ID)
 const CHAR_TO_UNIT_MAP: Record<string, string> = {
-    "1": "Leo/need", "2": "Leo/need", "3": "Leo/need", "4": "Leo/need",
-    "5": "MORE MORE JUMP!", "6": "MORE MORE JUMP!", "7": "MORE MORE JUMP!", "8": "MORE MORE JUMP!",
-    "9": "Vivid BAD SQUAD", "10": "Vivid BAD SQUAD", "11": "Vivid BAD SQUAD", "12": "Vivid BAD SQUAD",
-    "13": "Wonderlands × Showtime", "14": "Wonderlands × Showtime", "15": "Wonderlands × Showtime", "16": "Wonderlands × Showtime",
-    "17": "25點，Nightcord見。", "18": "25點，Nightcord見。", "19": "25點，Nightcord見。", "20": "25點，Nightcord見。",
-    "21": "Virtual Singer", "22": "Virtual Singer", "23": "Virtual Singer", "24": "Virtual Singer", "25": "Virtual Singer", "26": "Virtual Singer"
+    "1": "1", "2": "1", "3": "1", "4": "1",
+    "5": "2", "6": "2", "7": "2", "8": "2",
+    "9": "3", "10": "3", "11": "3", "12": "3",
+    "13": "4", "14": "4", "15": "4", "16": "4",
+    "17": "5", "18": "5", "19": "5", "20": "5",
+    "21": "0", "22": "0", "23": "0", "24": "0", "25": "0", "26": "0"
 };
 
 const getCardTypeInfo = (type: string) => {
@@ -109,7 +109,7 @@ const HoverTooltip: React.FC<{
             <div className="flex flex-col gap-1 mt-1">
                 <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: event.unitColor }}></div>
-                    <span className="text-[10px] text-slate-400">{event.unit} • {event.bannerCharName}</span>
+                    <span className="text-[10px] text-slate-400">{event.unitName} • {event.bannerCharName}</span>
                 </div>
                 <span className="text-[10px] font-mono text-cyan-500/80 bg-slate-800/50 px-2 py-1 rounded border border-slate-700/50">
                     {dateRange}
@@ -148,7 +148,8 @@ const EventDistributionView: React.FC = () => {
                     .map(e => {
                         const details = eventDetails[e.id];
                         const char = getChar(details?.banner || "");
-                        const unit = getUnit(details?.unit || "Mix");
+                        const unitId = details?.unit || "99";
+                        const unit = UNIT_MASTER[unitId];
 
                         return {
                             ...e,
@@ -156,7 +157,8 @@ const EventDistributionView: React.FC = () => {
                             endDate: new Date(e.aggregate_at),
                             bannerCharId: char?.id || "",
                             bannerCharName: char?.name || "Unknown",
-                            unit: unit?.name || "Mix",
+                            unitId,
+                            unitName: unit?.name || "Mix",
                             storyType: details?.storyType || 'mixed_event',
                             cardType: details?.cardType || 'permanent',
                             unitColor: unit?.color || '#94a3b8',
@@ -232,7 +234,7 @@ const EventDistributionView: React.FC = () => {
     const isMatch = (event: ProcessedEvent) => {
         if (filter.storyType !== 'all' && event.storyType !== filter.storyType) return false;
         if (filter.type === 'character') return event.bannerCharId === filter.value;
-        if (filter.type === 'unit') return event.unit === filter.value;
+        if (filter.type === 'unit') return event.unitId === filter.value;
         return true;
     };
 
@@ -286,7 +288,7 @@ const EventDistributionView: React.FC = () => {
             <div className="mb-4 px-2 flex flex-col md:flex-row justify-between md:items-end gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">活動分布概況</h2>
-                    <p className="text-slate-500 dark:text-slate-400">分析角色與團體的活動密集度與空窗期。</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">分析角色與團體的活動密集度與空窗期。</p>
                 </div>
                 <div className="flex flex-col items-start md:items-end">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">類型篩選</span>
@@ -326,9 +328,9 @@ const EventDistributionView: React.FC = () => {
                     <div className="xl:w-auto flex flex-col gap-2">
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">團體</span>
                         <div className="flex flex-wrap xl:flex-nowrap gap-2 justify-start xl:pr-2">
-                            {UNIT_ORDER.filter(u => u !== 'Mix').map(unit => (
-                                <button key={unit} onClick={() => setFilter(prev => (prev.type==='unit'&&prev.value===unit) ? { ...prev, type:'all', value:'all'} : { ...prev, type:'unit', value:unit })} disabled={filter.type==='character'} className={`h-8 px-1.5 sm:px-2 rounded-xl transition-all flex items-center border flex-shrink-0 ${filter.type==='unit'&&filter.value===unit ? 'bg-slate-100 dark:bg-slate-700 border-cyan-500 shadow-md scale-105' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:scale-105'} ${filter.type==='character' ? 'opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer'}`}>
-                                    <img src={getAssetUrl(unit, 'unit')} alt={unit} className="h-full w-auto object-contain max-w-[80px]" />
+                            {UNIT_ORDER.filter(id => id !== '99').map(id => (
+                                <button key={id} onClick={() => setFilter(prev => (prev.type==='unit'&&prev.value===id) ? { ...prev, type:'all', value:'all'} : { ...prev, type:'unit', value:id })} disabled={filter.type==='character'} className={`h-8 px-1.5 sm:px-2 rounded-xl transition-all flex items-center border flex-shrink-0 ${filter.type==='unit'&&filter.value===id ? 'bg-slate-100 dark:bg-slate-700 border-cyan-500 shadow-md scale-105' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:scale-105'} ${filter.type==='character' ? 'opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer'}`}>
+                                    <img src={getAssetUrl(id, 'unit')} alt={UNIT_MASTER[id].name} className="h-full w-auto object-contain max-w-[80px]" />
                                 </button>
                             ))}
                         </div>
@@ -448,14 +450,14 @@ const EventDistributionView: React.FC = () => {
                     <div className="flex flex-col xl:flex-row gap-6 w-full items-start xl:items-center">
                         <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 pr-6 rounded-2xl border border-slate-100 dark:border-slate-700 w-full xl:w-auto shadow-inner">
                             {(() => {
-                                const char = getChar(filter.value);
-                                const targetUnitName = filter.type === 'unit' ? filter.value : (char ? CHAR_TO_UNIT_MAP[char.id] : "Mix");
-                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => CHAR_TO_UNIT_MAP[c.id] === targetUnitName);
+                                const targetUnitId = filter.type === 'unit' ? filter.value : CHAR_TO_UNIT_MAP[filter.value];
+                                const unitInfo = UNIT_MASTER[targetUnitId];
+                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => CHAR_TO_UNIT_MAP[c.id] === targetUnitId);
 
                                 return (
                                     <>
                                         <div className={`p-2 rounded-xl bg-white dark:bg-slate-700 shadow-lg ring-2 ring-cyan-500/20`}>
-                                            <img src={getAssetUrl(targetUnitName, 'unit')} alt={targetUnitName} className="h-10 w-auto object-contain" />
+                                            <img src={getAssetUrl(targetUnitId, 'unit')} alt={unitInfo?.name} className="h-10 w-auto object-contain" />
                                         </div>
                                         <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
                                             {unitMembers.map(m => {
@@ -482,7 +484,7 @@ const EventDistributionView: React.FC = () => {
                                 )}
                             </div>
                             {filter.type === 'character' && (
-                                <div className="flex-1 w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 flex items-center justify-around shadow-inner">
+                                <div className="flex-1 w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 flex items-center justify-around shadow-inner">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">箱活間隔分析</span>
                                     <div className="flex gap-8">
                                         <div className="flex items-baseline gap-2"><span className="text-xs text-emerald-500 font-black uppercase">Min</span><span className="font-mono font-black text-2xl dark:text-white">{stats.minInterval}</span><span className="text-[10px] text-slate-400 font-bold">天</span></div>

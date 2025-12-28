@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { EventSummary } from '../types';
 import { API_BASE_URL } from '../constants';
+import { fetchJsonWithBigInt } from './useRankings';
 
 export const useEventList = () => {
     const [events, setEvents] = useState<EventSummary[]>([]);
@@ -10,18 +10,11 @@ export const useEventList = () => {
 
     useEffect(() => {
         let isMounted = true;
-
         const fetchEvents = async () => {
             try {
-                // Using Dynamic API Base URL
-                const response = await fetch(`${API_BASE_URL}/event/list`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch event list');
-                }
-                const data: EventSummary[] = await response.json();
-                
-                if (isMounted) {
-                    // Sort by ID descending (newest first) by default
+                // 修正：路徑為 /event/list，不帶 /tw
+                const data: EventSummary[] = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
+                if (isMounted && data) {
                     const sortedData = data.sort((a, b) => b.id - a.id);
                     setEvents(sortedData);
                     setError(null);
@@ -32,17 +25,11 @@ export const useEventList = () => {
                     console.error(err);
                 }
             } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
+                if (isMounted) setIsLoading(false);
             }
         };
-
         fetchEvents();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, []);
 
     return { events, isLoading, error };

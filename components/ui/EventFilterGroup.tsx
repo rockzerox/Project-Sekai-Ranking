@@ -1,10 +1,12 @@
+
 import React from 'react';
 import { 
     getUnitOptions, 
     getBannerOptions, 
     getEventTypeOptions, 
     getStoryTypeOptions, 
-    getCardTypeOptions 
+    getCardTypeOptions,
+    getFourStarOptions
 } from '../../constants';
 import Select from './Select';
 
@@ -14,18 +16,18 @@ export interface EventFilterState {
     type: string;
     storyType: string;
     cardType: string;
+    fourStar: string; // 新增
 }
 
 interface EventFilterGroupProps {
     filters: EventFilterState;
     onFilterChange: (newFilters: EventFilterState) => void;
-    // 配置顯示哪些篩選器
     showUnit?: boolean;
     showBanner?: boolean;
     showEventType?: boolean;
     showStoryType?: boolean;
     showCardType?: boolean;
-    // 顯示模式
+    showFourStar?: boolean; // 新增
     mode?: 'multi' | 'exclusive';
     compact?: boolean;
     containerClassName?: string;
@@ -40,6 +42,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
     showEventType = true,
     showStoryType = true,
     showCardType = true,
+    showFourStar = true, // 預設顯示
     mode = 'multi',
     compact = false,
     containerClassName = "flex flex-wrap gap-2 items-center",
@@ -47,17 +50,16 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 }) => {
     const handleSingleChange = (key: keyof EventFilterState, value: string) => {
         if (mode === 'exclusive') {
-            // 排他模式：設定目標值，其餘恢復為 'all'
             onFilterChange({
                 unit: 'all',
                 banner: 'all',
                 type: 'all',
                 storyType: 'all',
                 cardType: 'all',
+                fourStar: 'all',
                 [key]: value
             });
         } else {
-            // 聯集模式：保留其餘狀態
             onFilterChange({
                 ...filters,
                 [key]: value
@@ -72,7 +74,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                     className={`py-1.5 text-xs ${itemClassName}`}
                     value={filters.unit}
                     onChange={(val) => handleSingleChange('unit', val)}
-                    options={getUnitOptions(compact ? '團體' : '所有團體 (All Units)')}
+                    options={getUnitOptions(compact ? '團體' : '團體')}
                 />
             )}
 
@@ -81,7 +83,16 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                     className={`py-1.5 text-xs ${itemClassName}`}
                     value={filters.banner}
                     onChange={(val) => handleSingleChange('banner', val)}
-                    options={getBannerOptions(compact ? 'Banner' : '所有 Banner')}
+                    options={getBannerOptions(compact ? 'Banner' : 'Banner')}
+                />
+            )}
+
+            {showFourStar && (
+                <Select
+                    className={`py-1.5 text-xs ${itemClassName}`}
+                    value={filters.fourStar}
+                    onChange={(val) => handleSingleChange('fourStar', val)}
+                    options={getFourStarOptions(compact ? '四星' : '四星')}
                 />
             )}
 
@@ -90,7 +101,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                     className={`py-1.5 text-xs ${itemClassName}`}
                     value={filters.type}
                     onChange={(val) => handleSingleChange('type', val)}
-                    options={getEventTypeOptions(compact ? '類型' : '所有類型 (All Types)')}
+                    options={getEventTypeOptions(compact ? '類型' : '活動類型')}
                 />
             )}
 
@@ -99,7 +110,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                     className={`py-1.5 text-xs ${itemClassName}`}
                     value={filters.storyType}
                     onChange={(val) => handleSingleChange('storyType', val)}
-                    options={getStoryTypeOptions(compact ? '劇情' : '所有劇情 (All Stories)')}
+                    options={getStoryTypeOptions(compact ? '劇情' : '劇情')}
                 />
             )}
 
@@ -108,7 +119,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                     className={`py-1.5 text-xs ${itemClassName}`}
                     value={filters.cardType}
                     onChange={(val) => handleSingleChange('cardType', val)}
-                    options={getCardTypeOptions(compact ? '卡面' : '所有卡面 (All Cards)')}
+                    options={getCardTypeOptions(compact ? '卡池' : '卡池')}
                 />
             )}
         </div>

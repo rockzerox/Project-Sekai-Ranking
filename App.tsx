@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { SortOption, EventSummary } from './types';
 import SearchBar from './components/SearchBar';
@@ -26,8 +25,8 @@ import EventDistributionView from './components/EventDistributionView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
-import { UNITS, getAssetUrl, WORLD_LINK_IDS, EVENT_CHAPTER_ORDER, CHARACTERS, API_BASE_URL, calculatePreciseDuration } from './constants';
-import { useRankings } from './hooks/useRankings';
+import { UNITS, getAssetUrl, CHARACTERS, API_BASE_URL, calculatePreciseDuration, UNIT_MASTER, getChar } from './constants';
+import { useRankings, fetchJsonWithBigInt } from './hooks/useRankings';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 
 const ITEMS_PER_PAGE = 20;
@@ -88,7 +87,7 @@ const MainContent: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
   const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
-  const { eventDetails, getEventColor } = useConfig();
+  const { eventDetails, getEventColor, isWorldLink, getWlDetail } = useConfig();
   const [activeChapter, setActiveChapter] = useState<string>('all');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -100,12 +99,9 @@ const MainContent: React.FC = () => {
   useEffect(() => {
     const fetchAllEvents = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/event/list`);
-            if (res.ok) {
-                const data = await res.json();
-                setAllEvents(data);
-            }
-        } catch (e) { console.error(e); }
+            const data = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
+            if (data) setAllEvents(data);
+        } catch (e) { console.error("App: Failed to fetch event list", e); }
     };
     fetchAllEvents();
   }, []);
@@ -158,7 +154,6 @@ const MainContent: React.FC = () => {
 
   useEffect(() => { if (currentPage !== 'highlights') setCurrentPage(1); }, [searchTerm, sortOption, currentView, selectedEvent]);
 
-  // 計算活動目前的時長 (天)
   const currentEventDuration = useMemo(() => {
       if (currentView === 'live' && liveEventTiming) {
           const now = Date.now();
@@ -234,20 +229,23 @@ const MainContent: React.FC = () => {
       }
 
       let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";
-      const isWorldLink = isPastMode && selectedEvent && WORLD_LINK_IDS.includes(selectedEvent.id);
+      const isWl = isPastMode && selectedEvent && isWorldLink(selectedEvent.id);
       let WorldLinkTabs = null;
 
-      if (isWorldLink && selectedEvent) {
-          const chapters = EVENT_CHAPTER_ORDER[selectedEvent.id] || [];
+      if (isWl && selectedEvent) {
+          const wlInfo = getWlDetail(selectedEvent.id);
+          const chapters = wlInfo?.chorder || [];
           WorldLinkTabs = (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                   <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
-                  {chapters.map(charName => {
-                      const isActive = activeChapter === charName;
-                      const charColor = CHARACTERS[charName]?.color || '#999';
-                      const charImg = getAssetUrl(charName, 'character');
+                  {chapters.map(charId => {
+                      const isActive = activeChapter === charId;
+                      const char = CHARACTERS[charId];
+                      const charName = char?.name || charId;
+                      const charColor = char?.color || '#999';
+                      const charImg = getAssetUrl(charId, 'character');
                       return (
-                          <button key={charName} onClick={(e) => { e.stopPropagation(); setActiveChapter(charName); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
+                          <button key={charId} onClick={(e) => { e.stopPropagation(); setActiveChapter(charId); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
                               {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
                               {charName}
                           </button>
@@ -313,18 +311,18 @@ const MainContent: React.FC = () => {
               if (selectedEvent) {
                   const details = eventDetails[selectedEvent.id];
                   const color = getEventColor(selectedEvent.id);
+                  const unitLabel = UNIT_MASTER[details?.unit]?.name || "Unknown";
                   const unitLogo = getAssetUrl(details?.unit, 'unit');
-                  const bannerImg = getAssetUrl(details?.banner, 'character');
+                  const bannerChar = getChar(details?.banner || "");
+                  const bannerImg = (details?.banner !== '-') ? getAssetUrl(details?.banner, 'character') : null;
                   const eventLogo = getAssetUrl(selectedEvent.id.toString(), 'event');
-                  const unitStyle = UNITS[details?.unit]?.style || "bg-slate-500 text-white";
-                  
+                  const unitStyle = UNIT_MASTER[details?.unit]?.style || "bg-slate-500 text-white";
                   const evtInfo = allEvents.find(e => e.id === selectedEvent.id);
                   const dateRangeStr = evtInfo ? (() => {
                       const start = new Date(evtInfo.start_at);
                       const end = new Date(evtInfo.aggregate_at);
                       const f = (d: Date) => d.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-                      const fEnd = (d: Date) => d.toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-                      return `${f(start)} ~ ${fEnd(end)}`;
+                      return `${f(start)} ~ ${f(end)}`;
                   })() : '';
 
                   return (
@@ -341,30 +339,21 @@ const MainContent: React.FC = () => {
                                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                               <span className="text-slate-400 font-mono text-xs sm:text-sm whitespace-nowrap">第{selectedEvent.id}期</span>
                                               <span style={{ color: color || 'inherit' }} className="font-black text-lg sm:text-xl truncate">{selectedEvent.name}</span>
-                                              
                                               <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${unitStyle} text-[10px] font-bold flex-shrink-0`}>
                                                   {unitLogo && <img src={unitLogo} alt="Unit" className="h-3 w-auto" />}
-                                                  <span>{details?.unit}</span>
+                                                  <span>{unitLabel}</span>
                                               </div>
-                                              
-                                              {bannerImg && (
-                                                  <img 
-                                                    src={bannerImg} 
-                                                    alt="Banner" 
-                                                    className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 object-cover shadow-sm flex-shrink-0" 
-                                                  />
+                                              {details?.banner !== '-' && (
+                                                  <div className="flex items-center gap-1.5 ml-1">
+                                                      <span className="text-xs font-black" style={{ color: bannerChar?.color || 'inherit' }}>{bannerChar?.name}</span>
+                                                      {bannerImg && <img src={bannerImg} alt="Banner" className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 object-cover shadow-sm flex-shrink-0" />}
+                                                  </div>
                                               )}
                                           </div>
-                                          {dateRangeStr && (
-                                              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                                                  {dateRangeStr}
-                                              </span>
-                                          )}
+                                          {dateRangeStr && <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">{dateRangeStr}</span>}
                                       </div>
                                   </div>
-                                  <div className="w-full lg:w-auto">
-                                    <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-                                  </div>
+                                  <div className="w-full lg:w-auto"><SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} /></div>
                               </div>
                           </div>
                           {renderRankingUI()}

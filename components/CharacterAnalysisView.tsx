@@ -185,7 +185,6 @@ const CharacterAnalysisView: React.FC = () => {
         if (events.length === 0 || !eventDetails) return { currentLiveId: 0, totalStarCards: 0 };
         
         const now = new Date();
-        // 核心：僅計算「當下時間已開始」的活動期數
         const startedEvents = events.filter(e => new Date(e.start_at) <= now);
         if (startedEvents.length === 0) return { currentLiveId: 0, totalStarCards: 0 };
         
@@ -193,13 +192,11 @@ const CharacterAnalysisView: React.FC = () => {
         let starCount = 0;
         
         Object.entries(eventDetails).forEach(([id, detail]) => {
-            // 禁止計算未來期數
             if (Number(id) > maxStartedId) return;
             if (!detail["4starcard"]) return;
             
             const cards = detail["4starcard"].split(',');
             cards.forEach(cardStr => {
-                // 虛擬歌手歸一化處理 (如 21-1, 21-2 皆歸為 21)
                 const baseId = cardStr.split('-')[0].trim();
                 if (baseId === activeCharId) {
                     starCount++;
@@ -277,20 +274,27 @@ const CharacterAnalysisView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="px-8 py-5 flex items-center gap-8 h-32 md:h-44 overflow-hidden">
-                    <div className="h-full flex-shrink-0 animate-float">
+                <div className="px-3 md:px-8 py-4 md:py-5 flex items-center gap-0 md:gap-8 h-auto md:h-44 overflow-hidden">
+                    {/* 手機版隱藏角色 Q 版圖片 */}
+                    <div className="h-full flex-shrink-0 animate-float hidden md:flex">
                         <img src={getAssetUrl(activeCharId, 'character_q')} alt="q" className="h-full w-auto object-contain drop-shadow-2xl" />
                     </div>
-                    <div className="flex-1 bg-black/10 dark:bg-slate-900/20 px-6 py-4 rounded-2xl border border-white/5 backdrop-blur-md">
+                    <div className="flex-1 w-full bg-black/10 dark:bg-slate-900/20 px-3 md:px-6 py-4 rounded-2xl border border-white/5 backdrop-blur-md">
                         {isWlMode ? (
-                            <p className="text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed">
+                            <p 
+                                className="text-slate-800 dark:text-slate-200 font-bold leading-relaxed"
+                                style={{ fontSize: 'clamp(12px, 3.5vw, 16px)' }}
+                            >
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span>
                                 在 WL 活動時，於 <span className="px-1 font-mono" style={{ color: charThemeColor }}>T{rankTarget}</span> 
                                 總分為全角色第 <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.totalRank || '-'}</span> 名，
                                 日均分為全角色第 <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.dailyRank || '-'}</span> 名。
                             </p>
                         ) : (
-                            <p className="text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed">
+                            <p 
+                                className="text-slate-800 dark:text-slate-200 font-bold leading-relaxed"
+                                style={{ fontSize: 'clamp(12px, 3.5vw, 16px)' }}
+                            >
                                 在共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count}</span> 期 
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span> 
                                 <span className="px-1" style={{ color: charThemeColor }}>{storyLabel}</span> 活動中，共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名， 

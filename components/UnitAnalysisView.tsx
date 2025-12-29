@@ -34,7 +34,6 @@ const UnitAnalysisView: React.FC = () => {
     useEffect(() => {
         const fetchList = async () => {
             try {
-                // 修正：路徑改為 /event/list
                 const data = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
                 if (data) setEvents(data);
             } catch (e) { console.error("UnitAnalysis: Failed to fetch event list", e); }
@@ -79,7 +78,6 @@ const UnitAnalysisView: React.FC = () => {
                 const batchResults = await Promise.all(batch.map(async (evt) => {
                     try {
                         const isT100 = rankTarget <= 100;
-                        // 修正：移除錯誤插入的 /tw
                         const scoreUrl = isT100 
                             ? `${API_BASE_URL}/event/${evt.id}/top100`
                             : `${API_BASE_URL}/event/${evt.id}/border`;
@@ -187,13 +185,17 @@ const UnitAnalysisView: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex-shrink-0">
+                <div className="px-3 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
+                    {/* 手機版隱藏團體 LOGO */}
+                    <div className="flex-shrink-0 hidden md:block">
                         <img src={getAssetUrl(selectedUnit, 'unit_full')} alt="full logo" className="h-10 sm:h-12 w-auto object-contain drop-shadow-sm" />
                     </div>
                     
-                    <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 px-6 py-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-slate-700 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed flex flex-wrap items-center">
+                    <div className="flex-1 w-full bg-slate-50 dark:bg-slate-900/40 px-3 md:px-6 py-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                        <p 
+                            className="text-slate-700 dark:text-slate-200 font-bold leading-relaxed flex flex-wrap items-center"
+                            style={{ fontSize: 'clamp(12px, 3.5vw, 16px)' }}
+                        >
                             <span>在共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.count}</span> 期</span>
                             <span className="px-1" style={{ color: unitThemeColor }}>{unitInfo?.name}</span>
                             <span className="px-1" style={{ color: unitThemeColor }}>{storyLabel}</span>

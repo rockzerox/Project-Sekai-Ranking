@@ -64,6 +64,11 @@ const PlayerProfileView: React.FC = () => {
     const [honorRecords, setHonorRecords] = useState<HonorRecord[]>([]);
     const [hasScanned, setHasScanned] = useState(false);
     const [honorPage, setHonorPage] = useState(1);
+    
+    // 排序狀態
+    const [sortKey, setSortKey] = useState<'eventId' | 'score'>('eventId');
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+    
     const RECORDS_PER_PAGE = 5;
 
     const displayData = profileData || DUMMY_PROFILE;
@@ -107,16 +112,38 @@ const PlayerProfileView: React.FC = () => {
             }));
             setScanProgress(Math.round(((i + batch.length) / pastEvents.length) * 100));
         }
-        setHonorRecords(results.sort((a, b) => b.eventId - a.eventId));
+        setHonorRecords(results);
         setIsScanning(false); setHasScanned(true);
     };
 
+    // 處理排序後的紀錄
+    const sortedHonorRecords = useMemo(() => {
+        return [...honorRecords].sort((a, b) => {
+            const valA = a[sortKey];
+            const valB = b[sortKey];
+            if (sortOrder === 'desc') return valB - valA;
+            return valA - valB;
+        });
+    }, [honorRecords, sortKey, sortOrder]);
+
     const paginatedHonors = useMemo(() => {
         const start = (honorPage - 1) * RECORDS_PER_PAGE;
-        return honorRecords.slice(start, start + RECORDS_PER_PAGE);
-    }, [honorRecords, honorPage]);
+        return sortedHonorRecords.slice(start, start + RECORDS_PER_PAGE);
+    }, [sortedHonorRecords, honorPage]);
 
     const totalHonorPages = Math.ceil(honorRecords.length / RECORDS_PER_PAGE);
+
+    const toggleSortKey = (key: 'eventId' | 'score') => {
+        if (sortKey === key) {
+            // 如果點擊相同的 Key，就切換升降冪
+            setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+        } else {
+            // 換 Key 時，預設一律降冪 (期數最新或分數最高)
+            setSortKey(key);
+            setSortOrder('desc');
+        }
+        setHonorPage(1);
+    };
 
     const PowerBreakdownItem: React.FC<{ label: string, value: number }> = ({ label, value }) => (
         <div className="flex flex-col bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800">
@@ -155,8 +182,14 @@ const PlayerProfileView: React.FC = () => {
                 <div className="lg:col-span-5 flex flex-col gap-6 w-full">
                     <Card className="border-t-4 border-t-cyan-500 overflow-hidden shadow-lg">
                         <div className="flex items-center justify-between gap-4 mb-6 border-b border-slate-100 dark:border-slate-700/50 pb-5">
-                            <div className="min-w-0">
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1 truncate tracking-tight">{displayData.user.name}</h3>
+                            <div className="min-w-0 flex-1">
+                                {/* 玩家名稱：套用 clamp 自動縮放 */}
+                                <h3 
+                                    className="font-black text-slate-900 dark:text-white mb-1 truncate tracking-tight leading-tight"
+                                    style={{ fontSize: 'clamp(18px, 4vw, 24px)' }}
+                                >
+                                    {displayData.user.name}
+                                </h3>
                                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] font-black text-slate-500 uppercase tracking-tighter">ID: {displayData.user.userId}</div>
                             </div>
                             <div className="flex items-center gap-4 flex-shrink-0">
@@ -181,7 +214,7 @@ const PlayerProfileView: React.FC = () => {
                         </div>
                     </Card>
 
-                    {/* 榮耀里程碑 - 強化桌機版 LOGO 與文字比例 */}
+                    {/* 榮耀里程碑 */}
                     <Card title={<div className="flex items-center gap-2 text-sm font-black"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>榮耀里程碑 (Glory)</div>} className="shadow-md">
                         {!profileData ? (
                             <div className="py-6 text-center px-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl"><p className="text-slate-400 text-[10px] font-black italic uppercase tracking-widest leading-relaxed">Top 100 歷史戰果</p></div>
@@ -198,6 +231,30 @@ const PlayerProfileView: React.FC = () => {
                             <div className="py-4 text-center text-slate-400 font-bold text-xs italic">尚無紀錄</div>
                         ) : (
                             <div className="space-y-4">
+                                {/* 排序控制列 */}
+                                <div className="flex items-center justify-between px-1">
+                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 scale-95 origin-left">
+                                        <button 
+                                            onClick={() => toggleSortKey('eventId')}
+                                            className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${sortKey === 'eventId' ? 'bg-white dark:bg-slate-600 text-cyan-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                        >
+                                            期數
+                                        </button>
+                                        <button 
+                                            onClick={() => toggleSortKey('score')}
+                                            className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${sortKey === 'score' ? 'bg-white dark:bg-slate-600 text-cyan-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                        >
+                                            分數
+                                        </button>
+                                    </div>
+                                    <button 
+                                        onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                        className="w-7 h-7 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-lg text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 transition-colors shadow-sm"
+                                    >
+                                        <span className="text-lg leading-none font-black">{sortOrder === 'desc' ? '▼' : '▲'}</span>
+                                    </button>
+                                </div>
+
                                 <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl">
                                     <table className="w-full text-left text-xs">
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -207,40 +264,40 @@ const PlayerProfileView: React.FC = () => {
                                                 const bannerColor = bannerChar?.color || '#94a3b8';
                                                 return (
                                                     <tr key={record.eventId} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                                                        {/* 期數：手機版套用 Banner 色，寬螢幕維持標準色 */}
-                                                        <td className="px-3 py-3 w-10 md:w-14">
-                                                            <span className="font-mono font-black text-[10px] md:text-slate-400" style={{ color: window.innerWidth < 768 ? bannerColor : undefined }}>
-                                                                #{record.eventId}
+                                                        <td className="px-3 py-3 w-16 md:w-20">
+                                                            <span className="font-mono font-black text-[10px] md:text-slate-400 whitespace-nowrap" style={{ color: window.innerWidth < 768 ? bannerColor : undefined }}>
+                                                                第 {record.eventId} 期
                                                             </span>
                                                         </td>
-                                                        {/* LOGO：桌機版放大 */}
-                                                        <td className="px-2 py-3 w-20 md:w-28">
-                                                            <div className="w-16 h-8 md:w-24 md:h-12 bg-black/10 rounded overflow-hidden flex items-center justify-center">
+                                                        <td className="px-2 py-3 w-20 md:w-24">
+                                                            <div className="w-16 h-8 md:w-20 md:h-10 bg-black/10 rounded overflow-hidden flex items-center justify-center">
                                                                 <img src={getAssetUrl(record.eventId.toString(), 'event')} alt="logo" className="w-full h-full object-contain scale-110" />
                                                             </div>
                                                         </td>
-                                                        {/* 活動名稱：桌機版顯示，實作自動縮放字體 */}
-                                                        <td className="px-2 py-3 hidden md:table-cell max-w-[120px] lg:max-w-[180px]">
+                                                        <td className="px-2 py-3 hidden md:table-cell max-w-[100px] lg:max-w-[140px]">
+                                                            {/* 桌機版活動名稱：微調 clamp 縮小並確保 leading 防止小寫字母切斷 */}
                                                             <span 
-                                                                className="font-bold whitespace-nowrap overflow-hidden block transition-all" 
+                                                                className="font-bold whitespace-nowrap overflow-hidden block transition-all leading-normal" 
                                                                 style={{ 
                                                                     color: bannerColor,
-                                                                    fontSize: 'clamp(10px, 1.1vw, 14px)',
+                                                                    fontSize: 'clamp(9px, 1vw, 12px)',
                                                                     textOverflow: 'ellipsis'
                                                                 }}
                                                             >
                                                                 {record.eventName}
                                                             </span>
                                                         </td>
-                                                        {/* 名次 */}
                                                         <td className="px-2 py-3">
-                                                            <span className={`text-base md:text-lg font-black font-mono ${record.rank <= 3 ? 'text-yellow-500' : 'text-cyan-600'}`}>
-                                                                #{record.rank}
+                                                            {/* 名次顯示：微調桌機版大小 */}
+                                                            <span 
+                                                                className={`font-black font-mono whitespace-nowrap leading-normal ${record.rank <= 3 ? 'text-yellow-500' : 'text-cyan-600'}`}
+                                                                style={{ fontSize: 'clamp(13px, 1.2vw, 15px)' }}
+                                                            >
+                                                                第 {record.rank} 名
                                                             </span>
                                                         </td>
-                                                        {/* 分數：桌機版字體加大 */}
                                                         <td className="px-3 py-3 text-right">
-                                                            <span className="font-mono font-black text-[10px] md:text-sm text-slate-500 dark:text-slate-400">
+                                                            <span className="font-mono font-black text-[10px] md:text-[12px] text-slate-500 dark:text-slate-400">
                                                                 {record.score.toLocaleString()}
                                                             </span>
                                                         </td>
@@ -264,7 +321,7 @@ const PlayerProfileView: React.FC = () => {
 
                 {/* 右側：角色等級 & 歌曲通關 (7/12) */}
                 <div className="lg:col-span-7 flex flex-col gap-6 w-full max-w-full">
-                    {/* 角色等級 (維持原樣) */}
+                    {/* 角色等級 */}
                     <Card 
                         title={<div className="flex items-center gap-2 font-black text-slate-800 dark:text-white uppercase tracking-tighter"><svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>角色等級</div>}
                         className="flex flex-col shadow-2xl border-t-4 border-t-purple-500"
@@ -279,7 +336,7 @@ const PlayerProfileView: React.FC = () => {
                                             {getAssetUrl(unitId, 'unit') && <img src={getAssetUrl(unitId, 'unit')} alt="u" className="h-4 w-auto" />}
                                             <span className="text-[10px] font-black uppercase tracking-[0.1em]" style={{ color: unitInfo.color }}>{unitInfo.name}</span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-1.5">
+                                        <div className="grid grid-cols-2 gap-2">
                                             {unitChars.map((char) => {
                                                 const charData = displayData.userCharacters?.find(c => String(c.characterId) === char.id);
                                                 const rank = charData?.characterRank || 0;
@@ -287,15 +344,15 @@ const PlayerProfileView: React.FC = () => {
                                                 return (
                                                     <div 
                                                         key={char.id} 
-                                                        className="flex items-center gap-1.5 p-1 rounded-xl border transition-all hover:scale-105 shadow-sm min-w-0" 
+                                                        className="flex items-center gap-2 p-1.5 rounded-xl border transition-all hover:scale-105 shadow-sm min-w-0" 
                                                         style={{ backgroundColor: `${char.color}15`, borderColor: `${char.color}30` }}
                                                     >
-                                                        <div className="relative w-8 h-8 flex-shrink-0">
+                                                        <div className="relative w-9 h-9 flex-shrink-0">
                                                             <img src={imgUrl} alt={char.name} className="w-full h-full rounded-full border border-white dark:border-slate-700 object-cover shadow-sm bg-white dark:bg-slate-800" />
                                                         </div>
-                                                        <div className="flex flex-col min-w-0 leading-tight">
-                                                            <div className="text-[8px] font-black truncate tracking-tighter" style={{ color: char.color }}>{char.name}</div>
-                                                            <div className="text-[11px] font-black text-slate-800 dark:text-white font-mono leading-none">Lv.{rank}</div>
+                                                        <div className="flex flex-col min-w-0 leading-none">
+                                                            <div className="text-[11px] font-black truncate tracking-tighter mb-0.5" style={{ color: char.color }}>{char.name}</div>
+                                                            <div className="text-sm font-black text-slate-800 dark:text-white font-mono">Lv.{rank}</div>
                                                         </div>
                                                     </div>
                                                 );
@@ -307,7 +364,7 @@ const PlayerProfileView: React.FC = () => {
                         </div>
                     </Card>
 
-                    {/* 歌曲通關數據 (維持原樣) */}
+                    {/* 歌曲通關數據 */}
                     <Card title={<div className="flex items-center gap-2 text-sm font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>歌曲通關數據 (Music Clear)</div>} className="shadow-md">
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                             {DIFFICULTIES.map((diff) => {

@@ -29,6 +29,7 @@ import ScrollToTop from './components/ui/ScrollToTop';
 import { UNITS, getAssetUrl, CHARACTERS, API_BASE_URL, calculatePreciseDuration, UNIT_MASTER, getChar, MS_PER_DAY } from './constants';
 import { useRankings, fetchJsonWithBigInt } from './hooks/useRankings';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
+import { calculateCV, formatScoreForChart } from './utils/mathUtils';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -121,14 +122,18 @@ const MainContent: React.FC = () => {
 
   useEffect(() => { setActiveChapter('all'); }, [selectedEvent]);
 
+  // 核心修正：加入 currentPage 的判斷，避免精彩片段模式下被 Top 100 快取覆蓋
   useEffect(() => {
+      if (currentPage === 'highlights') return;
+
       if (activeChapter === 'all') {
-          if (cachedPastRankings.length > 0) setRankings(cachedPastRankings);
+          const cache = currentView === 'live' ? cachedLiveRankings : cachedPastRankings;
+          if (cache.length > 0) setRankings(cache);
       } else {
           if (worldLinkChapters[activeChapter]) setRankings(worldLinkChapters[activeChapter]);
           else setRankings([]);
       }
-  }, [activeChapter, worldLinkChapters, cachedPastRankings, setRankings]);
+  }, [activeChapter, worldLinkChapters, cachedPastRankings, cachedLiveRankings, setRankings, currentPage, currentView]);
 
   useEffect(() => {
     if (currentView === 'live') { fetchLiveRankings(); setCurrentPage(1); } 
@@ -141,14 +146,14 @@ const MainContent: React.FC = () => {
       if (currentView === 'live') {
           if (page === 'highlights') fetchBorderRankings();
           else {
-              if (currentPage === 'highlights') setRankings(cachedLiveRankings);
               if (cachedLiveRankings.length === 0) fetchLiveRankings();
+              else setRankings(cachedLiveRankings);
           }
       } else if (currentView === 'past' && selectedEvent) {
           if (page === 'highlights') fetchPastBorderRankings(selectedEvent.id);
           else {
-              if (currentPage === 'highlights') setRankings(cachedPastRankings);
               if (cachedPastRankings.length === 0) fetchPastRankings(selectedEvent.id);
+              else setRankings(cachedPastRankings);
           }
       }
   };
@@ -162,7 +167,6 @@ const MainContent: React.FC = () => {
           const agg = new Date(liveEventTiming.aggregateAt).getTime();
           return Math.max(0.01, (Math.min(now, agg) - start) / MS_PER_DAY);
       } else if (currentView === 'past' && selectedEvent) {
-          // --- 修正：如果是 World Link 且正在查看「個人章節」，則使用 chDavg ---
           if (isWorldLink(selectedEvent.id) && activeChapter !== 'all') {
               const wlInfo = getWlDetail(selectedEvent.id);
               return wlInfo?.chDavg || 3;
@@ -205,6 +209,68 @@ const MainContent: React.FC = () => {
       const now = new Date();
       return now >= new Date(liveEventTiming.aggregateAt) && now < new Date(liveEventTiming.rankingAnnounceAt);
   }, [currentView, liveEventTiming]);
+
+  const competitiveStats = useMemo(() => {
+      const isPastMode = currentView === 'past' && selectedEvent !== null;
+      const isLiveMode = currentView === 'live';
+      if (!(isPastMode || isLiveMode)) return null;
+
+      const isHighlights = currentPage === 'highlights';
+      const getS = (rank: number) => rankings.find(r => r.rank === rank)?.score || 0;
+
+      if (!isHighlights) {
+          if (rankings.length < 100) return null;
+          const s1 = getS(1); const s10 = getS(10); const s50 = getS(50); const s100 = getS(100);
+          const range50_100 = rankings.filter(r => r.rank >= 50 && r.rank <= 100).map(r => r.score);
+          
+          return {
+              type: 'top100',
+              stats: [
+                  { label: 'T1/T10', diff: s1 - s10, ratio: s10 > 0 ? (s1 / s10).toFixed(1) : '0', color: 'text-yellow-500' },
+                  { label: 'T10/T50', diff: s10 - s50, ratio: s50 > 0 ? (s10 / s50).toFixed(1) : '0', color: 'text-purple-400' },
+                  { label: 'T50/T100', diff: s50 - s100, ratio: s100 > 0 ? (s50 / s100).toFixed(1) : '0', color: 'text-cyan-400' },
+                  { label: 'T50-100 CV', cv: calculateCV(range50_100), color: 'text-emerald-400' }
+              ]
+          };
+      } else {
+          const s100 = getS(100); const s200 = getS(200); const s300 = getS(300);
+          const s400 = getS(400); const s500 = getS(500); const s1000 = getS(1000);
+          
+          const calcStat = (label: string, high: number, low: number, color: string) => ({
+              label,
+              diff: high - low,
+              ratio: low > 0 ? (high / low).toFixed(1) : '—',
+              color: (high > 0 && low > 0) ? color : 'text-slate-600'
+          });
+
+          return {
+              type: 'highlights',
+              stats: [
+                  calcStat('T100/T200', s100, s200, 'text-yellow-500'),
+                  calcStat('T200/T300', s200, s300, 'text-purple-400'),
+                  calcStat('T300/T400', s300, s400, 'text-cyan-400'),
+                  calcStat('T400/T500', s400, s500, 'text-emerald-400'),
+                  calcStat('T500/T1000', s500, s1000, 'text-pink-400')
+              ]
+          };
+      }
+  }, [currentView, selectedEvent, currentPage, rankings]);
+
+  const StatsDisplay: React.FC<{ stats: any }> = ({ stats }) => {
+      if (!stats) return null;
+      return (
+          <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
+              {stats.stats.map((s: any, i: number) => (
+                  <div key={i} className="flex flex-col items-end">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">{s.label}</span>
+                      <span className={`text-[12px] font-mono font-black ${s.color}`}>
+                          {s.cv !== undefined ? (s.cv > 0 ? `${s.cv}%` : '—') : (s.diff > 0 ? `+${formatScoreForChart(s.diff)} (${s.ratio}x)` : '—')}
+                      </span>
+                  </div>
+              ))}
+          </div>
+      );
+  };
 
   const renderRankingUI = () => {
       const isPastMode = currentView === 'past' && selectedEvent !== null;
@@ -263,9 +329,9 @@ const MainContent: React.FC = () => {
 
       if (isPastMode && selectedEvent) {
           rankingsTitle = (
-              <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                      <span className="font-bold">{isHighlights ? "精彩片段" : "前百排行榜"}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-3">
+                  <div className="flex items-center gap-3">
+                      <span className="font-black whitespace-nowrap">{isHighlights ? "精彩片段" : "前百排行榜"}</span>
                   </div>
                   {WorldLinkTabs}
               </div>
@@ -307,7 +373,9 @@ const MainContent: React.FC = () => {
                                       <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}</p>
                                   </div>
                               </div>
-                              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+                              <div className="flex-shrink-0 w-full lg:w-auto">
+                                  <StatsDisplay stats={competitiveStats} />
+                              </div>
                           </div>
                       </div>
                       {renderRankingUI()}
@@ -338,8 +406,8 @@ const MainContent: React.FC = () => {
                                   <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                                   返回列表 (Back)
                               </button>
-                              <div className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                  <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                              <div className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                  <div className="flex items-center gap-3 flex-1 overflow-hidden min-w-0">
                                       {eventLogo && <img src={eventLogo} alt="Logo" className="h-10 sm:h-12 w-auto object-contain rounded flex-shrink-0" />}
                                       <div className="flex flex-col min-w-0">
                                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -359,7 +427,9 @@ const MainContent: React.FC = () => {
                                           {dateRangeStr && <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">{dateRangeStr}</span>}
                                       </div>
                                   </div>
-                                  <div className="w-full lg:w-auto"><SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} /></div>
+                                  <div className="flex-shrink-0 w-full lg:w-auto">
+                                      <StatsDisplay stats={competitiveStats} />
+                                  </div>
                               </div>
                           </div>
                           {renderRankingUI()}

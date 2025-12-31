@@ -29,6 +29,18 @@ export const calculateStdDev = (numbers: number[]): number => {
     return Math.round(Math.sqrt(avgSquareDiff));
 };
 
+// 變異係數 (Coefficient of Variation)
+export const calculateCV = (numbers: number[]): number => {
+    if (numbers.length === 0) return 0;
+    const mean = numbers.reduce((acc, val) => acc + val, 0) / numbers.length;
+    if (mean === 0) return 0;
+    const squareDiffs = numbers.map(value => Math.pow(value - mean, 2));
+    const avgSquareDiff = squareDiffs.reduce((acc, val) => acc + val, 0) / numbers.length;
+    const stdDev = Math.sqrt(avgSquareDiff);
+    // 回傳百分比，保留小數第一位
+    return parseFloat(((stdDev / mean) * 100).toFixed(1));
+};
+
 // 計算最大值
 export const calculateMax = (numbers: number[]): number => {
     if (numbers.length === 0) return 0;

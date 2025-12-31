@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { RankEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import { API_BASE_URL } from '../constants';
@@ -62,8 +63,23 @@ export const useRankings = (): UseRankingsReturn => {
                 last3h: { count: item.last_3h_stats?.count ?? 0, score: item.last_3h_stats?.score ?? 0, speed: item.last_3h_stats?.speed ?? 0, average: item.last_3h_stats?.average ?? 0 },
                 last24h: { count: item.last_24h_stats?.count ?? 0, score: item.last_24h_stats?.score ?? 0, speed: item.last_24h_stats?.speed ?? 0, average: item.last_24h_stats?.average ?? 0 }
             } : { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat };
+            
             let userId = item.userId ? String(item.userId) : (item.last_player_info?.profile?.id ? String(item.last_player_info.profile.id) : "");
-            return { rank: item.rank, score: item.score, lastPlayedAt: item.last_played_at || '', stats, user: { id: userId, username: item.name || "Unknown", display_name: item.name || "Unknown", avatar: '', supporter_tier: 0 } };
+            const name = item.name || item.display_name || "Unknown";
+            
+            return { 
+                rank: item.rank, 
+                score: item.score, 
+                lastPlayedAt: item.last_played_at || '', 
+                stats, 
+                user: { 
+                    id: userId, 
+                    username: name, 
+                    display_name: name, 
+                    avatar: '', 
+                    supporter_tier: 0 
+                } 
+            };
         });
     };
 

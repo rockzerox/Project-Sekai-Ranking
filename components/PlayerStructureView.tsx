@@ -209,13 +209,26 @@ const PlayerStructureView: React.FC = () => {
 
     const toggleEntry = (type: 'global' | 'unit' | 'char', id: string) => {
         setSelectedEntries(prev => {
-            const exists = prev.find(e => e.type === type && e.id === id);
-            if (exists) return prev.length <= 1 ? prev : prev.filter(e => !(e.type === type && e.id === id));
-            if (type === 'global') return [...prev, { type, id }];
-            if (type === 'unit') return [...prev.filter(e => e.type === 'global'), { type, id }];
-            const charCount = prev.filter(e => e.type === 'char').length;
-            if (charCount >= 4) return prev;
-            return [...prev.filter(e => e.type !== 'unit'), { type, id }];
+            const isSame = prev.some(e => e.type === type && e.id === id);
+            
+            // Global: 可自由切換，不排斥其他
+            if (type === 'global') {
+                if (isSame) {
+                     const remaining = prev.filter(e => e.type !== 'global');
+                     return remaining.length > 0 ? remaining : prev;
+                }
+                return [...prev, { type, id }];
+            }
+
+            // Unit/Char: 單選制 (但保留 Global)
+            if (isSame) {
+                 const remaining = prev.filter(e => !(e.type === type && e.id === id));
+                 return remaining.length > 0 ? remaining : prev;
+            }
+
+            const globalEntry = prev.find(e => e.type === 'global');
+            const newEntry = { type, id };
+            return globalEntry ? [globalEntry, newEntry] : [newEntry];
         });
     };
 
@@ -224,17 +237,18 @@ const PlayerStructureView: React.FC = () => {
     // 計算區間趨勢 (Trend Calculation)
     const trends = useMemo(() => {
         if (analysisResults.length === 0) return null;
-        const res = analysisResults[0]; 
+        // 優先顯示非 Global 的數據，若只有 Global 則顯示 Global
+        const targetRes = analysisResults.find(r => r.type !== 'global') || analysisResults[0]; 
         const getT = (start: number, end: number) => {
-            const val = (res.data[end-1] - res.data[start-1]) / (end - start);
+            const val = (targetRes.data[end-1] - targetRes.data[start-1]) / (end - start);
             return (val >= 0 ? '+' : '') + val.toFixed(2);
         };
         return {
             t10: getT(1, 10),
             t50: getT(10, 50),
             t100: getT(50, 100),
-            eventCount: res.eventCount,
-            primaryColor: res.color
+            eventCount: targetRes.eventCount,
+            primaryColor: targetRes.color
         };
     }, [analysisResults]);
 
@@ -242,6 +256,12 @@ const PlayerStructureView: React.FC = () => {
         if (res.type === 'global') return null;
         return getAssetUrl(res.rawId, res.type === 'unit' ? 'unit' : 'character');
     };
+
+    // Y 軸縮放參數
+    const Y_MIN = 40;
+    const Y_RANGE = 100 - Y_MIN;
+    // Y 座標計算：數值越小 Y 越大 (SVG 座標系)
+    const getY = (val: number) => 20 + (1 - (Math.max(val, Y_MIN) - Y_MIN) / Y_RANGE) * 350;
 
     return (
         <div className="w-full lg:h-[calc(100vh-80px)] flex flex-col overflow-hidden animate-fadeIn max-w-[1750px] mx-auto pb-1 px-1">
@@ -264,7 +284,7 @@ const PlayerStructureView: React.FC = () => {
 
                         <div className="flex flex-col gap-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">對象篩選</span>
+                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">對象篩選 (單選)</span>
                                 <button onClick={() => toggleEntry('global', '')} className={`px-3 py-0.5 rounded-lg font-black text-[12px] border transition-all ${selectedEntries.find(e => e.type === 'global') ? 'bg-slate-900 text-white border-transparent' : 'text-slate-500 border-slate-200 dark:border-slate-700'}`}>ALL</button>
                             </div>
                             
@@ -279,8 +299,7 @@ const PlayerStructureView: React.FC = () => {
                             <div className="grid grid-cols-8 sm:grid-cols-9 lg:grid-cols-7 gap-1.5">
                                 {Object.values(CHARACTER_MASTER).slice(0, analysisMode === 'fourStar' ? 26 : 20).map(char => {
                                     const isS = selectedEntries.find(e => e.type === 'char' && e.id === char.id);
-                                    const disabled = !isS && selectedEntries.filter(e => e.type === 'char').length >= 4;
-                                    return <button key={char.id} onClick={() => toggleEntry('char', char.id)} disabled={disabled} className={`w-7 h-7 lg:w-8 lg:h-8 rounded-full border-2 transition-all relative overflow-hidden ${isS ? 'scale-110 z-10 shadow-md ring-1 ring-offset-1 dark:ring-offset-slate-900 border-current' : 'opacity-25 grayscale hover:opacity-100'} ${disabled ? 'opacity-5 cursor-not-allowed' : ''}`} style={{ color: isS ? char.color : 'transparent', '--tw-ring-color': char.color } as React.CSSProperties}><img src={getAssetUrl(char.id, 'character')} className="w-full h-full object-cover" /></button>;
+                                    return <button key={char.id} onClick={() => toggleEntry('char', char.id)} className={`w-7 h-7 lg:w-8 lg:h-8 rounded-full border-2 transition-all relative overflow-hidden ${isS ? 'scale-110 z-10 shadow-md ring-1 ring-offset-1 dark:ring-offset-slate-900 border-current' : 'opacity-25 grayscale hover:opacity-100'}`} style={{ color: isS ? char.color : 'transparent', '--tw-ring-color': char.color } as React.CSSProperties}><img src={getAssetUrl(char.id, 'character')} className="w-full h-full object-cover" /></button>;
                                 })}
                             </div>
                         </div>
@@ -316,12 +335,9 @@ const PlayerStructureView: React.FC = () => {
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </button>
                                 {showFormula && (
-                                    <div className="absolute top-10 left-4 z-50 bg-slate-900/95 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-2xl text-[10px] text-white font-mono leading-relaxed animate-fadeIn">
-                                        <div className="text-cyan-400 font-black mb-1 tracking-tighter">換血率計算定義：</div>
-                                        U(K) = <br/>
-                                        (指定名次內的不重複玩家總數) <br/>
-                                        ────────────────────────── × 100%<br/>
-                                        (統計活動期數 N × 指定排名 K)
+                                    <div className="absolute top-10 left-4 z-50 bg-slate-900/95 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-2xl text-[10px] text-white font-mono leading-relaxed animate-fadeIn whitespace-nowrap">
+                                        <div className="text-cyan-400 font-black mb-1 tracking-tighter">前K名內換血率定義：</div>
+                                        前K名內換血率=(前K名內不重複玩家數/(期數N×名次K))×100%
                                     </div>
                                 )}
 
@@ -339,16 +355,28 @@ const PlayerStructureView: React.FC = () => {
                             {/* 區間趨勢數值：適配手機版並列顯示 */}
                             <div className="flex items-center gap-1 sm:gap-3">
                                 {[
-                                    { label: '核心圈', val: trends?.t10, range: [1, 10] },
-                                    { label: '精英圈', val: trends?.t50, range: [11, 50] },
-                                    { label: '大眾圈', val: trends?.t100, range: [51, 100] }
+                                    { label: 'T1-T10', val: trends?.t10, range: [1, 10] },
+                                    { label: 'T11-T50', val: trends?.t50, range: [11, 50] },
+                                    { label: 'T50-T100', val: trends?.t100, range: [51, 100] }
                                 ].map((t, idx) => {
                                     const isActive = hoveredK && hoveredK >= t.range[0] && hoveredK <= t.range[1];
                                     const isPos = t.val && t.val.startsWith('+');
                                     const isNeg = t.val && t.val.startsWith('-');
+                                    // 動態邊框與背景色：若 active 則使用主要色，否則預設
+                                    const dynamicStyle = isActive ? { borderColor: trends?.primaryColor, color: trends?.primaryColor } : {};
+                                    
                                     return (
-                                        <div key={idx} className={`bg-slate-900/80 dark:bg-black/60 backdrop-blur-md border border-white/10 px-2 sm:px-3 py-1.5 rounded-xl shadow-lg flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 transition-all duration-300 ${isActive ? 'scale-110 border-cyan-500 ring-2 ring-cyan-500/50' : 'opacity-80'}`}>
-                                            <span className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tighter whitespace-nowrap">{t.label}:</span>
+                                        <div 
+                                            key={idx} 
+                                            className={`bg-slate-900/80 dark:bg-black/60 backdrop-blur-md border border-white/10 px-2 sm:px-3 py-1.5 rounded-xl shadow-lg flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 transition-all duration-300 ${isActive ? 'scale-110 ring-2 ring-white/10' : 'opacity-80'}`}
+                                            style={isActive ? { borderColor: trends?.primaryColor } : {}}
+                                        >
+                                            <span 
+                                                className="text-[8px] sm:text-[9px] font-black uppercase tracking-tighter whitespace-nowrap text-slate-400"
+                                                style={isActive ? { color: trends?.primaryColor } : {}}
+                                            >
+                                                {t.label}:
+                                            </span>
                                             <span className={`text-[10px] sm:text-[11px] font-black font-mono ${isPos ? 'text-emerald-400' : isNeg ? 'text-rose-400' : 'text-slate-300'}`}>
                                                 {t.val || '--'}%
                                             </span>
@@ -365,11 +393,11 @@ const PlayerStructureView: React.FC = () => {
                                     const k = Math.round(((e.clientX - rect.left) / rect.width) * 99) + 1;
                                     setHoveredK(Math.max(1, Math.min(100, k)));
                                 }} onMouseLeave={() => setHoveredK(null)}>
-                                    {/* 網格輔助線 */}
-                                    {[0, 25, 50, 75, 100].map(v => (
+                                    {/* 網格輔助線 (40, 50, ..., 100) */}
+                                    {[40, 50, 60, 70, 80, 90, 100].map(v => (
                                         <g key={v}>
-                                            <line x1="60" y1={20 + (1 - v/100) * 350} x2="970" y2={20 + (1 - v/100) * 350} stroke="currentColor" className="text-slate-100 dark:text-slate-900" strokeWidth="1.5" />
-                                            <text x="50" y={20 + (1 - v/100) * 350} className="text-[15px] lg:text-[14px] fill-slate-400 font-mono font-black" textAnchor="end" alignmentBaseline="middle">{v}%</text>
+                                            <line x1="60" y1={getY(v)} x2="970" y2={getY(v)} stroke="currentColor" className="text-slate-100 dark:text-slate-900" strokeWidth="1.5" />
+                                            <text x="50" y={getY(v)} className="text-[15px] lg:text-[14px] fill-slate-400 font-mono font-black" textAnchor="end" alignmentBaseline="middle">{v}%</text>
                                         </g>
                                     ))}
                                     {[1, 25, 50, 75, 100].map(k => (
@@ -380,7 +408,7 @@ const PlayerStructureView: React.FC = () => {
                                     {/* 繪製排名生態曲線 */}
                                     {analysisResults.map(res => {
                                         const isGlobal = res.type === 'global';
-                                        const pathD = res.data.map((u, i) => `${i === 0 ? 'M' : 'L'} ${60 + (i / 99) * 910} ${20 + (1 - u / 100) * 350}`).join(' ');
+                                        const pathD = res.data.map((u, i) => `${i === 0 ? 'M' : 'L'} ${60 + (i / 99) * 910} ${getY(u)}`).join(' ');
                                         return (
                                             <path key={res.id} d={pathD} fill="none" stroke={isGlobal && isGlobalDimmed ? '#cbd5e1' : res.color} strokeWidth={isGlobal && isGlobalDimmed ? "1.5" : "3.5"} strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-700 opacity-90" style={{ filter: isGlobal && isGlobalDimmed ? 'none' : 'drop-shadow(0 3px 6px rgba(0,0,0,0.1))' }} />
                                         );
@@ -395,7 +423,7 @@ const PlayerStructureView: React.FC = () => {
                                             {analysisResults.map(res => {
                                                 const uVal = res.data[hoveredK - 1];
                                                 const xPos = 60 + ((hoveredK - 1) / 99) * 910;
-                                                const yPos = 20 + (1 - uVal / 100) * 350;
+                                                const yPos = getY(uVal);
                                                 const icon = getIconUrl(res);
 
                                                 return (

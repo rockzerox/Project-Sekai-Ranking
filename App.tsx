@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { SortOption, EventSummary } from './types';
 import SearchBar from './components/SearchBar';
@@ -25,7 +26,7 @@ import EventDistributionView from './components/EventDistributionView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
-import { UNITS, getAssetUrl, CHARACTERS, API_BASE_URL, calculatePreciseDuration, UNIT_MASTER, getChar } from './constants';
+import { UNITS, getAssetUrl, CHARACTERS, API_BASE_URL, calculatePreciseDuration, UNIT_MASTER, getChar, MS_PER_DAY } from './constants';
 import { useRankings, fetchJsonWithBigInt } from './hooks/useRankings';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
 
@@ -159,13 +160,18 @@ const MainContent: React.FC = () => {
           const now = Date.now();
           const start = new Date(liveEventTiming.startAt).getTime();
           const agg = new Date(liveEventTiming.aggregateAt).getTime();
-          return Math.max(0.01, (Math.min(now, agg) - start) / 86400000);
+          return Math.max(0.01, (Math.min(now, agg) - start) / MS_PER_DAY);
       } else if (currentView === 'past' && selectedEvent) {
+          // --- 修正：如果是 World Link 且正在查看「個人章節」，則使用 chDavg ---
+          if (isWorldLink(selectedEvent.id) && activeChapter !== 'all') {
+              const wlInfo = getWlDetail(selectedEvent.id);
+              return wlInfo?.chDavg || 3;
+          }
           const evt = allEvents.find(e => e.id === selectedEvent.id);
           if (evt) return calculatePreciseDuration(evt.start_at, evt.aggregate_at);
       }
       return 1;
-  }, [currentView, liveEventTiming, selectedEvent, allEvents]);
+  }, [currentView, liveEventTiming, selectedEvent, allEvents, activeChapter, isWorldLink, getWlDetail]);
 
   const sortedAndFilteredRankings = useMemo(() => {
     const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));

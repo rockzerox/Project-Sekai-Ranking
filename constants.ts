@@ -1,3 +1,4 @@
+
 export interface CharInfo {
     id: string;
     name: string;
@@ -14,6 +15,9 @@ export interface UnitInfo {
 }
 
 export const API_BASE_URL = "https://api.hisekai.org";
+
+// --- 時間常數 ---
+export const MS_PER_DAY = 86400000;
 
 export const UNITS: Record<string, UnitInfo> = {
     "1": { name: "Leo/need", color: "#4455DD", abbr: "LN", style: "bg-blue-600 text-white", urlKey: "LN" },
@@ -72,7 +76,7 @@ export const getUnit = (idOrName: string): UnitInfo | undefined => {
 export const calculatePreciseDuration = (start: string, aggregate: string): number => {
     const s = new Date(start).getTime();
     const a = new Date(aggregate).getTime();
-    return Math.max(0.01, (a - s) / 86400000);
+    return Math.max(0.01, (a - s) / MS_PER_DAY);
 };
 
 export const calculateDisplayDuration = (start: string, aggregate: string): number => {

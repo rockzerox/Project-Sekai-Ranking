@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import { 
-    CHARACTER_MASTER, API_BASE_URL, getAssetUrl 
+    CHARACTER_MASTER, API_BASE_URL, getAssetUrl, MS_PER_DAY 
 } from '../constants';
 import * as Stats from '../utils/mathUtils';
 import LoadingSpinner from './LoadingSpinner';
@@ -167,7 +168,7 @@ const CharacterAnalysisView: React.FC = () => {
                         if (jsonTop100 && jsonTop100.rankings) {
                             jsonTop100.rankings.forEach((r: any) => playerIds.add(String(r.userId)));
                         }
-                        const duration = Math.max(1, Math.round((new Date(evt.aggregate_at).getTime() - new Date(evt.start_at).getTime()) / 86400000));
+                        const duration = Math.max(1, Math.round((new Date(evt.aggregate_at).getTime() - new Date(evt.start_at).getTime()) / MS_PER_DAY));
                         return { id: evt.id, name: evt.name, score: targetScore, daily: targetScore / duration };
                     } catch (e) { return null; }
                 }));

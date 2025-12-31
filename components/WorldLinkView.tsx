@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { WorldBloomChapter, WorldBloomChapterBorder } from '../types';
 import CollapsibleSection from './CollapsibleSection';
@@ -149,7 +150,7 @@ const WorldLinkView: React.FC = () => {
                     const chaptersBorder: WorldBloomChapterBorder[] = jsonBorder?.userWorldBloomChapterRankingBorders || [];
                     const wlDetail = getWlDetail(eventId);
                     const chapterIds = wlDetail?.chorder || [];
-                    const duration = wlDetail?.chDavg || 3; // 動態從 JSON 讀取，預設為 3
+                    const duration = wlDetail?.chDavg || 3; 
 
                     chapterIds.forEach((charId, orderIdx) => {
                         const charInfo = CHARACTERS[charId];

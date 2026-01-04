@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, SimpleRankData, ComparisonResult } from '../types';
 import ErrorMessage from './ErrorMessage';
@@ -8,6 +9,7 @@ import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
 import { formatScoreForChart } from '../utils/mathUtils';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
+import { UI_TEXT } from '../constants/uiText';
 
 const EventComparisonView: React.FC = () => {
     const { eventDetails, getEventColor, isWorldLink } = useConfig();
@@ -55,7 +57,7 @@ const EventComparisonView: React.FC = () => {
                     setEvents(pastEvents);
                 }
             } catch (err) {
-                setListError('無法載入活動列表');
+                setListError(UI_TEXT.eventComparison.errorLoad);
                 console.error(err);
             }
         };
@@ -102,7 +104,7 @@ const EventComparisonView: React.FC = () => {
     const handleCompare = async () => {
         if (!selectedId1 || !selectedId2) return;
         if (selectedId1 === selectedId2) {
-            setComparisonError('請選擇兩個不同的活動進行比較');
+            setComparisonError(UI_TEXT.eventComparison.errorSameEvent);
             return;
         }
 
@@ -144,7 +146,7 @@ const EventComparisonView: React.FC = () => {
             });
 
         } catch (err) {
-            setComparisonError('載入比較資料時發生錯誤。');
+            setComparisonError(UI_TEXT.eventComparison.errorLoad);
             console.error(err);
         } finally {
             setIsComparing(false);
@@ -203,6 +205,7 @@ const EventComparisonView: React.FC = () => {
         const getTooltipData = () => { if (hoveredRank === null) return null; return { s1: d1.find(d => d.rank === hoveredRank)?.score, s2: d2.find(d => d.rank === hoveredRank)?.score }; };
         const getTrendAnalysis = () => {
              const ranges = [{ label: 'Top 1-10', min: 1, max: 10 }, { label: 'Top 10-100', min: 10, max: 100 }, { label: 'Top 100-1k', min: 100, max: 1000 }, { label: 'Top 1k-10k', min: 1000, max: 10001 }];
+             const anaText = UI_TEXT.eventComparison.chart.analysis;
              return ranges.map(range => {
                 const getMetrics = (data: SimpleRankData[]) => {
                     const inRange = data.filter(d => d.rank >= range.min && d.rank < range.max);
@@ -214,13 +217,13 @@ const EventComparisonView: React.FC = () => {
                 let steepnessWinner = 'equal'; if (metricsA.spread > metricsB.spread * 1.1) steepnessWinner = 'A'; else if (metricsB.spread > metricsA.spread * 1.1) steepnessWinner = 'B';
                 let scoreWinner = 'equal'; if (metricsA.avgScore > metricsB.avgScore * 1.05) scoreWinner = 'A'; else if (metricsB.avgScore > metricsA.avgScore * 1.05) scoreWinner = 'B';
                 const name1 = `第${comparisonData.event1?.id}期`; const name2 = `第${comparisonData.event2?.id}期`;
-                let evaluation = '兩者趨勢與分數分佈相近。';
-                if (steepnessWinner === 'A' && scoreWinner === 'A') evaluation = `${name1} 分數大幅領先，且排名前段斷層極大 (高度競爭)。`;
-                else if (steepnessWinner === 'B' && scoreWinner === 'B') evaluation = `${name2} 分數大幅領先，且排名前段斷層極大 (高度競爭)。`;
-                else if (scoreWinner === 'A') evaluation = `${name1} 整體分數較高，需準備更多資源。`;
-                else if (scoreWinner === 'B') evaluation = `${name2} 整體分數較高，需準備更多資源。`;
-                else if (steepnessWinner === 'A') evaluation = `${name1} 排名分數落差較大，前段名次固化嚴重。`;
-                else if (steepnessWinner === 'B') evaluation = `${name2} 排名分數落差較大，前段名次固化嚴重。`;
+                let evaluation: string = anaText.similar;
+                if (steepnessWinner === 'A' && scoreWinner === 'A') evaluation = `${name1} ${anaText.leadA}`;
+                else if (steepnessWinner === 'B' && scoreWinner === 'B') evaluation = `${name2} ${anaText.leadB}`;
+                else if (scoreWinner === 'A') evaluation = `${name1} ${anaText.highA}`;
+                else if (scoreWinner === 'B') evaluation = `${name2} ${anaText.highB}`;
+                else if (steepnessWinner === 'A') evaluation = `${name1} ${anaText.gapA}`;
+                else if (steepnessWinner === 'B') evaluation = `${name2} ${anaText.gapB}`;
                 return { range: range.label, steepnessWinner, scoreWinner, evaluation };
             }).filter(res => res !== null);
         };
@@ -232,17 +235,17 @@ const EventComparisonView: React.FC = () => {
     return (
         <div className="w-full animate-fadeIn py-2">
             <div className="mb-8">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活動比較分析 (Event Comparison)</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">選擇兩期活動，比較其分數線分佈與競爭強度</p>
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.eventComparison.title}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{UI_TEXT.eventComparison.description}</p>
             </div>
             <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 mb-4 shadow-sm">
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                    <div className="lg:col-span-2"><Select label="活動 A (Base)" value={selectedId1} onChange={setSelectedId1} options={getOptions(selectedId1)} /></div>
-                    <div className="lg:col-span-2"><Select label="活動 B (Compare)" value={selectedId2} onChange={setSelectedId2} options={getOptions(selectedId2)} /></div>
-                    <div className="lg:col-span-1"><Button variant="gradient" fullWidth disabled={isComparing || !selectedId1 || !selectedId2} onClick={handleCompare} isLoading={isComparing}>{isComparing ? '分析中...' : '開始比較'}</Button></div>
+                    <div className="lg:col-span-2"><Select label={UI_TEXT.eventComparison.selectLabelA} value={selectedId1} onChange={setSelectedId1} options={getOptions(selectedId1)} /></div>
+                    <div className="lg:col-span-2"><Select label={UI_TEXT.eventComparison.selectLabelB} value={selectedId2} onChange={setSelectedId2} options={getOptions(selectedId2)} /></div>
+                    <div className="lg:col-span-1"><Button variant="gradient" fullWidth disabled={isComparing || !selectedId1 || !selectedId2} onClick={handleCompare} isLoading={isComparing}>{isComparing ? UI_TEXT.eventComparison.btnAnalyzing : UI_TEXT.eventComparison.btnCompare}</Button></div>
                  </div>
                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
-                     <span className="text-xs font-bold text-slate-500 mr-1">快速搜尋:</span>
+                     <span className="text-xs font-bold text-slate-500 mr-1">{UI_TEXT.eventComparison.quickFilter}</span>
                      <EventFilterGroup filters={filters} onFilterChange={setFilters} mode="exclusive" compact={true} containerClassName="flex flex-wrap gap-2 items-center" itemClassName="w-[100px] sm:w-auto" />
                  </div>
             </div>
@@ -298,8 +301,8 @@ const EventComparisonView: React.FC = () => {
                             <div key={idx} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex justify-between items-center mb-2 border-b border-slate-100 dark:border-slate-700/50 pb-1"><span className="text-xs font-bold text-slate-500 dark:text-slate-400">{stat.range}</span></div>
                                 <div className="space-y-2">
-                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">競爭陡峭度 (Steepness)</span><div className="flex items-center gap-1">{stat.steepnessWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : (stat.steepnessWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.steepnessWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.steepnessWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—')}</span></div></div>
-                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">平均分數 (Avg Score)</span><div className="flex items-center gap-1">{stat.scoreWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.scoreWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.scoreWinner === 'A' ? ChartDisplay.color1 : (stat.scoreWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.scoreWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.scoreWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—')}</span></div></div>
+                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">{UI_TEXT.eventComparison.chart.steepness}</span><div className="flex items-center gap-1">{stat.steepnessWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : (stat.steepnessWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.steepnessWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.steepnessWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—')}</span></div></div>
+                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">{UI_TEXT.eventComparison.chart.avgScore}</span><div className="flex items-center gap-1">{stat.scoreWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.scoreWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.scoreWinner === 'A' ? ChartDisplay.color1 : (stat.scoreWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.scoreWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.scoreWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—')}</span></div></div>
                                     <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/30 text-[11px] leading-tight text-slate-600 dark:text-slate-300 font-medium">{stat.evaluation}</div>
                                 </div>
                             </div>

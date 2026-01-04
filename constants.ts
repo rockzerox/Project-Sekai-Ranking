@@ -58,7 +58,7 @@ export const CHARACTERS: Record<string, CharInfo> = {
     "23": { id: "23", name: "鏡音連", color: "#FFEE11", unit: "0" },
     "24": { id: "24", name: "巡音流歌", color: "#FFBBCC", unit: "0" },
     "25": { id: "25", name: "MEIKO", color: "#DD4444", unit: "0" },
-    "26": { id: "26", name: "KAITO", color: "#3366CC", unit: "0" }
+    "26": { id: "26", name: "KAITO", color: "#3366CC", unit: "0" },
 };
 
 export const CHARACTER_MASTER = CHARACTERS;
@@ -133,12 +133,14 @@ export const getCardTypeOptions = (allLabel: string | null = '卡池類型') => 
 };
 
 const BASE_IMAGE_URL = "https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking";
+const BASE_ITEM_URL = "https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking/Item";
 
 export const getAssetUrl = (
     idOrName: string | undefined, 
-    type: 'character' | 'character_full' | 'character_q' | 'unit' | 'unit_full' | 'event'
+    type: 'character' | 'character_full' | 'character_q' | 'unit' | 'unit_full' | 'event' | 'item'
 ): string | undefined => {
     if (!idOrName) return undefined;
+    if (type === 'item') return `${BASE_ITEM_URL}/${idOrName}`;
     if (type === 'event') return `${BASE_IMAGE_URL}/event_logo/${idOrName}.png`;
     if (type.startsWith('character')) {
         let filename = idOrName;

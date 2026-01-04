@@ -6,6 +6,7 @@ import ErrorMessage from './ErrorMessage';
 import { useConfig } from '../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import { EventSummary, PastEventApiResponse } from '../types';
+import { UI_TEXT } from '../constants/uiText';
 
 interface AnalysisResult {
     id: string;
@@ -22,13 +23,14 @@ type AnalysisMode = 'banner' | 'fourStar';
 // 抽取解讀指南組件（含分頁邏輯）
 const InterpretationGuide: React.FC = () => {
     const [page, setPage] = useState(1);
+    const guideText = UI_TEXT.playerStructure.guide;
 
     return (
         <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-xl flex-1 flex flex-col min-h-[360px] lg:min-h-0 border border-white/5 relative overflow-hidden">
             <div className="flex items-center justify-between mb-5">
                 <h4 className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.3em] flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    {page === 1 ? '換血率基礎定義' : '排名生態趨勢解讀'}
+                    {page === 1 ? guideText.basicTitle : guideText.trendTitle}
                 </h4>
                 <div className="flex gap-1.5">
                     {[1, 2].map(p => (
@@ -43,24 +45,24 @@ const InterpretationGuide: React.FC = () => {
                         <div className="flex gap-3 items-start">
                             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 shrink-0 shadow-[0_0_8px_#10b981]"></div>
                             <div className="flex flex-col">
-                                <span className="text-[13px] font-black text-emerald-400 mb-0.5">高換血率：生態系活躍</span>
-                                <p className="text-[11px] text-slate-400 leading-relaxed font-bold font-sans">數值較高代表該區間在不同期數間「新面孔」極多。意味著新進衝榜者容易進入該階層，玩家層次的流動性非常健康，競爭門檻較低。</p>
+                                <span className="text-[13px] font-black text-emerald-400 mb-0.5">{guideText.highTurnover.title}</span>
+                                <p className="text-[11px] text-slate-400 leading-relaxed font-bold font-sans">{guideText.highTurnover.desc}</p>
                             </div>
                         </div>
                         
                         <div className="flex gap-3 items-start">
                             <div className="w-2.5 h-2.5 rounded-full bg-rose-500 mt-1 shrink-0 shadow-[0_0_8px_#f43f5e]"></div>
                             <div className="flex flex-col">
-                                <span className="text-[13px] font-black text-rose-400 mb-0.5">低換血率：階級高度固化</span>
-                                <p className="text-[11px] text-slate-400 leading-relaxed font-bold font-sans">數值偏低代表該名次長期被特定玩家佔據。形成了一道難以跨越的資源與技術門檻，生態系呈現「滯後」或「死水」狀態。</p>
+                                <span className="text-[13px] font-black text-rose-400 mb-0.5">{guideText.lowTurnover.title}</span>
+                                <p className="text-[11px] text-slate-400 leading-relaxed font-bold font-sans">{guideText.lowTurnover.desc}</p>
                             </div>
                         </div>
 
                         <div className="pt-6 border-t border-white/5">
                             <button onClick={() => setPage(2)} className="w-full flex items-center justify-between p-3.5 bg-cyan-500/10 hover:bg-cyan-500/20 rounded-xl transition-all border border-cyan-500/20 group">
                                 <div className="flex flex-col items-start">
-                                    <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest">下一頁 (Next Page)</span>
-                                    <span className="text-[10px] text-slate-400 font-bold">深入探討排名趨勢與行為分析</span>
+                                    <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest">{guideText.nextPage}</span>
+                                    <span className="text-[10px] text-slate-400 font-bold">{guideText.nextPageDesc}</span>
                                 </div>
                                 <svg className="w-5 h-5 text-cyan-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
                             </button>
@@ -71,40 +73,40 @@ const InterpretationGuide: React.FC = () => {
                         <div className="flex gap-3 items-start">
                             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 shrink-0 shadow-[0_0_8px_#10b981]"></div>
                             <div className="flex flex-col">
-                                <span className="text-[12px] font-black text-emerald-400 mb-0.5">正趨勢 (+)：生態擴張</span>
-                                <p className="text-[10px] text-slate-400 leading-relaxed font-bold font-sans">名次越往後，新玩家湧入速度越快。代表該角色的「大眾參與度」隨著名次放寬而顯著提升。</p>
+                                <span className="text-[12px] font-black text-emerald-400 mb-0.5">{guideText.posTrend.title}</span>
+                                <p className="text-[10px] text-slate-400 leading-relaxed font-bold font-sans">{guideText.posTrend.desc}</p>
                             </div>
                         </div>
                         
                         <div className="flex gap-3 items-start">
                             <div className="w-2.5 h-2.5 rounded-full bg-slate-500 mt-1 shrink-0 shadow-[0_0_8px_#64748b]"></div>
                             <div className="flex flex-col">
-                                <span className="text-[12px] font-black text-slate-400 mb-0.5">零趨勢 (≈0)：結構穩定</span>
-                                <p className="text-[10px] text-slate-400 leading-relaxed font-bold font-sans">各區間換血率持平，代表競爭模式固定。無論名次先後，參與競爭的人員比例都沒有顯著變化。</p>
+                                <span className="text-[12px] font-black text-slate-400 mb-0.5">{guideText.zeroTrend.title}</span>
+                                <p className="text-[10px] text-slate-400 leading-relaxed font-bold font-sans">{guideText.zeroTrend.desc}</p>
                             </div>
                         </div>
 
                         <div className="flex gap-3 items-start">
                             <div className="w-2.5 h-2.5 rounded-full bg-rose-500 mt-1 shrink-0 shadow-[0_0_8px_#f43f5e]"></div>
                             <div className="flex flex-col">
-                                <span className="text-[12px] font-black text-rose-400 mb-0.5">負趨勢 (-)：規模萎縮</span>
-                                <p className="text-[10px] text-slate-400 leading-relaxed font-bold font-sans">代表即使排名放寬，新玩家增加的速度仍趕不上名次擴張。顯示該角色主要由極少數特定玩家群在反覆角逐。</p>
+                                <span className="text-[12px] font-black text-rose-400 mb-0.5">{guideText.negTrend.title}</span>
+                                <p className="text-[10px] text-slate-400 leading-relaxed font-bold font-sans">{guideText.negTrend.desc}</p>
                             </div>
                         </div>
 
                         <div className="p-3.5 bg-yellow-400/5 rounded-xl border border-yellow-400/20 mt-1">
                             <div className="flex items-center gap-2 mb-1.5">
                                 <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
-                                <span className="text-[10px] font-black text-yellow-400 uppercase tracking-wider">趨勢反轉點 (Pivot Point)</span>
+                                <span className="text-[10px] font-black text-yellow-400 uppercase tracking-wider">{guideText.pivotPoint.title}</span>
                             </div>
                             <p className="text-[10px] text-slate-300 font-medium leading-relaxed font-sans">
-                                趨勢正負交替處即為「行為分水嶺」，代表玩家競爭行為從該名次開始發生本質性的轉變。
+                                {guideText.pivotPoint.desc}
                             </p>
                         </div>
                         
                         <button onClick={() => setPage(1)} className="mt-3 text-[10px] font-black text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1.5 group">
                             <svg className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M11 19l-7-7 7-7" /></svg>
-                            返回基礎定義
+                            {guideText.backToBasic}
                         </button>
                     </div>
                 )}
@@ -267,8 +269,8 @@ const PlayerStructureView: React.FC = () => {
         <div className="w-full lg:h-[calc(100vh-80px)] flex flex-col overflow-hidden animate-fadeIn max-w-[1750px] mx-auto pb-1 px-1">
             {/* 標題區域 */}
             <div className="flex-shrink-0 mb-3 px-1">
-                <h2 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">玩家排名結構 (Player Structure)</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-[11px] lg:text-[13px] font-bold leading-tight font-sans">觀察前一百名內排名生態曲線，剖析各角色與整體遊戲玩家排名流動趨勢。</p>
+                <h2 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white mb-1 tracking-tight">{UI_TEXT.playerStructure.title}</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px] lg:text-[13px] font-bold leading-tight font-sans">{UI_TEXT.playerStructure.description}</p>
             </div>
 
             <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0 lg:overflow-hidden">
@@ -278,13 +280,13 @@ const PlayerStructureView: React.FC = () => {
                     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 shadow-sm">
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 mb-3">
                             {(['banner', 'fourStar'] as const).map(m => (
-                                <button key={m} onClick={() => setAnalysisMode(m)} className={`flex-1 py-1.5 rounded-lg font-black text-[12px] transition-all ${analysisMode === m ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{m === 'banner' ? '箱活主打' : '四星登場'}</button>
+                                <button key={m} onClick={() => setAnalysisMode(m)} className={`flex-1 py-1.5 rounded-lg font-black text-[12px] transition-all ${analysisMode === m ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{m === 'banner' ? UI_TEXT.playerStructure.filter.modes.banner : UI_TEXT.playerStructure.filter.modes.fourStar}</button>
                             ))}
                         </div>
 
                         <div className="flex flex-col gap-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">對象篩選 (單選)</span>
+                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{UI_TEXT.playerStructure.filter.label}</span>
                                 <button onClick={() => toggleEntry('global', '')} className={`px-3 py-0.5 rounded-lg font-black text-[12px] border transition-all ${selectedEntries.find(e => e.type === 'global') ? 'bg-slate-900 text-white border-transparent' : 'text-slate-500 border-slate-200 dark:border-slate-700'}`}>ALL</button>
                             </div>
                             
@@ -336,8 +338,8 @@ const PlayerStructureView: React.FC = () => {
                                 </button>
                                 {showFormula && (
                                     <div className="absolute top-10 left-4 z-50 bg-slate-900/95 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-2xl text-[10px] text-white font-mono leading-relaxed animate-fadeIn whitespace-nowrap">
-                                        <div className="text-cyan-400 font-black mb-1 tracking-tighter">前K名內換血率定義：</div>
-                                        前K名內換血率=(前K名內不重複玩家數/(期數N×名次K))×100%
+                                        <div className="text-cyan-400 font-black mb-1 tracking-tighter">{UI_TEXT.playerStructure.guide.formulaLabel}</div>
+                                        U(K) = ( 不重複玩家數 / (N × K) ) × 100%
                                     </div>
                                 )}
 
@@ -470,10 +472,10 @@ const PlayerStructureView: React.FC = () => {
                         <div className="px-5 py-3 border-t border-slate-50 dark:border-slate-900 bg-slate-50/50 dark:bg-black/20 flex flex-col sm:flex-row justify-between items-center shrink-0 gap-2">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 font-sans">
                                 <svg className="w-3.5 h-3.5 text-cyan-500" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" /></svg>
-                                排名生態曲線 (Ranking Ecological Curve)
+                                {UI_TEXT.playerStructure.chartTitle}
                             </span>
                             <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 italic font-sans">
-                                * 數據統計已自動排除 World Link 活動以維持生態分析的一致性
+                                {UI_TEXT.playerStructure.chartNote}
                             </span>
                         </div>
                     </div>

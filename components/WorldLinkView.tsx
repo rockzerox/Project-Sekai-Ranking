@@ -7,6 +7,7 @@ import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import { useConfig } from '../contexts/ConfigContext';
+import { UI_TEXT } from '../constants/uiText';
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
 
@@ -188,7 +189,7 @@ const WorldLinkView: React.FC = () => {
         <div className="w-full animate-fadeIn py-4">
              <div className="mb-6">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 mb-4">
-                    <div><h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">World Link 綜合分析 (Aggregated Analysis)</h2><p className="text-slate-500 dark:text-slate-400">彙整所有 World Link 期數，比較各角色分數排行</p></div>
+                    <div><h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.worldLink.title}</h2><p className="text-slate-500 dark:text-slate-400">{UI_TEXT.worldLink.description}</p></div>
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
                             <button onClick={() => setCurrentRound(1)} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${currentRound === 1 ? 'bg-white dark:bg-slate-600 shadow-md text-cyan-600 dark:text-cyan-400' : 'text-slate-500 dark:text-slate-400'}`}>第一輪</button>
@@ -204,11 +205,11 @@ const WorldLinkView: React.FC = () => {
                     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mt-4 mb-6 relative overflow-hidden shadow-sm"><div className="flex justify-between items-center mb-2 relative z-10"><span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">正在同步數據 ({loadingProgress}%)</span></div><div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden relative z-10"><div className="bg-cyan-500 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${loadingProgress}%` }}></div></div></div>
                 ) : (
                     <>
-                        <CollapsibleSection title="圖表分析" isOpen={isChartOpen} onToggle={() => setIsChartOpen(!isChartOpen)}>
+                        <CollapsibleSection title={UI_TEXT.worldLink.chartTitle} isOpen={isChartOpen} onToggle={() => setIsChartOpen(!isChartOpen)}>
                             <div className="mb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                                 <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1">
-                                    <button onClick={() => setChartViewMode('activity')} className={`px-3 py-1 rounded text-xs font-bold ${chartViewMode === 'activity' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500'}`}>活躍度</button>
-                                    <button onClick={() => setChartViewMode('global')} className={`px-3 py-1 rounded text-xs font-bold ${chartViewMode === 'global' ? 'bg-purple-600 text-white shadow' : 'text-slate-500'}`}>全域顯示</button>
+                                    <button onClick={() => setChartViewMode('activity')} className={`px-3 py-1 rounded text-xs font-bold ${chartViewMode === 'activity' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500'}`}>{UI_TEXT.worldLink.modes.activity}</button>
+                                    <button onClick={() => setChartViewMode('global')} className={`px-3 py-1 rounded text-xs font-bold ${chartViewMode === 'global' ? 'bg-purple-600 text-white shadow' : 'text-slate-500'}`}>{UI_TEXT.worldLink.modes.global}</button>
                                 </div>
                                 
                                 {chartViewMode === 'activity' && (

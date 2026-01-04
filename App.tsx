@@ -23,6 +23,7 @@ import ResourceEstimatorView from './components/ResourceEstimatorView';
 import PlayerProfileView from './components/PlayerProfileView';
 import PlayerStructureView from './components/PlayerStructureView';
 import EventDistributionView from './components/EventDistributionView';
+import MySekaiMiningView from './components/MySekaiMiningView';
 import HomeView from './components/HomeView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ui/ScrollToTop';
@@ -84,7 +85,7 @@ const EventHeaderCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) 
 };
 
 const MainContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile' | 'mySekaiMining'>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -448,6 +449,7 @@ const MainContent: React.FC = () => {
           case 'playerStructure': return <PlayerStructureView />;
           case 'resourceEstimator': return <ResourceEstimatorView />;
           case 'playerProfile': return <PlayerProfileView />;
+          case 'mySekaiMining': return <MySekaiMiningView />;
           default: return <HomeView setCurrentView={setCurrentView} />;
       }
   };

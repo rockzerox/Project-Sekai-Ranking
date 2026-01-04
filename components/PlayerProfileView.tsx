@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { UserProfileResponse, PastEventApiResponse } from '../types';
 import LoadingSpinner from './LoadingSpinner';
@@ -8,6 +9,7 @@ import Button from './ui/Button';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import { useEventList } from '../hooks/useEventList';
 import { useConfig } from '../contexts/ConfigContext';
+import { UI_TEXT } from '../constants/uiText';
 
 const difficultyStyles: Record<string, string> = {
   easy: 'text-lime-600 dark:text-lime-400',    
@@ -76,7 +78,7 @@ const PlayerProfileView: React.FC = () => {
     const handleFetchProfile = async () => {
         const input = userIdInput.trim();
         if (!input) return;
-        if (!/^\d+$/.test(input)) { setError('ID 格式錯誤'); return; }
+        if (!/^\d+$/.test(input)) { setError(UI_TEXT.playerProfile.errorFormat); return; }
 
         setIsLoading(true); setError(null); setProfileData(null);
         setHasScanned(false); setHonorRecords([]); setHonorPage(1); 
@@ -85,7 +87,7 @@ const PlayerProfileView: React.FC = () => {
             const data: UserProfileResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/user/${input}/profile`);
             if (data) setProfileData(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : '取得資料失敗');
+            setError(err instanceof Error ? err.message : UI_TEXT.playerProfile.errorFetch);
         } finally {
             setIsLoading(false);
         }
@@ -157,8 +159,8 @@ const PlayerProfileView: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 px-1">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">玩家狀態查詢 (Player Profile)</h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">查詢該玩家的詳細資料、綜合力組成與歌曲通關狀況。</p>
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.playerProfile.title}</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">{UI_TEXT.playerProfile.description}</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
                     <input 
@@ -166,10 +168,10 @@ const PlayerProfileView: React.FC = () => {
                         value={userIdInput} 
                         onChange={(e) => setUserIdInput(e.target.value.replace(/\D/g, ''))} 
                         onKeyDown={(e) => e.key === 'Enter' && handleFetchProfile()}
-                        placeholder="輸入玩家 ID" 
+                        placeholder={UI_TEXT.playerProfile.inputPlaceholder}
                         className="w-full sm:w-[280px] px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 outline-none font-mono font-bold text-sm tracking-widest shadow-inner transition-all" 
                     />
-                    <Button onClick={handleFetchProfile} disabled={isLoading || !userIdInput.trim()} variant="gradient" className="px-6 py-2 h-auto text-sm font-black whitespace-nowrap shadow-lg">查詢玩家</Button>
+                    <Button onClick={handleFetchProfile} disabled={isLoading || !userIdInput.trim()} variant="gradient" className="px-6 py-2 h-auto text-sm font-black whitespace-nowrap shadow-lg">{UI_TEXT.playerProfile.btnSearch}</Button>
                 </div>
             </div>
 
@@ -215,12 +217,12 @@ const PlayerProfileView: React.FC = () => {
                     </Card>
 
                     {/* 榮耀里程碑 */}
-                    <Card title={<div className="flex items-center gap-2 text-sm font-black"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>榮耀里程碑 (Glory)</div>} className="shadow-md">
+                    <Card title={<div className="flex items-center gap-2 text-sm font-black"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{UI_TEXT.playerProfile.sectionGlory}</div>} className="shadow-md">
                         {!profileData ? (
-                            <div className="py-6 text-center px-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl"><p className="text-slate-400 text-[10px] font-black italic uppercase tracking-widest leading-relaxed">Top 100 歷史戰果</p></div>
+                            <div className="py-6 text-center px-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl"><p className="text-slate-400 text-[10px] font-black italic uppercase tracking-widest leading-relaxed">{UI_TEXT.playerProfile.gloryPlaceholder}</p></div>
                         ) : !hasScanned && !isScanning ? (
                             <div className="py-4 flex flex-col items-center justify-center">
-                                <Button onClick={startHonorScan} variant="primary" className="px-8 py-2 text-xs">掃描全期數</Button>
+                                <Button onClick={startHonorScan} variant="primary" className="px-8 py-2 text-xs">{UI_TEXT.playerProfile.btnScan}</Button>
                             </div>
                         ) : isScanning ? (
                             <div className="py-4 flex flex-col items-center">
@@ -228,7 +230,7 @@ const PlayerProfileView: React.FC = () => {
                                 <p className="text-cyan-600 dark:text-cyan-400 font-black text-sm">{scanProgress}%</p>
                             </div>
                         ) : honorRecords.length === 0 ? (
-                            <div className="py-4 text-center text-slate-400 font-bold text-xs italic">尚無紀錄</div>
+                            <div className="py-4 text-center text-slate-400 font-bold text-xs italic">{UI_TEXT.playerProfile.noRecord}</div>
                         ) : (
                             <div className="space-y-4">
                                 {/* 排序控制列 */}
@@ -238,13 +240,13 @@ const PlayerProfileView: React.FC = () => {
                                             onClick={() => toggleSortKey('eventId')}
                                             className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${sortKey === 'eventId' ? 'bg-white dark:bg-slate-600 text-cyan-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                         >
-                                            期數
+                                            {UI_TEXT.playerProfile.tableHeaders.event}
                                         </button>
                                         <button 
                                             onClick={() => toggleSortKey('score')}
                                             className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${sortKey === 'score' ? 'bg-white dark:bg-slate-600 text-cyan-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                         >
-                                            分數
+                                            {UI_TEXT.playerProfile.tableHeaders.score}
                                         </button>
                                     </div>
                                     <button 
@@ -293,7 +295,7 @@ const PlayerProfileView: React.FC = () => {
                                                                 className={`font-black font-mono whitespace-nowrap leading-normal ${record.rank <= 3 ? 'text-yellow-500' : 'text-cyan-600'}`}
                                                                 style={{ fontSize: 'clamp(13px, 1.2vw, 15px)' }}
                                                             >
-                                                                第 {record.rank} 名
+                                                                {UI_TEXT.playerProfile.tableHeaders.rank.replace('{rank}', record.rank.toString())}
                                                             </span>
                                                         </td>
                                                         <td className="px-3 py-3 text-right">
@@ -323,7 +325,7 @@ const PlayerProfileView: React.FC = () => {
                 <div className="lg:col-span-7 flex flex-col gap-6 w-full max-w-full">
                     {/* 角色等級 */}
                     <Card 
-                        title={<div className="flex items-center gap-2 font-black text-slate-800 dark:text-white uppercase tracking-tighter"><svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>角色等級</div>}
+                        title={<div className="flex items-center gap-2 font-black text-slate-800 dark:text-white uppercase tracking-tighter"><svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{UI_TEXT.playerProfile.sectionChars}</div>}
                         className="flex flex-col shadow-2xl border-t-4 border-t-purple-500"
                     >
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-6">
@@ -365,7 +367,7 @@ const PlayerProfileView: React.FC = () => {
                     </Card>
 
                     {/* 歌曲通關數據 */}
-                    <Card title={<div className="flex items-center gap-2 text-sm font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>歌曲通關數據 (Music Clear)</div>} className="shadow-md">
+                    <Card title={<div className="flex items-center gap-2 text-sm font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>{UI_TEXT.playerProfile.sectionMusic}</div>} className="shadow-md">
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                             {DIFFICULTIES.map((diff) => {
                                 const stat = displayData.userMusicDifficultyClearCount?.find(s => s.musicDifficultyType.toLowerCase() === diff);

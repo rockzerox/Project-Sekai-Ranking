@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
+import { EventSummary } from '../types';
 import { 
     CHARACTER_MASTER, API_BASE_URL, getAssetUrl, MS_PER_DAY 
 } from '../constants';
@@ -9,6 +9,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useConfig } from '../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import Select from './ui/Select';
+import { UI_TEXT } from '../constants/uiText';
 
 type StoryType = 'all' | 'unit_event' | 'mixed_event' | 'world_link';
 const STORY_TYPES: {value: StoryType, label: string}[] = [
@@ -237,8 +238,8 @@ const CharacterAnalysisView: React.FC = () => {
     return (
         <div className="w-full animate-fadeIn pb-4 max-h-screen overflow-y-auto no-scrollbar relative">
             <div className="mb-6 px-1">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">推角分析 (Character Analytics)</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">以角色視角整合統計數據，分析 Banner 活動的熱度分佈與玩家參與分佈。</p>
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.characterAnalysis.title}</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">{UI_TEXT.characterAnalysis.description}</p>
             </div>
 
             <div className="bg-white/10 dark:bg-slate-800/10 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden mb-6 relative z-10">
@@ -287,20 +288,18 @@ const CharacterAnalysisView: React.FC = () => {
                                 style={{ fontSize: 'clamp(12px, 3.5vw, 16px)' }}
                             >
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span>
-                                在 WL 活動時，於 <span className="px-1 font-mono" style={{ color: charThemeColor }}>T{rankTarget}</span> 
-                                總分為全角色第 <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.totalRank || '-'}</span> 名，
-                                日均分為全角色第 <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.dailyRank || '-'}</span> 名。
+                                {UI_TEXT.characterAnalysis.summary.wl.prefix} <span className="px-1 font-mono" style={{ color: charThemeColor }}>T{rankTarget}</span> 
+                                {UI_TEXT.characterAnalysis.summary.wl.middle1} <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.totalRank || '-'}</span> {UI_TEXT.characterAnalysis.summary.wl.middle2} <span className="text-xl px-1" style={{ color: charThemeColor }}>{wlRankInfo?.dailyRank || '-'}</span> {UI_TEXT.characterAnalysis.summary.wl.suffix}
                             </p>
                         ) : (
                             <p 
                                 className="text-slate-800 dark:text-slate-200 font-bold leading-relaxed"
                                 style={{ fontSize: 'clamp(12px, 3.5vw, 16px)' }}
                             >
-                                在共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count}</span> 期 
+                                {UI_TEXT.characterAnalysis.summary.normal.prefix} <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count}</span> {UI_TEXT.characterAnalysis.summary.normal.middle1} 
                                 <span className="px-1" style={{ color: charThemeColor }}>{currentChar?.name}</span> 
-                                <span className="px-1" style={{ color: charThemeColor }}>{storyLabel}</span> 活動中，共 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名， 
-                                前百名內不同玩家比例為 <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count > 0 ? ((uniquePlayers/(stats.count*100))*100).toFixed(1) : "0.0"}%</span>。
-                                截至 <span className="text-xl px-0.5 font-mono" style={{ color: charThemeColor }}>{currentLiveId}</span> 期為止，不計FES及合作聯動，共有 <span className="text-xl px-0.5 font-mono" style={{ color: charThemeColor }}>{totalStarCards}</span> 張四星卡。
+                                <span className="px-1" style={{ color: charThemeColor }}>{storyLabel}</span> {UI_TEXT.characterAnalysis.summary.normal.middle2} <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{uniquePlayers.toLocaleString()}</span> {UI_TEXT.characterAnalysis.summary.normal.middle3} <span className="text-xl px-0.5" style={{ color: charThemeColor }}>{stats.count > 0 ? ((uniquePlayers/(stats.count*100))*100).toFixed(1) : "0.0"}%</span>。
+                                {UI_TEXT.characterAnalysis.summary.normal.middle4} <span className="text-xl px-0.5 font-mono" style={{ color: charThemeColor }}>{currentLiveId}</span> {UI_TEXT.characterAnalysis.summary.normal.middle5} <span className="text-xl px-0.5 font-mono" style={{ color: charThemeColor }}>{totalStarCards}</span> {UI_TEXT.characterAnalysis.summary.normal.suffix}
                             </p>
                         )}
                     </div>
@@ -333,16 +332,16 @@ const CharacterAnalysisView: React.FC = () => {
                         )}
                         {!isWlMode && stats.count === 0 ? (
                             <div className="bg-white/5 p-12 rounded-2xl border border-dashed border-white/10 text-center flex-1">
-                                <p className="text-slate-400 text-sm font-bold italic">該角色未曾擔任過此類 Banner</p>
+                                <p className="text-slate-400 text-sm font-bold italic">{UI_TEXT.characterAnalysis.noData}</p>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-[11px] h-full">
-                                <StatCard label="統計期數" value={`${stats.count} 期`} sub="TOTAL SESSIONS" />
-                                <StatCard label="最高分紀錄" value={stats.max} sub="MAX RECORD" />
-                                <StatCard label="平均分數" value={stats.mean} sub="AVERAGE" />
-                                <StatCard label="中位數" value={stats.median} sub="MEDIAN" />
-                                <StatCard label="最低分紀錄" value={stats.min} sub="MIN RECORD" />
-                                <StatCard label="標準差" value={stats.stdDev} sub="STD DEVIATION" />
+                                <StatCard label={UI_TEXT.common.stats.count} value={`${stats.count} 期`} sub="TOTAL SESSIONS" />
+                                <StatCard label={UI_TEXT.common.stats.max} value={stats.max} sub="MAX RECORD" />
+                                <StatCard label={UI_TEXT.common.stats.mean} value={stats.mean} sub="AVERAGE" />
+                                <StatCard label={UI_TEXT.common.stats.median} value={stats.median} sub="MEDIAN" />
+                                <StatCard label={UI_TEXT.common.stats.min} value={stats.min} sub="MIN RECORD" />
+                                <StatCard label={UI_TEXT.common.stats.stdDev} value={stats.stdDev} sub="STD DEVIATION" />
                             </div>
                         )}
                     </div>

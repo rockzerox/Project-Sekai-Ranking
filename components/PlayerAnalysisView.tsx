@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../types';
 import { UNITS, UNIT_ORDER, API_BASE_URL } from '../constants';
@@ -5,6 +6,7 @@ import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
 import { useConfig } from '../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
+import { UI_TEXT } from '../constants/uiText';
 
 interface PlayerStat {
     userId: string;
@@ -227,17 +229,16 @@ const PlayerAnalysisView: React.FC = () => {
     return (
         <div className="w-full py-4 animate-fadeIn">
              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">活躍玩家分析 (Active Player Analysis)</h2>
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.playerAnalysis.title}</h2>
                 <p className="text-slate-500 dark:text-slate-400">
-                    統計範圍：共 <span className="font-bold text-cyan-600 dark:text-cyan-400">{totalEventsCount}</span> 期活動 
-                    (含 World Link)
+                    {UI_TEXT.playerAnalysis.descriptionPrefix} <span className="font-bold text-cyan-600 dark:text-cyan-400">{totalEventsCount}</span> {UI_TEXT.playerAnalysis.descriptionSuffix}
                 </p>
 
                 {isAnalyzing && (
                     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mt-4 mb-6 relative overflow-hidden shadow-sm">
                         <div className="flex justify-between items-center mb-2 relative z-10">
                             <span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">
-                                正在分析歷代榜單... ({Math.min(100, loadingProgress)}%)
+                                {UI_TEXT.playerAnalysis.processing} ({Math.min(100, loadingProgress)}%)
                             </span>
                             <span className="text-slate-500 dark:text-slate-400 text-xs font-mono">
                                 已處理: {processedCount} / {totalEventsCount} 期
@@ -264,11 +265,11 @@ const PlayerAnalysisView: React.FC = () => {
                 <DashboardTable 
                     title={
                         <div className="flex items-baseline gap-2">
-                            <span>🏆 Top 100</span>
+                            <span>{UI_TEXT.playerAnalysis.tableTop100.title}</span>
                             <span className="text-xs font-normal opacity-80">(共 {uniquePlayersCount.toLocaleString()} 人)</span>
                         </div>
                     }
-                    subtitle="累計進入前百名次數最多的玩家"
+                    subtitle={UI_TEXT.playerAnalysis.tableTop100.subtitle}
                     data={topFrequent100} 
                     columns={[
                         { header: '#', className: 'w-12' },
@@ -283,7 +284,7 @@ const PlayerAnalysisView: React.FC = () => {
                 <DashboardTable 
                     title={
                         <div className="flex items-center gap-2">
-                            <span>🎯 指定排名常客</span>
+                            <span>{UI_TEXT.playerAnalysis.tableSpecific.title}</span>
                             <span className="text-xs font-normal opacity-80">(共 {uniqueSpecificRankCount.toLocaleString()} 人)</span>
                         </div>
                     }
@@ -299,7 +300,7 @@ const PlayerAnalysisView: React.FC = () => {
                             />
                         </div>
                     }
-                    subtitle={`累計獲得 "第 ${selectedSpecificRank} 名" 次數最多的玩家`}
+                    subtitle={`${UI_TEXT.playerAnalysis.tableSpecific.subtitlePrefix} ${selectedSpecificRank} ${UI_TEXT.playerAnalysis.tableSpecific.subtitleSuffix}`}
                     data={topFrequentSpecific} 
                     columns={[
                         { header: '#', className: 'w-12' },

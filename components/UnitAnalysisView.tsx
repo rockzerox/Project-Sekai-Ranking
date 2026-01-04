@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import { 
@@ -7,6 +8,7 @@ import * as Stats from '../utils/mathUtils';
 import LoadingSpinner from './LoadingSpinner';
 import { useConfig } from '../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../hooks/useRankings';
+import { UI_TEXT } from '../constants/uiText';
 
 type StoryType = 'unit_event' | 'world_link';
 const STORY_TYPES: { id: StoryType, label: string }[] = [
@@ -162,8 +164,8 @@ const UnitAnalysisView: React.FC = () => {
     return (
         <div className="w-full animate-fadeIn pb-4 max-h-screen overflow-y-auto no-scrollbar">
             <div className="mb-4">
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1">團推分析 (Unit Analysis)</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">以團體視角整合歷代數據，分析活動分數趨勢與玩家參與分佈。</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-1">{UI_TEXT.unitAnalysis.title}</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">{UI_TEXT.unitAnalysis.description}</p>
             </div>
 
             <div 
@@ -196,11 +198,11 @@ const UnitAnalysisView: React.FC = () => {
                             className="text-slate-700 dark:text-slate-200 font-bold leading-relaxed flex flex-wrap items-center"
                             style={{ fontSize: 'clamp(12px, 3.5vw, 16px)' }}
                         >
-                            <span>在共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.count}</span> 期</span>
+                            <span>{UI_TEXT.unitAnalysis.summary.prefix} <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.count}</span> {UI_TEXT.unitAnalysis.summary.middle1}</span>
                             <span className="px-1" style={{ color: unitThemeColor }}>{unitInfo?.name}</span>
                             <span className="px-1" style={{ color: unitThemeColor }}>{storyLabel}</span>
-                            <span>活動中，共 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{uniquePlayers.toLocaleString()}</span> 名玩家曾進入前百名，</span>
-                            <span className="md:ml-1">前百名不同玩家比例為 <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.uniquenessRatio}%</span>。</span>
+                            <span>{UI_TEXT.unitAnalysis.summary.middle2} <span className="text-xl px-1" style={{ color: unitThemeColor }}>{uniquePlayers.toLocaleString()}</span> {UI_TEXT.unitAnalysis.summary.middle3}</span>
+                            <span className="md:ml-1">{UI_TEXT.unitAnalysis.summary.suffix} <span className="text-xl px-1" style={{ color: unitThemeColor }}>{stats.uniquenessRatio}%</span>。</span>
                         </p>
                     </div>
                 </div>
@@ -250,7 +252,7 @@ const UnitAnalysisView: React.FC = () => {
                         style={{ borderColor: `${unitThemeColor}44` }}
                     >
                          <div className="flex flex-col">
-                            <span className="text-xs font-black text-slate-400 uppercase">統計基礎期數</span>
+                            <span className="text-xs font-black text-slate-400 uppercase">{UI_TEXT.common.stats.count}</span>
                             <span className="text-[10px] text-slate-500 font-bold tracking-tighter">BASE SESSIONS ANALYZED</span>
                          </div>
                          <div className="text-3xl font-black text-slate-800 dark:text-white font-mono">{stats.count}</div>
@@ -264,11 +266,11 @@ const UnitAnalysisView: React.FC = () => {
                             </div>
                         )}
 
-                        <StatCard label="最高分紀錄" value={stats.max} sub="MAX RECORD" />
-                        <StatCard label="平均分數" value={stats.mean} sub="MEAN AVERAGE" />
-                        <StatCard label="中位數" value={stats.median} sub="MEDIAN SCORE" />
-                        <StatCard label="最低分紀錄" value={stats.min} sub="MIN RECORD" />
-                        <StatCard label="標準差" value={stats.stdDev} sub="STANDARD DEVIATION" />
+                        <StatCard label={UI_TEXT.common.stats.max} value={stats.max} sub="MAX RECORD" />
+                        <StatCard label={UI_TEXT.common.stats.mean} value={stats.mean} sub="MEAN AVERAGE" />
+                        <StatCard label={UI_TEXT.common.stats.median} value={stats.median} sub="MEDIAN SCORE" />
+                        <StatCard label={UI_TEXT.common.stats.min} value={stats.min} sub="MIN RECORD" />
+                        <StatCard label={UI_TEXT.common.stats.stdDev} value={stats.stdDev} sub="STANDARD DEVIATION" />
                     </div>
                 </div>
 
@@ -279,7 +281,7 @@ const UnitAnalysisView: React.FC = () => {
                     <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/30">
                         <h3 className="font-black text-base text-slate-800 dark:text-white flex items-center gap-2">
                              <svg className="w-5 h-5" style={{ color: unitThemeColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" /></svg>
-                             歷代最高 T{rankTarget} 分數紀錄
+                             {UI_TEXT.unitAnalysis.topRecords} T{rankTarget}
                         </h3>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TOP 5 RECORDS</span>
                     </div>

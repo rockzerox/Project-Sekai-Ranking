@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../types';
 import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL, getAssetUrl, getChar } from '../constants';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { useConfig } from '../contexts/ConfigContext';
+import { UI_TEXT } from '../constants/uiText';
 
 // --- Types ---
 
@@ -298,13 +300,13 @@ const EventDistributionView: React.FC = () => {
 
             <div className="mb-4 px-2 flex flex-col md:flex-row justify-between md:items-end gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">活動分布概況</h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">分析角色與團體的活動密集度與空窗期。</p>
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">{UI_TEXT.eventDistribution.title}</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">{UI_TEXT.eventDistribution.description}</p>
                 </div>
                 <div className="flex flex-col items-start md:items-end">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">類型篩選</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_TEXT.eventDistribution.filterType}</span>
                     <div className="flex gap-1.5">
-                        {[{ id: 'all', label: 'ALL' }, { id: 'unit_event', label: '箱活' }, { id: 'mixed_event', label: '混活' }, { id: 'world_link', label: 'WL' }].map(t => (
+                        {[{ id: 'all', label: UI_TEXT.eventDistribution.types.all }, { id: 'unit_event', label: UI_TEXT.eventDistribution.types.unit }, { id: 'mixed_event', label: UI_TEXT.eventDistribution.types.mixed }, { id: 'world_link', label: UI_TEXT.eventDistribution.types.wl }].map(t => (
                             <button key={t.id} onClick={() => setFilter(p => ({ ...p, storyType: t.id as any }))} className={`px-4 py-1.5 rounded-full text-[11px] font-black border transition-all ${filter.storyType === t.id ? 'bg-cyan-600 text-white dark:bg-cyan-500 border-transparent shadow-lg scale-105' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}>{t.label}</button>
                         ))}
                     </div>
@@ -314,7 +316,7 @@ const EventDistributionView: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-2 sm:p-3 mb-4 shadow-sm">
                 <div className="flex flex-col xl:flex-row gap-4 xl:items-center">
                     <div className="flex-1 flex flex-col gap-2">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">角色</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">{UI_TEXT.eventDistribution.labels.char}</span>
                         <div className="flex flex-wrap gap-1.5">
                             {Object.values(CHARACTER_MASTER).map(char => {
                                 const isS = filter.type === 'character' && filter.value === char.id;
@@ -337,7 +339,7 @@ const EventDistributionView: React.FC = () => {
                     <div className="xl:hidden w-full h-px bg-slate-200 dark:bg-slate-700 opacity-40"></div>
 
                     <div className="xl:w-auto flex flex-col gap-2">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">團體</span>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">{UI_TEXT.eventDistribution.labels.unit}</span>
                         <div className="flex flex-wrap xl:flex-nowrap gap-2 justify-start xl:pr-2">
                             {UNIT_ORDER.filter(id => id !== '99').map(id => (
                                 <button key={id} onClick={() => setFilter(prev => (prev.type==='unit'&&prev.value===id) ? { ...prev, type:'all', value:'all'} : { ...prev, type:'unit', value:id })} disabled={filter.type==='character'} className={`h-8 px-1.5 sm:px-2 rounded-xl transition-all flex items-center border flex-shrink-0 ${filter.type==='unit'&&filter.value===id ? 'bg-slate-100 dark:bg-slate-700 border-cyan-500 shadow-md scale-105' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:scale-105'} ${filter.type==='character' ? 'opacity-30 grayscale cursor-not-allowed' : 'cursor-pointer'}`}>
@@ -351,7 +353,7 @@ const EventDistributionView: React.FC = () => {
 
             <div className="flex flex-col gap-1 mb-2 select-none">
                 <div className="flex flex-wrap items-center gap-2 justify-end px-1 mb-2">
-                    <span className="text-[10px] font-black text-slate-400 mr-1 uppercase">Jump to:</span>
+                    <span className="text-[10px] font-black text-slate-400 mr-1 uppercase">{UI_TEXT.eventDistribution.labels.jumpTo}</span>
                     {availableYears.map(year => (
                         <button key={year} onClick={() => jumpToYear(year)} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-cyan-600 hover:text-white dark:hover:bg-cyan-500 text-slate-700 dark:text-white text-[10px] font-black rounded-lg transition-all shadow-sm">{year}</button>
                     ))}
@@ -361,7 +363,7 @@ const EventDistributionView: React.FC = () => {
                     <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden flex flex-col" onWheel={handleWheel}>
                         <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                             <div className="grid grid-cols-[50px_1fr] sm:grid-cols-[90px_1fr] gap-0 py-2">
-                                <div className="text-[10px] font-black text-slate-900 dark:text-white text-right pr-4 uppercase">Date</div>
+                                <div className="text-[10px] font-black text-slate-900 dark:text-white text-right pr-4 uppercase">{UI_TEXT.eventDistribution.labels.date}</div>
                                 <div className="relative h-4 flex items-center">
                                     {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                                         <div key={day} className="absolute text-[10px] text-center text-slate-900 dark:text-white font-mono font-black -translate-x-1/2" style={{ left: `${((day - 0.5) / 31) * 100}%` }}>
@@ -437,24 +439,24 @@ const EventDistributionView: React.FC = () => {
                     <div className="flex flex-col sm:flex-row gap-8 w-full items-center">
                         <div className="flex items-center gap-3 border-r border-slate-200 dark:border-slate-700 pr-8">
                             <span className="text-xs text-slate-400 font-black uppercase tracking-widest">View Mode</span>
-                            <span className="font-black text-xl text-slate-900 dark:text-white">整體概況 (All)</span>
+                            <span className="font-black text-xl text-slate-900 dark:text-white">{UI_TEXT.eventDistribution.viewMode.title}</span>
                         </div>
                         <div className="flex gap-10 text-sm">
                             <div className="flex flex-col items-center">
-                                <span className="text-[10px] text-cyan-500 font-black uppercase mb-1">箱活</span>
+                                <span className="text-[10px] text-cyan-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.unit}</span>
                                 <span className="font-mono font-black text-3xl text-slate-900 dark:text-white">{stats.unitCount}</span>
                             </div>
                             <div className="flex flex-col items-center">
-                                <span className="text-[10px] text-pink-500 font-black uppercase mb-1">混活</span>
+                                <span className="text-[10px] text-pink-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.mixed}</span>
                                 <span className="font-mono font-black text-3xl text-slate-900 dark:text-white">{stats.mixedCount}</span>
                             </div>
                             <div className="flex flex-col items-center">
-                                <span className="text-[10px] text-emerald-500 font-black uppercase mb-1">WL</span>
+                                <span className="text-[10px] text-emerald-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.wl}</span>
                                 <span className="font-mono font-black text-3xl text-slate-900 dark:text-white">{stats.wlCount}</span>
                             </div>
                         </div>
                         <div className="flex-1 text-right">
-                             <span className="text-sm font-bold text-slate-600 dark:text-slate-300">總計: <span className="font-mono text-cyan-600 dark:text-cyan-400 text-2xl">{events.length}</span> 期</span>
+                             <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{UI_TEXT.eventDistribution.viewMode.total} <span className="font-mono text-cyan-600 dark:text-cyan-400 text-2xl">{events.length}</span> {UI_TEXT.eventDistribution.labels.total}</span>
                         </div>
                     </div>
                 ) : (
@@ -486,25 +488,25 @@ const EventDistributionView: React.FC = () => {
                         </div>
                         <div className="flex-1 flex flex-col sm:flex-row gap-8 sm:gap-6 items-center w-full px-4">
                             <div className="flex gap-8 text-sm">
-                                <div className="flex flex-col"><span className="text-[10px] text-slate-400 font-black uppercase mb-1">總期數</span><span className="font-mono font-black text-3xl dark:text-white">{stats.totalCount}</span></div>
+                                <div className="flex flex-col"><span className="text-[10px] text-slate-400 font-black uppercase mb-1">{UI_TEXT.eventDistribution.labels.total}</span><span className="font-mono font-black text-3xl dark:text-white">{stats.totalCount}</span></div>
                                 <div className="w-px h-12 bg-slate-200 dark:bg-slate-700"></div>
                                 {filter.type === 'unit' ? (
-                                    <><div className="flex flex-col"><span className="text-[10px] text-cyan-500 font-black uppercase mb-1">箱活</span><span className="font-mono font-black text-3xl dark:text-white">{stats.unitCount}</span></div><div className="flex flex-col"><span className="text-[10px] text-emerald-500 font-black uppercase mb-1">WL</span><span className="font-mono font-black text-3xl dark:text-white">{stats.wlCount}</span></div></>
+                                    <><div className="flex flex-col"><span className="text-[10px] text-cyan-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.unit}</span><span className="font-mono font-black text-3xl dark:text-white">{stats.unitCount}</span></div><div className="flex flex-col"><span className="text-[10px] text-emerald-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.wl}</span><span className="font-mono font-black text-3xl dark:text-white">{stats.wlCount}</span></div></>
                                 ) : (
-                                    <><div className="flex flex-col"><span className="text-[10px] text-cyan-500 font-black uppercase mb-1">個人箱</span><span className="font-mono font-black text-3xl dark:text-white">{stats.charUnitCount}</span></div><div className="flex flex-col"><span className="text-[10px] text-pink-500 font-black uppercase mb-1">個人混</span><span className="font-mono font-black text-3xl dark:text-white">{stats.charMixedCount}</span></div></>
+                                    <><div className="flex flex-col"><span className="text-[10px] text-cyan-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.charUnit}</span><span className="font-mono font-black text-3xl dark:text-white">{stats.charUnitCount}</span></div><div className="flex flex-col"><span className="text-[10px] text-pink-500 font-black uppercase mb-1">{UI_TEXT.eventDistribution.viewMode.charMixed}</span><span className="font-mono font-black text-3xl dark:text-white">{stats.charMixedCount}</span></div></>
                                 )}
                             </div>
                             {filter.type === 'character' && (
                                 <div className="flex-1 w-full grid grid-cols-2 gap-3">
                                     <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center shadow-inner">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">箱活間隔</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_TEXT.eventDistribution.intervals.unit}</span>
                                         <div className="flex gap-4">
                                             <div className="flex items-baseline gap-1"><span className="text-[9px] text-emerald-500 font-black">MIN</span><span className="font-mono font-black text-xl dark:text-white">{stats.unitMinInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
                                             <div className="flex items-baseline gap-1"><span className="text-[9px] text-rose-500 font-black">MAX</span><span className="font-mono font-black text-xl dark:text-white">{stats.unitMaxInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
                                         </div>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center shadow-inner">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">混活間隔</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_TEXT.eventDistribution.intervals.mixed}</span>
                                         <div className="flex gap-4">
                                             <div className="flex items-baseline gap-1"><span className="text-[9px] text-emerald-500 font-black">MIN</span><span className="font-mono font-black text-xl dark:text-white">{stats.mixedMinInterval}</span><span className="text-[8px] text-slate-400">D</span></div>
                                             <div className="flex items-baseline gap-1"><span className="text-[9px] text-rose-500 font-black">MAX</span><span className="font-mono font-black text-xl dark:text-white">{stats.mixedMaxInterval}</span><span className="text-[8px] text-slate-400">D</span></div>

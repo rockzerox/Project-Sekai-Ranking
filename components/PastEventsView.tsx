@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
@@ -6,6 +7,7 @@ import { useEventList } from '../hooks/useEventList';
 import SearchBar from './SearchBar';
 import EventFilterGroup, { EventFilterState } from './ui/EventFilterGroup';
 import { useConfig } from '../contexts/ConfigContext';
+import { UI_TEXT } from '../constants/uiText';
 
 interface PastEventsViewProps {
     onSelectEvent: (id: number, name: string) => void;
@@ -139,16 +141,16 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
     <div className="w-full animate-fadeIn">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">歷代活動 (Past Events)</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">目前收錄 {pastEventsTotalCount} 個已結束活動數據，點擊可查看詳細榜單。</p>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.pastEvents.title}</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-bold">{UI_TEXT.pastEvents.totalCountPrefix} {pastEventsTotalCount} {UI_TEXT.pastEvents.totalCountSuffix}</p>
           </div>
           <div className="w-full sm:w-auto">
-              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} placeholder="搜尋活動名稱..." />
+              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} placeholder={UI_TEXT.pastEvents.searchPlaceholder} />
           </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 pb-1">
-        <button onClick={() => setSelectedYear('all')} className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${selectedYear === 'all' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 border-cyan-500' : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}>全部 (All)</button>
+        <button onClick={() => setSelectedYear('all')} className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${selectedYear === 'all' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 border-cyan-500' : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}>{UI_TEXT.pastEvents.filterAll}</button>
         {years.map(year => (
           <button key={year} onClick={() => setSelectedYear(year)} className={`px-5 py-2 rounded-t-lg font-bold text-sm transition-all duration-200 border-b-2 ${selectedYear === year ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 border-cyan-500' : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}>{year}</button>
         ))}
@@ -158,8 +160,8 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
           <div className="flex flex-wrap gap-3 items-center w-full">
              <div className="flex rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800 shadow-sm h-[34px]">
                  <select value={sortType} onChange={(e) => setSortType(e.target.value as 'id' | 'duration')} className="bg-transparent text-slate-700 dark:text-slate-300 text-xs font-bold p-1.5 px-3 outline-none border-r border-slate-300 dark:border-slate-700 cursor-pointer">
-                     <option value="id">依照期數</option>
-                     <option value="duration">依照天數</option>
+                     <option value="id">{UI_TEXT.pastEvents.sortLabel.id}</option>
+                     <option value="duration">{UI_TEXT.pastEvents.sortLabel.duration}</option>
                  </select>
                  <button onClick={toggleSortOrder} className="px-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center">
                     {sortOrder === 'desc' ? (
@@ -208,7 +210,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                                         </span>
                                     )}
-                                    {status === 'live' ? '進行中' : status === 'aggregating' ? '結算中' : '尚未開始'}
+                                    {status === 'live' ? UI_TEXT.pastEvents.status.live : status === 'aggregating' ? UI_TEXT.pastEvents.status.aggregating : UI_TEXT.pastEvents.status.upcoming}
                                 </div>
                             </div>
                         )}
@@ -239,7 +241,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                             {/* Banner 區塊：World Link 時直接隱藏，並改為 [角色名][角色頭像] 順序 */}
                             {details.banner !== '-' && (
                                 <div className="flex items-center gap-2 mb-3 mt-2 h-7">
-                                    <span className="text-xs text-slate-400 font-bold whitespace-nowrap">Banner:</span>
+                                    <span className="text-xs text-slate-400 font-bold whitespace-nowrap">{UI_TEXT.pastEvents.labels.banner}</span>
                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                         <span className="text-xs font-black truncate" style={{ color: bannerChar?.color || 'inherit' }}>
                                             {bannerName}
@@ -282,8 +284,8 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
             })
         ) : (
             <div className="col-span-full text-center py-16 text-slate-500 bg-slate-100 dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-slate-700 border-dashed">
-                <p className="text-lg mb-1">找不到符合條件的活動</p>
-                <p className="text-sm">請嘗試變更搜尋關鍵字或篩選條件</p>
+                <p className="text-lg mb-1">{UI_TEXT.pastEvents.noData.title}</p>
+                <p className="text-sm">{UI_TEXT.pastEvents.noData.desc}</p>
             </div>
         )}
       </div>

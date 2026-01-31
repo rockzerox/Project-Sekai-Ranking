@@ -327,6 +327,7 @@ const MySekaiMiningView: React.FC = () => {
                         value={eventBonus} 
                         onChange={setEventBonus} 
                         type="number"
+                        step="0.1"
                         className="font-mono font-bold text-lg text-pink-500"
                         placeholder="250"
                     />

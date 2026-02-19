@@ -59,6 +59,11 @@ export interface UserProfileResponse {
     characterId: number;
     characterRank: number;
   }[];
+  userChallengeLiveSoloStages?: {
+    characterId: number;
+    challengeLiveStageId: number;
+    rank: number;
+  }[];
   userMusicDifficultyClearCount?: {
     musicDifficultyType: string;
     liveClear: number;

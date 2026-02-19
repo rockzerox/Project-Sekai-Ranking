@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WorldBloomChapter, WorldBloomChapterBorder } from '../types';
-import CollapsibleSection from './CollapsibleSection';
 import { CHARACTERS, getAssetUrl, API_BASE_URL } from '../constants';
 import DashboardTable from './ui/DashboardTable';
 import Select from './ui/Select';
@@ -10,6 +9,12 @@ import { useConfig } from '../contexts/ConfigContext';
 import { UI_TEXT } from '../constants/uiText';
 
 const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
+
+const ROUND_OPTIONS = [
+    { value: 1, label: '第一輪 (Round 1)' },
+    { value: 2, label: '第二輪 (Round 2)' },
+    { value: 3, label: '第三輪 (Round 3)' },
+];
 
 interface AggregatedCharStat {
     charName: string;
@@ -124,8 +129,10 @@ const WorldLinkView: React.FC = () => {
     const [aggregatedData, setAggregatedData] = useState<AggregatedCharStat[]>([]);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
+    
+    // View States
     const [currentRound, setCurrentRound] = useState<number>(1);
-    const [isChartOpen, setIsChartOpen] = useState(true);
+    const [contentMode, setContentMode] = useState<'chart' | 'table'>('chart');
     const [chartViewMode, setChartViewMode] = useState<'activity' | 'global'>('activity');
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     const [chartMetric, setChartMetric] = useState<MetricType>('top1');
@@ -188,57 +195,95 @@ const WorldLinkView: React.FC = () => {
     return (
         <div className="w-full animate-fadeIn py-4">
              <div className="mb-6">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 mb-4">
-                    <div><h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.worldLink.title}</h2><p className="text-slate-500 dark:text-slate-400">{UI_TEXT.worldLink.description}</p></div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex bg-slate-200 dark:bg-slate-700 rounded-lg p-1">
-                            <button onClick={() => setCurrentRound(1)} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${currentRound === 1 ? 'bg-white dark:bg-slate-600 shadow-md text-cyan-600 dark:text-cyan-400' : 'text-slate-500 dark:text-slate-400'}`}>第一輪</button>
-                            <button onClick={() => setCurrentRound(2)} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${currentRound === 2 ? 'bg-white dark:bg-slate-600 shadow-md text-emerald-500 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>第二輪</button>
-                        </div>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <button onClick={() => setDisplayMode('total')} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${displayMode === 'total' ? 'bg-cyan-500 text-white shadow' : 'text-slate-500'}`}>總分</button>
-                            <button onClick={() => setDisplayMode('daily')} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${displayMode === 'daily' ? 'bg-pink-500 text-white shadow' : 'text-slate-500'}`}>日均</button>
+                <div className="mb-4">
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.worldLink.title}</h2>
+                    <p className="text-slate-500 dark:text-slate-400">{UI_TEXT.worldLink.description}</p>
+                </div>
+
+                {/* Control Dashboard */}
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                    
+                    {/* Left: Data Settings */}
+                    <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
+                        <Select 
+                            label="活動輪次 (Round)"
+                            options={ROUND_OPTIONS}
+                            value={currentRound}
+                            onChange={(val) => setCurrentRound(Number(val))}
+                            className="w-full sm:w-48 text-sm font-bold"
+                            containerClassName="w-full sm:w-auto"
+                        />
+                        
+                        <div className="flex flex-col w-full sm:w-auto">
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">分數模式</span>
+                            <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 w-full sm:w-auto">
+                                <button onClick={() => setDisplayMode('total')} className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold rounded-md transition-all ${displayMode === 'total' ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>總分</button>
+                                <button onClick={() => setDisplayMode('daily')} className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-bold rounded-md transition-all ${displayMode === 'daily' ? 'bg-pink-500 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>日均</button>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Right: View Mode Toggle */}
+                    <div className="flex bg-slate-200 dark:bg-slate-700 rounded-lg p-1 w-full md:w-auto">
+                        <button onClick={() => setContentMode('chart')} className={`flex-1 md:flex-none px-6 py-2 text-sm font-black rounded-md transition-all flex items-center justify-center gap-2 ${contentMode === 'chart' ? 'bg-white dark:bg-slate-600 shadow text-cyan-600 dark:text-cyan-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            圖表分析
+                        </button>
+                        <button onClick={() => setContentMode('table')} className={`flex-1 md:flex-none px-6 py-2 text-sm font-black rounded-md transition-all flex items-center justify-center gap-2 ${contentMode === 'table' ? 'bg-white dark:bg-slate-600 shadow text-emerald-500 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7-4h14M2 20.535V3.465C2 2.656 2.656 2 3.465 2h17.07C21.344 2 22 2.656 22 3.465v17.07c0 .809-.656 1.465-1.465 1.465H3.465C2.656 22 2 21.344 2 20.535z" /></svg>
+                            排行榜
+                        </button>
+                    </div>
                 </div>
-                {isAnalyzing ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mt-4 mb-6 relative overflow-hidden shadow-sm"><div className="flex justify-between items-center mb-2 relative z-10"><span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">正在同步數據 ({loadingProgress}%)</span></div><div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden relative z-10"><div className="bg-cyan-500 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${loadingProgress}%` }}></div></div></div>
-                ) : (
-                    <>
-                        <CollapsibleSection title={UI_TEXT.worldLink.chartTitle} isOpen={isChartOpen} onToggle={() => setIsChartOpen(!isChartOpen)}>
-                            <div className="mb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            </div>
+
+            {isAnalyzing ? (
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-8 border border-slate-200 dark:border-slate-700 relative overflow-hidden shadow-sm flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">正在同步跨期數據... ({loadingProgress}%)</span>
+                    <div className="w-64 h-2 bg-slate-200 dark:bg-slate-700 rounded-full mt-4 overflow-hidden">
+                        <div className="bg-cyan-500 h-full transition-all duration-300 ease-out" style={{ width: `${loadingProgress}%` }}></div>
+                    </div>
+                </div>
+            ) : (
+                <div className="min-h-[400px]">
+                    {contentMode === 'chart' ? (
+                        <div className="animate-fadeIn bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 lg:p-6 shadow-lg">
+                            <div className="mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 dark:border-slate-700/50 pb-4">
                                 <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1">
-                                    <button onClick={() => setChartViewMode('activity')} className={`px-3 py-1 rounded text-xs font-bold ${chartViewMode === 'activity' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500'}`}>{UI_TEXT.worldLink.modes.activity}</button>
-                                    <button onClick={() => setChartViewMode('global')} className={`px-3 py-1 rounded text-xs font-bold ${chartViewMode === 'global' ? 'bg-purple-600 text-white shadow' : 'text-slate-500'}`}>{UI_TEXT.worldLink.modes.global}</button>
+                                    <button onClick={() => setChartViewMode('activity')} className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${chartViewMode === 'activity' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 dark:text-slate-300'}`}>{UI_TEXT.worldLink.modes.activity}</button>
+                                    <button onClick={() => setChartViewMode('global')} className={`px-4 py-1.5 rounded text-xs font-bold transition-colors ${chartViewMode === 'global' ? 'bg-purple-600 text-white shadow' : 'text-slate-500 dark:text-slate-300'}`}>{UI_TEXT.worldLink.modes.global}</button>
                                 </div>
                                 
                                 {chartViewMode === 'activity' && (
                                     <Select 
                                         value={typeof chartMetric === 'string' ? chartMetric : chartMetric.toString()} 
                                         onChange={(val) => setChartMetric(isNaN(Number(val)) ? val as MetricType : Number(val))} 
-                                        className="text-xs" 
+                                        className="text-xs w-40" 
                                         options={[{ value: 'top1', label: 'Top 1' }, { value: 'top10', label: 'Top 10' }, { value: 'top100', label: 'Top 100' }, ...BORDER_OPTIONS.map(r => ({ value: r, label: `T${r}` }))]} 
                                     />
                                 )}
 
                                 {chartViewMode === 'global' && (
                                     <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1">
-                                        <button onClick={() => setGlobalBase('T100')} className={`px-3 py-1 rounded text-xs font-bold transition-all ${globalBase === 'T100' ? 'bg-purple-600 text-white shadow' : 'text-slate-500'}`}>T100 Base</button>
-                                        <button onClick={() => setGlobalBase('T500')} className={`px-3 py-1 rounded text-xs font-bold transition-all ${globalBase === 'T500' ? 'bg-purple-600 text-white shadow' : 'text-slate-500'}`}>T500 Base</button>
+                                        <button onClick={() => setGlobalBase('T100')} className={`px-3 py-1 rounded text-xs font-bold transition-all ${globalBase === 'T100' ? 'bg-purple-600 text-white shadow' : 'text-slate-500 dark:text-slate-300'}`}>T100 Base</button>
+                                        <button onClick={() => setGlobalBase('T500')} className={`px-3 py-1 rounded text-xs font-bold transition-all ${globalBase === 'T500' ? 'bg-purple-600 text-white shadow' : 'text-slate-500 dark:text-slate-300'}`}>T500 Base</button>
                                     </div>
                                 )}
                             </div>
+                            
                             {chartViewMode === 'activity' ? <HorizontalBarChart data={aggregatedData} dataKey={chartMetric} displayMode={displayMode} /> : <GlobalScoreChart data={aggregatedData} displayMode={displayMode} globalBase={globalBase} />}
-                        </CollapsibleSection>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                        </div>
+                    ) : (
+                        <div className="animate-fadeIn grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                             <DashboardTable title={`Top 1 ${displayMode === 'daily' ? '(日均)' : ''}`} data={getSortedList('top1')} columns={[{ header: '#', className: 'w-10' }, { header: '角色' }, { header: '分數', className: 'text-right' }]} renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.top1))} color="bg-yellow-500" />
                             <DashboardTable title={`Top 10 ${displayMode === 'daily' ? '(日均)' : ''}`} data={getSortedList('top10')} columns={[{ header: '#', className: 'w-10' }, { header: '角色' }, { header: '分數', className: 'text-right' }]} renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.top10))} color="bg-purple-500" />
                             <DashboardTable title={`Top 100 ${displayMode === 'daily' ? '(日均)' : ''}`} data={getSortedList('top100')} columns={[{ header: '#', className: 'w-10' }, { header: '角色' }, { header: '分數', className: 'text-right' }]} renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.top100))} color="bg-cyan-500" />
                             <DashboardTable title={`T${selectedBorderRank} ${displayMode === 'daily' ? '(日均)' : ''}`} headerAction={<Select value={selectedBorderRank} onChange={(val) => setSelectedBorderRank(Number(val))} className="text-xs" options={BORDER_OPTIONS.map(r => ({ value: r, label: `T${r}` }))} />} data={getBorderList(selectedBorderRank)} columns={[{ header: '#', className: 'w-10' }, { header: '角色' }, { header: '分數', className: 'text-right' }]} renderRow={(d, idx) => renderRow(d, idx, getValue(d, d.borders[selectedBorderRank] || 0))} color="bg-teal-500" />
                         </div>
-                    </>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

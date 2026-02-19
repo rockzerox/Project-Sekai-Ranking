@@ -13,6 +13,7 @@ interface EventStat {
     eventId: number;
     eventName: string;
     duration: number; 
+    startYear: number; // New: 儲存活動年份
     isLive?: boolean;
     remainingDays?: number;
     top1: number;
@@ -66,7 +67,16 @@ const RankAnalysisView: React.FC = () => {
                         const top100 = topData.top_100_player_rankings?.find(r => r.rank === 100)?.score || 0;
                         const borderScores: Record<number, number> = {};
                         borderData?.border_player_rankings?.forEach(item => { borderScores[item.rank] = item.score; });
-                        const liveStat: EventStat = { eventId: topData.id, eventName: topData.name, duration: durationDays, remainingDays: remainingMs / MS_PER_DAY, isLive: isStillActive, top1, top10, top50, top100, borders: borderScores };
+                        const liveStat: EventStat = { 
+                            eventId: topData.id, 
+                            eventName: topData.name, 
+                            duration: durationDays, 
+                            startYear: start.getFullYear(), // Get Year
+                            remainingDays: remainingMs / MS_PER_DAY, 
+                            isLive: isStillActive, 
+                            top1, top10, top50, top100, 
+                            borders: borderScores 
+                        };
                         setProcessedStats(prev => [liveStat, ...prev.filter(p => p.eventId !== liveStat.eventId)]);
                     }
                 } catch (liveErr) { console.warn("RankAnalysis: Failed to fetch live event", liveErr); }
@@ -88,7 +98,14 @@ const RankAnalysisView: React.FC = () => {
                             const top100 = dataTop?.rankings?.[99]?.score || 0;
                             const borderScores: Record<number, number> = {};
                             dataBorder?.borderRankings?.forEach((item: any) => { borderScores[item.rank] = item.score; });
-                            return { eventId: event.id, eventName: event.name, duration: calculatePreciseDuration(event.start_at, event.aggregate_at), top1, top10, top50, top100, borders: borderScores } as EventStat;
+                            return { 
+                                eventId: event.id, 
+                                eventName: event.name, 
+                                duration: calculatePreciseDuration(event.start_at, event.aggregate_at), 
+                                startYear: new Date(event.start_at).getFullYear(), // Get Year
+                                top1, top10, top50, top100, 
+                                borders: borderScores 
+                            } as EventStat;
                         } catch (err) { return null; }
                     }));
                     if (!alive) return;
@@ -109,6 +126,8 @@ const RankAnalysisView: React.FC = () => {
     const { top1List, top10List, top100List, borderRankList } = useMemo(() => {
         const getMetric = (stat: EventStat, rawScore: number) => displayMode === 'total' ? rawScore : Math.ceil(rawScore / Math.max(0.1, stat.duration));
         let filteredStats = processedStats;
+        
+        // Filter logic remains the same
         if (filters.unit !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.unit === filters.unit);
         if (filters.type !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.type === filters.type);
         if (filters.banner !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.banner === filters.banner);
@@ -120,23 +139,85 @@ const RankAnalysisView: React.FC = () => {
                 return cards.some(cardId => cardId.split('-')[0] === filters.fourStar);
             });
         }
+
         const stableSort = (a: EventStat, b: EventStat, valA: number, valB: number) => valA !== valB ? valB - valA : b.eventId - a.eventId;
-        const getTop10 = (key: keyof Pick<EventStat, 'top1' | 'top10' | 'top100'>) => [...filteredStats].sort((a, b) => stableSort(a, b, getMetric(a, a[key]), getMetric(b, b[key]))).slice(0, 10);
-        const getTopBorder = (rank: number) => [...filteredStats].filter(stat => (stat.borders[rank] || 0) > 0).sort((a, b) => stableSort(a, b, getMetric(a, a.borders[rank] || 0), getMetric(b, b.borders[rank] || 0))).slice(0, 10);
-        return { top1List: getTop10('top1'), top10List: getTop10('top10'), top100List: getTop10('top100'), borderRankList: getTopBorder(selectedBorderRank) };
+        
+        // Revised Sorting Logic:
+        // 1. Separate Live Event (if exists and matches filters)
+        // 2. Sort Historical Events
+        // 3. Take Top 15 Historical
+        // 4. Prepend Live Event
+        
+        const getRankedList = (getValueFn: (s: EventStat) => number) => {
+            const liveEvent = filteredStats.find(s => s.isLive);
+            const pastEvents = filteredStats.filter(s => !s.isLive);
+            
+            const sortedPast = pastEvents
+                .filter(s => getValueFn(s) > 0)
+                .sort((a, b) => stableSort(a, b, getMetric(a, getValueFn(a)), getMetric(b, getValueFn(b))))
+                .slice(0, 15); // Expand to 15
+            
+            // If live event matches filter (it's in filteredStats), put it at the top
+            return liveEvent ? [liveEvent, ...sortedPast] : sortedPast;
+        };
+
+        return { 
+            top1List: getRankedList(s => s.top1),
+            top10List: getRankedList(s => s.top10), 
+            top100List: getRankedList(s => s.top100), 
+            borderRankList: getRankedList(s => s.borders[selectedBorderRank] || 0)
+        };
     }, [processedStats, selectedBorderRank, displayMode, filters, eventDetails]);
 
     const getValue = (stat: EventStat, rawScore: number) => displayMode === 'total' ? rawScore : Math.ceil(rawScore / Math.max(0.1, stat.duration));
-    const renderEventRow = (stat: EventStat, idx: number, score: number) => (
-        <tr key={stat.eventId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-            <td className={`px-3 py-2 font-bold ${idx < 3 ? 'text-yellow-500 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>{idx + 1}</td>
-            <td className="px-3 py-2">
-                <div className="flex items-center gap-2"><div className="font-medium truncate" style={{ color: getEventColor(stat.eventId) || undefined }}>{stat.eventName}</div>{stat.isLive && (<span className="bg-cyan-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">進行中</span>)}</div>
-                <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5"><span>ID: {stat.eventId}</span><span className="w-0.5 h-0.5 bg-slate-400 rounded-full"></span>{stat.isLive ? (<span className="text-cyan-600 dark:text-cyan-400 font-bold">剩 {stat.remainingDays?.toFixed(2)} 天</span>) : (<span>{Math.round(stat.duration)} 天</span>)}</div>
-            </td>
-            <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white">{score.toLocaleString()}</td>
-        </tr>
-    );
+    
+    // Updated Render Row
+    const renderEventRow = (stat: EventStat, idx: number, score: number, hasLiveInList: boolean) => {
+        // Calculate Rank:
+        // If the list has a live event at index 0:
+        //   - idx 0 (Live) -> Show "NOW" or Icon
+        //   - idx 1 (Past Rank 1) -> Show "1"
+        // If the list does NOT have a live event:
+        //   - idx 0 (Past Rank 1) -> Show "1"
+        const isLiveRow = stat.isLive;
+        const historicalRank = hasLiveInList ? idx : idx + 1;
+        
+        let rankDisplay: React.ReactNode = historicalRank;
+        let rankClass = "text-slate-400 dark:text-slate-500";
+
+        if (isLiveRow) {
+            rankDisplay = <span className="flex items-center justify-center w-full"><span className="relative flex h-2.5 w-2.5 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span></span><span className="text-[10px] font-black tracking-wider">NOW</span></span>;
+            rankClass = "text-cyan-600 dark:text-cyan-400";
+        } else {
+            if (historicalRank === 1) rankClass = "text-yellow-500 dark:text-yellow-400 text-lg";
+            else if (historicalRank === 2) rankClass = "text-slate-500 dark:text-slate-300 text-lg"; // Silverish
+            else if (historicalRank === 3) rankClass = "text-orange-600 dark:text-orange-400 text-lg"; // Bronze
+        }
+
+        return (
+            <tr key={stat.eventId} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${isLiveRow ? 'bg-cyan-50/50 dark:bg-cyan-900/10 border-b-2 border-b-cyan-500/20' : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
+                <td className={`px-3 py-2 font-black text-center ${rankClass}`}>{rankDisplay}</td>
+                <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                        <div className="font-medium truncate max-w-[140px] sm:max-w-[200px]" style={{ color: getEventColor(stat.eventId) || undefined }}>{stat.eventName}</div>
+                    </div>
+                    <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                        <span className="font-mono font-bold text-slate-400">第 {stat.eventId} 期</span>
+                        <span className="w-0.5 h-2.5 bg-slate-300 dark:bg-slate-600 rounded-full"></span>
+                        {stat.isLive ? (
+                            <span className="text-cyan-600 dark:text-cyan-400 font-bold bg-cyan-100 dark:bg-cyan-900/30 px-1.5 py-0.5 rounded text-[10px]">剩 {stat.remainingDays?.toFixed(1)} 天</span>
+                        ) : (
+                            <span className="flex items-center gap-1">
+                                {Math.round(stat.duration)} 天 
+                                <span className="text-[10px] text-slate-400 font-bold">({stat.startYear})</span>
+                            </span>
+                        )}
+                    </div>
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-slate-700 dark:text-white font-bold">{score.toLocaleString()}</td>
+            </tr>
+        );
+    };
 
     const modeLabel = displayMode === 'daily' ? UI_TEXT.rankAnalysis.modes.daily : UI_TEXT.rankAnalysis.modes.total;
 
@@ -148,10 +229,35 @@ const RankAnalysisView: React.FC = () => {
             {isAnalyzing && (<div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mb-6 relative overflow-hidden shadow-sm"><div className="flex justify-between items-center mb-2 relative z-10"><span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">正在同步分析數據... ({loadingProgress}%)</span><span className="text-slate-500 dark:text-slate-400 text-xs">已處理: {processedStats.length} / {totalEvents}</span></div>
             <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden relative z-10"><div className="bg-cyan-500 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${loadingProgress}%` }}></div></div><button onClick={() => setIsPaused(!isPaused)} className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-2 py-1 rounded border border-slate-300 dark:border-transparent">{isPaused ? "繼續" : "暫停"}</button></div>)}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-                <DashboardTable title={`Top 1 ${modeLabel}`} data={top1List} columns={[{ header: '#', className: 'w-10' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.top1))} color="bg-yellow-500" />
-                <DashboardTable title={`Top 10 ${modeLabel}`} data={top10List} columns={[{ header: '#', className: 'w-10' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.top10))} color="bg-purple-500" />
-                <DashboardTable title={`Top 100 ${modeLabel}`} data={top100List} columns={[{ header: '#', className: 'w-10' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.top100))} color="bg-cyan-500" />
-                <DashboardTable title={`Top ${selectedBorderRank}`} headerAction={<Select value={selectedBorderRank} onChange={(val) => setSelectedBorderRank(Number(val))} onClick={(e) => e.stopPropagation()} className="text-xs py-1" options={BORDER_OPTIONS.map(rank => ({ value: rank, label: `T${rank}` }))} />} data={borderRankList} columns={[{ header: '#', className: 'w-10' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.borders[selectedBorderRank] || 0))} color="bg-teal-500" />
+                <DashboardTable 
+                    title={`Top 1 ${modeLabel}`} 
+                    data={top1List} 
+                    columns={[{ header: '#', className: 'w-14 text-center' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} 
+                    renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.top1), top1List[0]?.isLive ?? false)} 
+                    color="bg-yellow-500" 
+                />
+                <DashboardTable 
+                    title={`Top 10 ${modeLabel}`} 
+                    data={top10List} 
+                    columns={[{ header: '#', className: 'w-14 text-center' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} 
+                    renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.top10), top10List[0]?.isLive ?? false)} 
+                    color="bg-purple-500" 
+                />
+                <DashboardTable 
+                    title={`Top 100 ${modeLabel}`} 
+                    data={top100List} 
+                    columns={[{ header: '#', className: 'w-14 text-center' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} 
+                    renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.top100), top100List[0]?.isLive ?? false)} 
+                    color="bg-cyan-500" 
+                />
+                <DashboardTable 
+                    title={`Top ${selectedBorderRank}`} 
+                    headerAction={<Select value={selectedBorderRank} onChange={(val) => setSelectedBorderRank(Number(val))} onClick={(e) => e.stopPropagation()} className="text-xs py-1" options={BORDER_OPTIONS.map(rank => ({ value: rank, label: `T${rank}` }))} />} 
+                    data={borderRankList} 
+                    columns={[{ header: '#', className: 'w-14 text-center' }, { header: '活動 (Event)' }, { header: '分數 (Score)', className: 'text-right' }]} 
+                    renderRow={(s: EventStat, idx: number) => renderEventRow(s, idx, getValue(s, s.borders[selectedBorderRank] || 0), borderRankList[0]?.isLive ?? false)} 
+                    color="bg-teal-500" 
+                />
             </div>
         </div>
     );

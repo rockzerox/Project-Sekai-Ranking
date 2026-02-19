@@ -43,6 +43,7 @@ const DUMMY_PROFILE: UserProfileResponse = {
         mysekaiGateLevelBonus: 0
     },
     userCharacters: [],
+    userChallengeLiveSoloStages: [],
     userMusicDifficultyClearCount: []
 };
 
@@ -71,6 +72,9 @@ const PlayerProfileView: React.FC = () => {
     const [sortKey, setSortKey] = useState<'eventId' | 'score'>('eventId');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     
+    // 角色顯示模式
+    const [charViewMode, setCharViewMode] = useState<'rank' | 'challenge'>('rank');
+
     const RECORDS_PER_PAGE = 5;
 
     const displayData = profileData || DUMMY_PROFILE;
@@ -321,11 +325,28 @@ const PlayerProfileView: React.FC = () => {
                     </Card>
                 </div>
 
-                {/* 右側：角色等級 & 歌曲通關 (7/12) */}
+                    {/* 右側：角色等級 & 挑戰STAGE (7/12) */}
                 <div className="lg:col-span-7 flex flex-col gap-6 w-full max-w-full">
-                    {/* 角色等級 */}
+                    {/* 角色等級 / 挑戰STAGE */}
                     <Card 
-                        title={<div className="flex items-center gap-2 font-black text-slate-800 dark:text-white uppercase tracking-tighter"><svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{UI_TEXT.playerProfile.sectionChars}</div>}
+                        title={
+                            <div 
+                                className="flex items-center gap-2 font-black text-slate-800 dark:text-white uppercase tracking-tighter cursor-pointer select-none group"
+                                onClick={() => setCharViewMode(prev => prev === 'rank' ? 'challenge' : 'rank')}
+                            >
+                                <svg className={`w-5 h-5 text-purple-500 transition-transform duration-300 ${charViewMode === 'challenge' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {charViewMode === 'rank' ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    ) : (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    )}
+                                </svg>
+                                <span className="group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                    {charViewMode === 'rank' ? UI_TEXT.playerProfile.sectionChars : '挑戰 STAGE'}
+                                </span>
+                                <svg className="w-4 h-4 text-slate-400 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>
+                            </div>
+                        }
                         className="flex flex-col shadow-2xl border-t-4 border-t-purple-500"
                     >
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-6">
@@ -340,8 +361,21 @@ const PlayerProfileView: React.FC = () => {
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             {unitChars.map((char) => {
-                                                const charData = displayData.userCharacters?.find(c => String(c.characterId) === char.id);
-                                                const rank = charData?.characterRank || 0;
+                                                let displayValue = 0;
+                                                let displayLabel = '';
+
+                                                if (charViewMode === 'rank') {
+                                                    const charData = displayData.userCharacters?.find(c => String(c.characterId) === char.id);
+                                                    displayValue = charData?.characterRank || 0;
+                                                    displayLabel = `Lv.${displayValue}`;
+                                                } else {
+                                                    const challengeData = displayData.userChallengeLiveSoloStages?.filter(c => String(c.characterId) === char.id) || [];
+                                                    if (challengeData.length > 0) {
+                                                        displayValue = Math.max(...challengeData.map(c => c.rank));
+                                                    }
+                                                    displayLabel = `St.${displayValue}`;
+                                                }
+
                                                 const imgUrl = getAssetUrl(char.id, 'character');
                                                 return (
                                                     <div 
@@ -354,7 +388,7 @@ const PlayerProfileView: React.FC = () => {
                                                         </div>
                                                         <div className="flex flex-col min-w-0 leading-none">
                                                             <div className="text-[11px] font-black truncate tracking-tighter mb-0.5" style={{ color: char.color }}>{char.name}</div>
-                                                            <div className="text-sm font-black text-slate-800 dark:text-white font-mono">Lv.{rank}</div>
+                                                            <div className="text-sm font-black text-slate-800 dark:text-white font-mono">{displayLabel}</div>
                                                         </div>
                                                     </div>
                                                 );

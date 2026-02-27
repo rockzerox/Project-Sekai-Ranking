@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 歷代活動 (Past Events)
 
 **文件代號**: `PAGE_PAST_EVENTS`
-**對應視圖**: `currentView === 'past'` (App.tsx)
+**對應視圖**: `currentView === 'past'` (src/App.tsx)
 **主要用途**: 提供完整的歷史活動資料庫，支援多維度搜尋、篩選與回顧詳細榜單。
 
 ---
@@ -39,7 +39,7 @@
 ### 2.2 核心邏輯 (Core Logic)
 
 #### A. 客戶端篩選 (Client-side Filtering)
-位於 `components/PastEventsView.tsx` 的 `filteredEvents` memo。
+位於 `src/components/pages/PastEventsView.tsx` 的 `filteredEvents` memo。
 *   系統一次性載入所有活動列表，所有篩選與排序皆在前端即時運算，確保流暢體驗。
 *   **邏輯流程**: 
     1.  原始列表 -> 關鍵字搜尋 (Search Term)
@@ -49,7 +49,7 @@
     5.  -> 排序 (ID 或 Duration)
 
 #### B. 狀態判斷
-位於 `constants.ts` 的 `getEventStatus`。
+位於 `src/config/config/constants.ts` 的 `getEventStatus`。
 *   比較 `start_at`, `aggregate_at`, `closed_at`, `ranking_announce_at` 與當前時間。
 *   **Live/Aggregating**: 卡片顯示動態標籤，有點擊限制或特殊提示。
 *   **Past**: 卡片可點擊，進入詳情模式。
@@ -69,7 +69,7 @@
     *   **年份列**: 橫向捲動的年份標籤 (All, 2024, 2023...)。
     *   **篩選列**: 
         *   左側: 排序下拉選單 (ID/Duration) + 升降冪切換鈕。
-        *   右側: `EventFilterGroup` 組件 (一排下拉選單)。
+        *   右側: `EventFilterGroup` 組件 (收闔式篩選按鈕與彈跳視窗)。
 *   **網格區 (Grid Content)**:
     *   RWD 設計: 手機 1 欄 -> 平板 2-3 欄 -> 桌機 4-5 欄。
     *   **活動卡片 (Event Card)**:
@@ -91,13 +91,13 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/PastEventsView.tsx` (主容器)
-*   `components/ui/EventFilterGroup.tsx` (篩選器群組)
-*   `components/ui/Card.tsx`
-*   `components/SearchBar.tsx`
-*   `components/RankingList.tsx` (詳情頁復用)
-*   `components/ChartAnalysis.tsx` (詳情頁復用)
-*   `hooks/useEventList.ts` (取得列表)
-*   `hooks/useRankings.ts` (取得詳情)
+*   `src/components/pages/PastEventsView.tsx` (主容器)
+*   `src/components/ui/EventFilterGroup.tsx` (篩選器群組)
+*   `src/components/ui/Card.tsx`
+*   `src/components/ui/SearchBar.tsx`
+*   `src/components/shared/RankingList.tsx` (詳情頁復用)
+*   `src/components/charts/ChartAnalysis.tsx` (詳情頁復用)
+*   `src/hooks/useEventList.ts` (取得列表)
+*   `src/hooks/useRankings.ts` (取得詳情)
 *   `contexts/ConfigContext.ts` (提供 eventDetails 靜態資料)
-*   `constants/uiText.ts`
+*   `src/config/uiText.ts`

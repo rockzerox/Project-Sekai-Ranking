@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 推角分析 (Character Analysis)
 
 **文件代號**: `PAGE_CHARACTER_ANALYSIS`
-**對應視圖**: `currentView === 'characterAnalysis'` (App.tsx)
+**對應視圖**: `currentView === 'characterAnalysis'` (src/App.tsx)
 **主要用途**: 以「角色 (Character)」為核心視角，分析該角色擔任 Banner (主角) 時的活動數據。
 
 ---
@@ -30,7 +30,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料篩選邏輯
-位於 `components/CharacterAnalysisView.tsx`。
+位於 `src/components/pages/CharacterAnalysisView.tsx`。
 
 *   **一般模式**: 篩選 `eventDetails[id].banner === activeCharId`。
 *   **WL 模式**: 
@@ -66,7 +66,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/CharacterAnalysisView.tsx`
+*   `src/components/pages/CharacterAnalysisView.tsx`
 *   `contexts/ConfigContext.ts`
-*   `components/ui/Select.tsx`
-*   `utils/mathUtils.ts`
+*   `src/components/ui/Select.tsx`
+*   `src/utils/mathUtils.ts`

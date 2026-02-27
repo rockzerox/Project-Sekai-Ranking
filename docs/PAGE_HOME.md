@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 首頁 (Home)
 
 **文件代號**: `PAGE_HOME`
-**對應視圖**: `currentView === 'home'` (App.tsx)
+**對應視圖**: `currentView === 'home'` (src/App.tsx)
 **主要用途**: 作為應用程式的入口門戶 (Portal)，提供所有功能模組的總覽與快速導航入口。
 
 ---
@@ -29,7 +29,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 組態設定 (Configuration)
-位於 `components/HomeView.tsx` 內的 `sections` 陣列。
+位於 `src/components/pages/HomeView.tsx` 內的 `sections` 陣列。
 
 *   **資料結構**: 定義了每個區塊 (Section) 的標題、顏色以及包含的功能 (Features)。
 *   **功能定義**: 每個 Feature 包含 `id` (對應 `currentView`), `title`, `description`, `icon`, `charColor`。
@@ -37,7 +37,7 @@
 
 ### 2.2 導航邏輯
 *   接收 `setCurrentView` 作為 Prop。
-*   點擊卡片時觸發 `setCurrentView(feature.id)`，由 `App.tsx` 負責渲染對應的主內容組件。
+*   點擊卡片時觸發 `setCurrentView(feature.id)`，由 `src/App.tsx` 負責渲染對應的主內容組件。
 
 ---
 
@@ -66,7 +66,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/HomeView.tsx`
-*   `components/icons/TrophyIcon.tsx`
-*   `constants.ts` (引用 `CHARACTERS` 顏色)
-*   `constants/uiText.ts`
+*   `src/components/pages/HomeView.tsx`
+*   `src/components/icons/TrophyIcon.tsx`
+*   `src/config/config/constants.ts` (引用 `CHARACTERS` 顏色)
+*   `src/config/uiText.ts`

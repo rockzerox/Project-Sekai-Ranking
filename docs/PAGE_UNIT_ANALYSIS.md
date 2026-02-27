@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 團推分析 (Unit Analysis)
 
 **文件代號**: `PAGE_UNIT_ANALYSIS`
-**對應視圖**: `currentView === 'unitAnalysis'` (App.tsx)
+**對應視圖**: `currentView === 'unitAnalysis'` (src/App.tsx)
 **主要用途**: 以「團體 (Unit)」為核心視角，整合歷代活動數據，分析特定團體的活動熱度、分數趨勢與玩家參與度。
 
 ---
@@ -24,7 +24,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料處理流程
-位於 `components/UnitAnalysisView.tsx`。
+位於 `src/components/pages/UnitAnalysisView.tsx`。
 
 1.  **篩選 (Filtering)**: 遍歷 `allEvents`，比對 `eventDetails` 中的 `unit` 與 `storyType` 欄位。
 2.  **批次獲取 (Batch Fetching)**: 針對篩選出的活動 ID，批次請求 `/top100` 或 `/border` 數據。
@@ -35,7 +35,7 @@
 
 ### 2.2 視覺主題
 *   **動態配色**: 頁面邊框、按鈕、文字顏色會根據選中的團體自動切換（例如選 Leo/need 變藍色，選 VBS 變粉紅色）。
-*   由 `constants.ts` 中的 `UNIT_MASTER` 提供顏色代碼。
+*   由 `src/config/config/constants.ts` 中的 `UNIT_MASTER` 提供顏色代碼。
 
 ---
 
@@ -57,7 +57,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/UnitAnalysisView.tsx`
+*   `src/components/pages/UnitAnalysisView.tsx`
 *   `contexts/ConfigContext.ts`
-*   `utils/mathUtils.ts` (統計運算)
-*   `constants.ts` (團體定義與顏色)
+*   `src/utils/mathUtils.ts` (統計運算)
+*   `src/config/config/constants.ts` (團體定義與顏色)

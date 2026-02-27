@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活躍玩家分析 (Active Player Analysis)
 
 **文件代號**: `PAGE_PLAYER_ANALYSIS`
-**對應視圖**: `currentView === 'playerAnalysis'` (App.tsx)
+**對應視圖**: `currentView === 'playerAnalysis'` (src/App.tsx)
 **主要用途**: 透過掃描歷代活動榜單，識別出伺服器中上榜次數最多的「活躍玩家」與「特定名次常客」。
 
 ---
@@ -13,6 +13,7 @@
 ### 1.1 核心功能
 *   **全期數大數據掃描**: 系統自動抓取自開服以來所有活動的 Top 100 數據。
 *   **Top 100 常客排行**: 統計每位玩家進入前百名的總次數。
+    *   **前百霸榜率**: 顯示玩家上榜次數佔總期數的百分比。
 *   **特定名次常客**:
     *   透過下拉選單選擇 Rank 1 ~ Rank 10。
     *   統計每位玩家獲得該「特定名次」的次數（例如：誰拿過最多次 Rank 1）。
@@ -27,7 +28,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料聚合邏輯 (Aggregation Logic)
-位於 `components/PlayerAnalysisView.tsx`。
+位於 `src/components/pages/PlayerAnalysisView.tsx`。
 
 1.  **隊列初始化**: 取得所有 `closed_at < now` 的活動列表，建立 `eventsQueue`。
 2.  **批次請求**: 
@@ -61,6 +62,7 @@
 *   **左側 (Top 100 常客)**:
     *   顯示累計次數最多的前 15 名玩家。
     *   **團體標籤**: 使用 `flex-wrap` 顯示該玩家打過的所有團體縮寫 (LN, MMJ, etc.)，依次數排序。
+    *   **前百霸榜率**: 顯示玩家上榜次數佔總期數的百分比。
 *   **右側 (特定名次常客)**:
     *   **Header Action**: 嵌入一個 `Select` 下拉選單，讓使用者切換目標名次 (T1-T10)。
     *   顯示該名次獲取次數最多的玩家。
@@ -69,8 +71,8 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/PlayerAnalysisView.tsx`
-*   `components/ui/DashboardTable.tsx`
-*   `components/ui/Select.tsx`
+*   `src/components/pages/PlayerAnalysisView.tsx`
+*   `src/components/ui/DashboardTable.tsx`
+*   `src/components/ui/Select.tsx`
 *   `contexts/ConfigContext.ts` (用於判斷活動團體屬性)
-*   `hooks/useRankings.ts`
+*   `src/hooks/useRankings.ts`

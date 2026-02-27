@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 現時活動 (Live Event)
 
 **文件代號**: `PAGE_LIVE_EVENT`
-**對應視圖**: `currentView === 'live'` (App.tsx)
+**對應視圖**: `currentView === 'live'` (src/App.tsx)
 **主要用途**: 提供正在進行中的活動即時排名資訊、競爭數據分析與預測。
 
 ---
@@ -30,7 +30,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料來源 (Data Fetching)
-本頁面主要依賴 `hooks/useRankings.ts` 進行資料管理。
+本頁面主要依賴 `src/hooks/useRankings.ts` 進行資料管理。
 
 | 資料類型 | API 端點 | 觸發時機 | 備註 |
 | :--- | :--- | :--- | :--- |
@@ -40,7 +40,7 @@
 ### 2.2 核心邏輯 (Core Logic)
 
 #### A. 安全線與死心線公式
-位於 `components/RankingItem.tsx` 與 `components/ChartAnalysis.tsx`。
+位於 `src/components/shared/RankingItem.tsx` 與 `src/components/charts/ChartAnalysis.tsx`。
 
 ```typescript
 const maxGainPerSec = 68000 / 100; // 假設極限理論值：每 100 秒獲得 6.8 萬分 (獨奏極限)
@@ -54,9 +54,9 @@ const giveUpThreshold = targetScore - maxGain;
 ```
 
 #### B. 競爭數據計算
-位於 `App.tsx` 的 `competitiveStats` memo。
+位於 `src/App.tsx` 的 `competitiveStats` memo。
 *   計算特定名次間的倍率 (Ratio) 與差值 (Diff)。
-*   利用 `utils/mathUtils.ts` 計算變異係數 (CV)，數值越低代表分數分佈越平均（競爭越膠著）。
+*   利用 `src/utils/mathUtils.ts` 計算變異係數 (CV)，數值越低代表分數分佈越平均（競爭越膠著）。
 
 #### C. 狀態管理
 *   **`useRankings`**: 封裝了 `fetch` 邏輯、錯誤處理、快取 (Cache) 機制。
@@ -104,13 +104,13 @@ const giveUpThreshold = targetScore - maxGain;
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/RankingList.tsx`
-*   `components/RankingItem.tsx`
-*   `components/ChartAnalysis.tsx`
-*   `components/LineChart.tsx`
-*   `components/Pagination.tsx`
-*   `components/SortSelector.tsx`
-*   `components/CollapsibleSection.tsx`
-*   `hooks/useRankings.ts`
-*   `utils/mathUtils.ts` (計算 CV, 格式化分數)
-*   `constants/uiText.ts` (多語言文案引用)
+*   `src/components/shared/RankingList.tsx`
+*   `src/components/shared/RankingItem.tsx`
+*   `src/components/charts/ChartAnalysis.tsx`
+*   `src/components/charts/LineChart.tsx`
+*   `src/components/ui/Pagination.tsx`
+*   `src/components/ui/SortSelector.tsx`
+*   `src/components/ui/CollapsibleSection.tsx`
+*   `src/hooks/useRankings.ts`
+*   `src/utils/mathUtils.ts` (計算 CV, 格式化分數)
+*   `src/config/uiText.ts` (多語言文案引用)

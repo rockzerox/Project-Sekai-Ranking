@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動榜線趨勢 (Rank Trend)
 
 **文件代號**: `PAGE_RANK_TREND`
-**對應視圖**: `currentView === 'trend'` (App.tsx)
+**對應視圖**: `currentView === 'trend'` (src/App.tsx)
 **主要用途**: 以折線圖視覺化呈現特定排名（如 Top 100）的分數隨活動期數演進的變化趨勢，分析台服環境的「內捲」程度。
 
 ---
@@ -28,7 +28,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料獲取流程 (Data Fetching Flow)
-位於 `components/RankTrendView.tsx`。
+位於 `src/components/pages/RankTrendView.tsx`。
 
 1.  **取得列表**: 初始化時先取得全活動列表 `allEvents`。
 2.  **範圍過濾**: 根據使用者選擇的模式 (All/Year/ID)，篩選出 `targetEvents`。
@@ -54,7 +54,7 @@
 *   **第一層**: 範圍模式切換器 (Tab style) 與對應的輸入控制項（年份下拉選單 / ID 輸入框）。
 *   **第二層**:
     *   **排名基準**: 下拉選單選擇 T1, T10, ... T10000。
-    *   **篩選器**: `EventFilterGroup`。
+    *   **篩選器**: `EventFilterGroup` (收闔式篩選按鈕與彈跳視窗)。
     *   **輔助開關**: 右側包含「顯示輔助線」Checkbox 與 平均/中位數 的數據徽章 (Badge)。
 
 ### 3.2 圖表區域 (Chart Area)
@@ -71,10 +71,10 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/RankTrendView.tsx` (核心視圖)
-*   `components/LineChart.tsx` (折線圖繪製)
-*   `components/ui/EventFilterGroup.tsx`
-*   `components/ui/Select.tsx`
-*   `components/ui/Input.tsx` (ID 範圍輸入)
-*   `hooks/useRankings.ts`
-*   `utils/mathUtils.ts` (計算統計數據)
+*   `src/components/pages/RankTrendView.tsx` (核心視圖)
+*   `src/components/charts/LineChart.tsx` (折線圖繪製)
+*   `src/components/ui/EventFilterGroup.tsx`
+*   `src/components/ui/Select.tsx`
+*   `src/components/ui/Input.tsx` (ID 範圍輸入)
+*   `src/hooks/useRankings.ts`
+*   `src/utils/mathUtils.ts` (計算統計數據)

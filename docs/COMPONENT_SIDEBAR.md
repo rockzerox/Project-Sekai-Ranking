@@ -1,7 +1,7 @@
 # 🧩 組件規格說明書 - 側邊導航欄 (Sidebar)
 
 **文件代號**: `COMPONENT_SIDEBAR`
-**檔案路徑**: `components/Sidebar.tsx`
+**檔案路徑**: `src/components/layout/Sidebar.tsx`
 **主要用途**: 全域導航控制器，負責視圖切換、主題切換與選單收合。
 
 ---
@@ -11,7 +11,7 @@
 側邊欄是使用者在不同功能間切換的主要路徑，需保持在畫面左側（桌機）或透過漢堡選單喚出（手機）。
 
 ### 1.1 核心功能
-*   **視圖導航**: 提供所有功能頁面的連結，點擊後切換 `App.tsx` 的 `currentView`。
+*   **視圖導航**: 提供所有功能頁面的連結，點擊後切換 `src/App.tsx` 的 `currentView`。
 *   **分組管理**: 依據功能性質將連結分組 (Categories)，支援折疊/展開各分組。
 *   **響應式收合**:
     *   **Desktop**: 可切換「展開 (Expanded)」與「精簡 (Collapsed)」模式。精簡模式下只顯示圖示。
@@ -69,7 +69,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/Sidebar.tsx`
-*   `components/icons/TrophyIcon.tsx`
-*   `constants/uiText.ts`
-*   `constants.ts` (引用 `CHARACTERS` 顏色)
+*   `src/components/layout/Sidebar.tsx`
+*   `src/components/icons/TrophyIcon.tsx`
+*   `src/config/uiText.ts`
+*   `src/config/config/constants.ts` (引用 `CHARACTERS` 顏色)

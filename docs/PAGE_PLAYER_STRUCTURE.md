@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 玩家排名結構 (Player Structure)
 
 **文件代號**: `PAGE_PLAYER_STRUCTURE`
-**對應視圖**: `currentView === 'playerStructure'` (App.tsx)
+**對應視圖**: `currentView === 'playerStructure'` (src/App.tsx)
 **主要用途**: 透過數學模型分析前百名玩家的「換血率 (Turnover Rate)」，剖析遊戲生態的流動性與固化程度。
 
 ---
@@ -34,7 +34,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 客戶端運算 (Client-side Calculation)
-位於 `components/PlayerStructureView.tsx`。
+位於 `src/components/pages/PlayerStructureView.tsx`。
 
 *   **排除機制**: 自動排除 `World Link` 活動，因為其榜單結構不同，會汙染 `U(K)` 計算。
 *   **集合運算**:
@@ -72,7 +72,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/PlayerStructureView.tsx` (全邏輯內聚)
+*   `src/components/pages/PlayerStructureView.tsx` (全邏輯內聚)
 *   `contexts/ConfigContext.ts`
-*   `hooks/useRankings.ts`
-*   `utils/mathUtils.ts`
+*   `src/hooks/useRankings.ts`
+*   `src/utils/mathUtils.ts`

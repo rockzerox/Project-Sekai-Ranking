@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - MySekai 採集計算機 (MySekai Mining)
 
 **文件代號**: `PAGE_MYSEKAI_MINING`
-**對應視圖**: `currentView === 'mySekaiMining'` (App.tsx)
+**對應視圖**: `currentView === 'mySekaiMining'` (src/App.tsx)
 **主要用途**: 針對遊戲內「MySekai」模式的採集機制，提供收益預估、目標規劃與樹木砍伐模擬器。
 
 ---
@@ -30,7 +30,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 基礎分模型 (Base Pt Model)
-位於 `components/MySekaiMiningView.tsx` 的 `getBasePt`。
+位於 `src/components/pages/MySekaiMiningView.tsx` 的 `getBasePt`。
 *   依據綜合力區間 (0 ~ 40萬+) 劃分為 Tier 1 ~ Tier 9。
 *   對應基礎分範圍：450 ~ 800 Pt。
 
@@ -78,8 +78,8 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/MySekaiMiningView.tsx` (全邏輯內聚)
-*   `components/ui/Card.tsx`
-*   `components/ui/Input.tsx`
-*   `components/ui/Select.tsx`
-*   `constants.ts` (工具圖示路徑)
+*   `src/components/pages/MySekaiMiningView.tsx` (全邏輯內聚)
+*   `src/components/ui/Card.tsx`
+*   `src/components/ui/Input.tsx`
+*   `src/components/ui/Select.tsx`
+*   `src/config/config/constants.ts` (工具圖示路徑)

@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動分布概況 (Event Distribution)
 
 **文件代號**: `PAGE_EVENT_DISTRIBUTION`
-**對應視圖**: `currentView === 'distribution'` (App.tsx)
+**對應視圖**: `currentView === 'distribution'` (src/App.tsx)
 **主要用途**: 以視覺化的時間軸（甘特圖）呈現活動歷史，分析角色與團體的活動密度、輪替規律與空窗期 (Gap)。
 
 ---
@@ -31,7 +31,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料處理 (Data Processing)
-位於 `components/EventDistributionView.tsx` 的 `monthlySegments` memo。
+位於 `src/components/pages/EventDistributionView.tsx` 的 `monthlySegments` memo。
 
 *   **網格化邏輯**: 系統將所有時間標準化為 **「每月 31 天」** 的虛擬網格，以簡化 CSS 排版。
 *   **跨月處理**: 若活動跨越兩個月（例如 1/30 ~ 2/7），系統會將其切割為兩個 `MonthSegment`：
@@ -83,7 +83,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/EventDistributionView.tsx` (核心組件)
+*   `src/components/pages/EventDistributionView.tsx` (核心組件)
 *   `contexts/ConfigContext.ts` (讀取詳細設定)
-*   `constants/uiText.ts`
-*   `utils/mathUtils.ts` (日期計算輔助)
+*   `src/config/uiText.ts`
+*   `src/utils/mathUtils.ts` (日期計算輔助)

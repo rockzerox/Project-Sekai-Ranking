@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 預估資源計算機 (Resource Estimator)
 
 **文件代號**: `PAGE_RESOURCE_ESTIMATOR`
-**對應視圖**: `currentView === 'resourceEstimator'` (App.tsx)
+**對應視圖**: `currentView === 'resourceEstimator'` (src/App.tsx)
 **主要用途**: 協助玩家根據歷史活動的分數線，結合自身隊伍加成與體力策略，精確估算衝榜所需的 Live Bonus 補充罐數量。
 
 ---
@@ -40,7 +40,7 @@
 *   **分數查詢**: `/event/{id}/top100` 或 `/event/{id}/border` (取得基準分數)。
 
 ### 2.2 核心運算邏輯 (Calculation Logic)
-位於 `components/ResourceEstimatorView.tsx` 的 `result` memo。
+位於 `src/components/pages/ResourceEstimatorView.tsx` 的 `result` memo。
 
 1.  **目標分數校正**:
     $$TargetScore = BaseScore \times \frac{TargetDuration}{BaseDuration}$$
@@ -84,9 +84,9 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/ResourceEstimatorView.tsx`
-*   `components/ui/Card.tsx`
-*   `components/ui/Select.tsx`
-*   `components/ui/Input.tsx`
-*   `utils/mathUtils.ts`
-*   `constants.ts` (ENERGY_SCALING, calculatePreciseDuration)
+*   `src/components/pages/ResourceEstimatorView.tsx`
+*   `src/components/ui/Card.tsx`
+*   `src/components/ui/Select.tsx`
+*   `src/components/ui/Input.tsx`
+*   `src/utils/mathUtils.ts`
+*   `src/config/config/constants.ts` (ENERGY_SCALING, calculatePreciseDuration)

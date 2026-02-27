@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動比較分析 (Event Comparison)
 
 **文件代號**: `PAGE_EVENT_COMPARISON`
-**對應視圖**: `currentView === 'comparison'` (App.tsx)
+**對應視圖**: `currentView === 'comparison'` (src/App.tsx)
 **主要用途**: 允許使用者並排比較任意兩期活動的榜單數據，分析分數膨脹趨勢與競爭型態差異。
 
 ---
@@ -30,7 +30,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料獲取 (Data Fetching)
-位於 `components/EventComparisonView.tsx` 的 `handleCompare` 函式。
+位於 `src/components/pages/EventComparisonView.tsx` 的 `handleCompare` 函式。
 
 *   **並行請求**: 使用 `Promise.all` 同時發送 4 個 API 請求：
     1.  Event A Top 100 (`/event/{id}/top100`)
@@ -59,7 +59,7 @@
 ### 3.1 選擇區 (Selection Area)
 *   **兩欄式佈局**: 左側選擇活動 A，右側選擇活動 B。
 *   **中間動作鈕**: 「開始比較」按鈕，載入時顯示 Loading 狀態。
-*   **輔助篩選列**: 位於選單上方，提供 Unit / Banner / Attribute 等快速過濾器。
+*   **輔助篩選列**: 位於選單下方，提供 `EventFilterGroup` (收闔式篩選按鈕與彈跳視窗) 快速過濾器。
 
 ### 3.2 圖表區 (Chart Area)
 *   **標頭**: 顯示兩期活動的名稱、Logo、代表色點 (Legend) 與持續天數。
@@ -82,9 +82,9 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/EventComparisonView.tsx` (獨立組件，內含圖表邏輯)
-*   `components/ui/Select.tsx`
-*   `components/ui/EventFilterGroup.tsx`
-*   `hooks/useRankings.ts` (複用 `fetchJsonWithBigInt`)
-*   `utils/mathUtils.ts` (分數格式化)
-*   `constants/uiText.ts`
+*   `src/components/pages/EventComparisonView.tsx` (獨立組件，內含圖表邏輯)
+*   `src/components/ui/Select.tsx`
+*   `src/components/ui/EventFilterGroup.tsx`
+*   `src/hooks/useRankings.ts` (複用 `fetchJsonWithBigInt`)
+*   `src/utils/mathUtils.ts` (分數格式化)
+*   `src/config/uiText.ts`

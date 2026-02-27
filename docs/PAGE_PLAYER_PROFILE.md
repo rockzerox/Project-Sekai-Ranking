@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 玩家狀態查詢 (Player Profile)
 
 **文件代號**: `PAGE_PLAYER_PROFILE`
-**對應視圖**: `currentView === 'playerProfile'` (App.tsx)
+**對應視圖**: `currentView === 'playerProfile'` (src/App.tsx)
 **主要用途**: 針對單一玩家 ID 進行深度查詢，展示其綜合力組成、歌曲通關進度以及歷史活動的戰績。
 
 ---
@@ -58,8 +58,8 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/PlayerProfileView.tsx`
-*   `components/ui/Card.tsx`
-*   `components/ui/Button.tsx`
-*   `hooks/useEventList.ts` (用於取得掃描目標列表)
-*   `hooks/useRankings.ts` (fetchJsonWithBigInt)
+*   `src/components/pages/PlayerProfileView.tsx`
+*   `src/components/ui/Card.tsx`
+*   `src/components/ui/Button.tsx`
+*   `src/hooks/useEventList.ts` (用於取得掃描目標列表)
+*   `src/hooks/useRankings.ts` (fetchJsonWithBigInt)

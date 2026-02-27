@@ -83,7 +83,7 @@ npx tailwindcss init -p
 module.exports = {
   content: [
     "./index.html",
-    "./components/**/*.{js,ts,jsx,tsx}",
+    "./src/components/**/*.{js,ts,jsx,tsx}",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class', // 保持專案原有的暗色模式設定
@@ -133,14 +133,14 @@ root/
 ├── public/             # 放置靜態資源 (images, json data)
 ├── src/                # 原始碼目錄
 │   ├── api/            # API 相關邏輯
-│   ├── components/     # React 組件
+│   ├── src/components/     # React 組件
 │   ├── constants/      # 常數定義
 │   ├── contexts/       # React Context
 │   ├── hooks/          # Custom Hooks
 │   ├── utils/          # 工具函式
-│   ├── App.tsx         # 主應用組件
-│   ├── index.tsx       # 進入點
-│   └── types.ts        # 型別定義
+│   ├── src/App.tsx         # 主應用組件
+│   ├── src/index.tsx       # 進入點
+│   └── src/types.ts        # 型別定義
 ├── docs/               # 專案文件
 ├── index.html          # HTML 模板 (需修改 script src 指向 /src/index.tsx)
 ├── package.json        # 依賴管理

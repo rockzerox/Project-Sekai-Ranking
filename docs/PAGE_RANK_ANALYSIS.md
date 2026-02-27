@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動榜線排名 (Rank Analysis)
 
 **文件代號**: `PAGE_RANK_ANALYSIS`
-**對應視圖**: `currentView === 'analysis'` (App.tsx)
+**對應視圖**: `currentView === 'analysis'` (src/App.tsx)
 **主要用途**: 統計並列出歷代活動中，各個關鍵名次（T1, T10, T100, Border）的最高分數紀錄，猶如「名人堂」般的數據展示。
 
 ---
@@ -31,7 +31,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料處理策略 (Data Fetching Strategy)
-位於 `components/RankAnalysisView.tsx` 的 `useEffect`。
+位於 `src/components/pages/RankAnalysisView.tsx` 的 `useEffect`。
 
 *   **批次請求 (Batch Processing)**:
     *   為避免觸發 API Rate Limit 或造成瀏覽器卡頓，系統將所有歷史活動以 `BATCH_SIZE = 5` 為一組進行分批處理。
@@ -54,7 +54,7 @@
 ## 3. UI/UX 排版設計 (UI Layout)
 
 ### 3.1 控制與進度區 (Control Panel)
-*   **標題與篩選**: 左側顯示標題，右側包含 `EventFilterGroup` 與「總分/日均」切換按鈕 (Toggle Group)。
+*   **標題與篩選**: 左側顯示標題，右側包含 `EventFilterGroup` (收闔式篩選按鈕與彈跳視窗) 與「總分/日均」切換按鈕 (Toggle Group)。
 *   **進度條 (Progress Bar)**:
     *   僅在 `isAnalyzing` 為真時顯示。
     *   包含文字提示：「正在同步分析數據... (XX%)」與「已處理: XX / Total」。
@@ -75,10 +75,10 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `components/RankAnalysisView.tsx` (核心視圖)
-*   `components/ui/DashboardTable.tsx` (通用排名表格)
-*   `components/ui/EventFilterGroup.tsx`
-*   `components/ui/Select.tsx`
-*   `hooks/useRankings.ts` (fetchJsonWithBigInt)
-*   `utils/mathUtils.ts` (計算日期與分數格式化)
+*   `src/components/pages/RankAnalysisView.tsx` (核心視圖)
+*   `src/components/ui/DashboardTable.tsx` (通用排名表格)
+*   `src/components/ui/EventFilterGroup.tsx`
+*   `src/components/ui/Select.tsx`
+*   `src/hooks/useRankings.ts` (fetchJsonWithBigInt)
+*   `src/utils/mathUtils.ts` (計算日期與分數格式化)
 *   `contexts/ConfigContext.ts`

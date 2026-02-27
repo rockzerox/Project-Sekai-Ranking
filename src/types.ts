@@ -144,12 +144,14 @@ export interface ComparisonResult {
     data: SimpleRankData[];
     duration: number;
     id: number;
+    color?: string;
   } | null;
   event2: {
     name: string;
     data: SimpleRankData[];
     duration: number;
     id: number;
+    color?: string;
   } | null;
 }
 

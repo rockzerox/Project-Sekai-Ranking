@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { EventSummary, SimpleRankData, ComparisonResult } from '../../types';
 import ErrorMessage from '../../components/ui/ErrorMessage';
-import { API_BASE_URL } from '../../config/constants';
+import { API_BASE_URL, CHARACTERS } from '../../config/constants';
 import { calculatePreciseDuration } from '../../utils/timeUtils';
 import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
@@ -10,24 +10,106 @@ import EventFilterGroup, { EventFilterState } from '../../components/ui/EventFil
 import { useConfig } from '../../contexts/ConfigContext';
 import { formatScoreForChart } from '../../utils/mathUtils';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
+import { useEventList } from '../../hooks/useEventList';
 import { UI_TEXT } from '../../config/uiText';
 
 const EventComparisonView: React.FC = () => {
-    const { eventDetails, getEventColor, isWorldLink } = useConfig();
-    const [events, setEvents] = useState<EventSummary[]>([]);
-    const [listError, setListError] = useState<string | null>(null);
+    const { eventDetails, getEventColor, isWorldLink, getWlDetail } = useConfig();
+    const { events: allEvents, isLoading: isListLoading, error: listError } = useEventList();
+
+    const [compareMode, setCompareMode] = useState<'general' | 'world_link'>('general');
+
+    const events = useMemo(() => {
+        const now = new Date();
+        return allEvents.filter(e => new Date(e.closed_at) < now && !isWorldLink(e.id));
+    }, [allEvents, isWorldLink]);
+
+    const wlEvents = useMemo(() => {
+        const now = new Date();
+        return allEvents.filter(e => new Date(e.closed_at) < now && isWorldLink(e.id));
+    }, [allEvents, isWorldLink]);
 
     const [selectedId1, setSelectedId1] = useState<string>('');
     const [selectedId2, setSelectedId2] = useState<string>('');
     
-    const [filters, setFilters] = useState<EventFilterState>({
-        unit: 'all',
-        banner: 'all',
-        type: 'all',
-        storyType: 'all',
-        cardType: 'all',
-        fourStar: 'all'
+    const [filters1, setFilters1] = useState<EventFilterState>({
+        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all'
     });
+    const [filters2, setFilters2] = useState<EventFilterState>({
+        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all'
+    });
+
+    const [wlRound1, setWlRound1] = useState<string>('');
+    const [wlChar1, setWlChar1] = useState<string>('');
+    const [wlRound2, setWlRound2] = useState<string>('');
+    const [wlChar2, setWlChar2] = useState<string>('');
+
+    const availableRounds = useMemo(() => {
+        const rounds = new Set<number>();
+        wlEvents.forEach(e => {
+            const info = getWlDetail(e.id);
+            if (info) rounds.add(info.round);
+        });
+        return Array.from(rounds).sort((a, b) => a - b);
+    }, [wlEvents, getWlDetail]);
+
+    useEffect(() => {
+        if (availableRounds.length > 0) {
+            if (!wlRound1) setWlRound1(availableRounds[0].toString());
+            if (!wlRound2) setWlRound2(availableRounds[0].toString());
+        }
+    }, [availableRounds, wlRound1, wlRound2]);
+
+    const getAvailableCharsForRound = (roundStr: string) => {
+        if (!roundStr) return [];
+        const chars = new Set<string>();
+        wlEvents.forEach(e => {
+            const info = getWlDetail(e.id);
+            if (info && info.round.toString() === roundStr) {
+                info.chorder.forEach(charId => chars.add(charId));
+            }
+        });
+        
+        // Sort characters by their ID (which roughly corresponds to their unit order)
+        return Array.from(chars).sort((a, b) => {
+            const numA = parseInt(a.split('-')[0] || a, 10);
+            const numB = parseInt(b.split('-')[0] || b, 10);
+            return numA - numB;
+        });
+    };
+
+    const chars1 = useMemo(() => getAvailableCharsForRound(wlRound1), [wlRound1, wlEvents, getWlDetail]);
+    const chars2 = useMemo(() => getAvailableCharsForRound(wlRound2), [wlRound2, wlEvents, getWlDetail]);
+
+    useEffect(() => {
+        if (chars1.length > 0 && !chars1.includes(wlChar1)) setWlChar1(chars1[0]);
+    }, [chars1, wlChar1]);
+
+    useEffect(() => {
+        if (chars2.length > 0 && !chars2.includes(wlChar2)) setWlChar2(chars2[0]);
+    }, [chars2, wlChar2]);
+
+    const resolveWlSelection = (roundStr: string, charId: string) => {
+        if (!roundStr || !charId) return null;
+        
+        // Find the specific event in this round that contains this character
+        const event = wlEvents.find(e => {
+            const info = getWlDetail(e.id);
+            return info && info.round.toString() === roundStr && info.chorder.includes(charId);
+        });
+        
+        if (!event) return null;
+        
+        const charName = CHARACTERS[charId]?.name || charId;
+        return {
+            eventId: event.id,
+            charId: charId,
+            displayName: `#${event.id} (第${roundStr}輪) - ${charName}`
+        };
+    };
+
+    const resolvedWl1 = useMemo(() => resolveWlSelection(wlRound1, wlChar1), [wlRound1, wlChar1, wlEvents, getWlDetail]);
+    const resolvedWl2 = useMemo(() => resolveWlSelection(wlRound2, wlChar2), [wlRound2, wlChar2, wlEvents, getWlDetail]);
     
     const [comparisonData, setComparisonData] = useState<ComparisonResult>({ event1: null, event2: null });
     const [isComparing, setIsComparing] = useState(false);
@@ -47,64 +129,61 @@ const EventComparisonView: React.FC = () => {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    useEffect(() => {
-        const fetchEvents = async () => {
-            try {
-                const data: EventSummary[] = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
-                if (data) {
-                    const now = new Date();
-                    const pastEvents = data.filter(e => new Date(e.closed_at) < now && !isWorldLink(e.id))
-                                           .sort((a, b) => b.id - a.id);
-                    setEvents(pastEvents);
-                }
-            } catch (err) {
-                setListError(UI_TEXT.eventComparison.errorLoad);
-                console.error(err);
-            }
-        };
-        fetchEvents();
-    }, [isWorldLink]);
-
-    const filteredEventOptions = useMemo(() => {
-        let result = events;
-        if (filters.unit !== 'all') result = result.filter(e => eventDetails[e.id]?.unit === filters.unit);
-        if (filters.banner !== 'all') result = result.filter(e => eventDetails[e.id]?.banner === filters.banner);
-        if (filters.type !== 'all') result = result.filter(e => eventDetails[e.id]?.type === filters.type);
-        if (filters.storyType !== 'all') result = result.filter(e => eventDetails[e.id]?.storyType === filters.storyType);
-        if (filters.cardType !== 'all') result = result.filter(e => eventDetails[e.id]?.cardType === filters.cardType);
-        if (filters.fourStar !== 'all') {
+    const filterEvents = (eventList: EventSummary[], f: EventFilterState) => {
+        let result = eventList;
+        if (f.unit !== 'all') result = result.filter(e => eventDetails[e.id]?.unit === f.unit);
+        if (f.banner !== 'all') result = result.filter(e => eventDetails[e.id]?.banner === f.banner);
+        if (f.type !== 'all') result = result.filter(e => eventDetails[e.id]?.type === f.type);
+        if (f.storyType !== 'all') result = result.filter(e => eventDetails[e.id]?.storyType === f.storyType);
+        if (f.cardType !== 'all') result = result.filter(e => eventDetails[e.id]?.cardType === f.cardType);
+        if (f.fourStar !== 'all') {
             result = result.filter(e => {
                 const cards = eventDetails[e.id]?.["4starcard"]?.split(',') || [];
-                return cards.some(cardId => cardId.split('-')[0] === filters.fourStar);
+                return cards.some(cardId => cardId.split('-')[0] === f.fourStar);
             });
         }
         return result;
-    }, [events, filters, eventDetails]);
+    };
 
-    const getOptions = (currentSelected: string) => {
-        const baseOptions = filteredEventOptions.map(e => ({
-            value: e.id,
+    const filteredEventOptions1 = useMemo(() => filterEvents(events, filters1), [events, filters1, eventDetails]);
+    const filteredEventOptions2 = useMemo(() => filterEvents(events, filters2), [events, filters2, eventDetails]);
+
+    const getGeneralOptions = (filteredOptions: EventSummary[], currentSelected: string) => {
+        const baseOptions = filteredOptions.map(e => ({
+            value: e.id.toString(),
             label: `#${e.id} ${e.name}`,
             style: { color: getEventColor(e.id) }
         }));
 
-        if (currentSelected && !baseOptions.find(o => o.value.toString() === currentSelected)) {
+        if (currentSelected && !baseOptions.find(o => o.value === currentSelected)) {
             const missingEvent = events.find(e => e.id.toString() === currentSelected);
             if (missingEvent) {
                 baseOptions.push({
-                    value: missingEvent.id,
+                    value: missingEvent.id.toString(),
                     label: `#${missingEvent.id} ${missingEvent.name}`,
                     style: { color: getEventColor(missingEvent.id) }
                 });
-                baseOptions.sort((a, b) => (b.value as number) - (a.value as number));
+                baseOptions.sort((a, b) => Number(b.value) - Number(a.value));
             }
         }
         return [{ value: '', label: '選擇活動...' }, ...baseOptions];
     };
 
+    const options1 = getGeneralOptions(filteredEventOptions1, selectedId1);
+    const options2 = getGeneralOptions(filteredEventOptions2, selectedId2);
+
+    const canCompare = compareMode === 'general' 
+        ? (selectedId1 && selectedId2) 
+        : (resolvedWl1 && resolvedWl2);
+
     const handleCompare = async () => {
-        if (!selectedId1 || !selectedId2) return;
-        if (selectedId1 === selectedId2) {
+        if (!canCompare) return;
+        
+        if (compareMode === 'general' && selectedId1 === selectedId2) {
+            setComparisonError(UI_TEXT.eventComparison.errorSameEvent);
+            return;
+        }
+        if (compareMode === 'world_link' && resolvedWl1?.eventId === resolvedWl2?.eventId && resolvedWl1?.charId === resolvedWl2?.charId) {
             setComparisonError(UI_TEXT.eventComparison.errorSameEvent);
             return;
         }
@@ -115,36 +194,89 @@ const EventComparisonView: React.FC = () => {
         setHoveredRank(null);
 
         try {
-            const [data1top, data1border, data2top, data2border] = await Promise.all([
-                fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId1}/top100`),
-                fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId1}/border`),
-                fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId2}/top100`),
-                fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId2}/border`)
-            ]);
+            if (compareMode === 'general') {
+                const [data1top, data1border, data2top, data2border] = await Promise.all([
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId1}/top100`),
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId1}/border`),
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId2}/top100`),
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${selectedId2}/border`)
+                ]);
 
-            const eventSummary1 = events.find(e => e.id.toString() === selectedId1);
-            const eventSummary2 = events.find(e => e.id.toString() === selectedId2);
+                const eventSummary1 = events.find(e => e.id.toString() === selectedId1);
+                const eventSummary2 = events.find(e => e.id.toString() === selectedId2);
 
-            const eventName1 = eventSummary1?.name || `Event ${selectedId1}`;
-            const eventName2 = eventSummary2?.name || `Event ${selectedId2}`;
+                const eventName1 = eventSummary1?.name || `Event ${selectedId1}`;
+                const eventName2 = eventSummary2?.name || `Event ${selectedId2}`;
 
-            const duration1 = eventSummary1 ? calculatePreciseDuration(eventSummary1.start_at, eventSummary1.aggregate_at) : 0;
-            const duration2 = eventSummary2 ? calculatePreciseDuration(eventSummary2.start_at, eventSummary2.aggregate_at) : 0;
+                const duration1 = eventSummary1 ? calculatePreciseDuration(eventSummary1.start_at, eventSummary1.aggregate_at) : 0;
+                const duration2 = eventSummary2 ? calculatePreciseDuration(eventSummary2.start_at, eventSummary2.aggregate_at) : 0;
 
-            const processRankings = (topData: any = {}, borderData: any = {}): SimpleRankData[] => {
-                const combined = [
-                    ...(topData.rankings || []).map((r: any) => ({ rank: r.rank, score: r.score })),
-                    ...(borderData.borderRankings || []).map((r: any) => ({ rank: r.rank, score: r.score }))
-                ];
-                const uniqueMap = new Map();
-                combined.forEach(item => uniqueMap.set(item.rank, item));
-                return Array.from(uniqueMap.values()).sort((a, b) => a.rank - b.rank).filter(item => item.score > 0);
-            };
+                const processRankings = (topData: any = {}, borderData: any = {}): SimpleRankData[] => {
+                    const combined = [
+                        ...(topData.rankings || []).map((r: any) => ({ rank: r.rank, score: r.score })),
+                        ...(borderData.borderRankings || []).map((r: any) => ({ rank: r.rank, score: r.score }))
+                    ];
+                    const uniqueMap = new Map();
+                    combined.forEach(item => uniqueMap.set(item.rank, item));
+                    return Array.from(uniqueMap.values()).sort((a, b) => a.rank - b.rank).filter(item => item.score > 0);
+                };
 
-            setComparisonData({
-                event1: { name: eventName1, data: processRankings(data1top, data1border), duration: duration1, id: Number(selectedId1) },
-                event2: { name: eventName2, data: processRankings(data2top, data2border), duration: duration2, id: Number(selectedId2) }
-            });
+                setComparisonData({
+                    event1: { name: eventName1, data: processRankings(data1top, data1border), duration: duration1, id: Number(selectedId1) },
+                    event2: { name: eventName2, data: processRankings(data2top, data2border), duration: duration2, id: Number(selectedId2) }
+                });
+            } else {
+                const eId1 = resolvedWl1!.eventId.toString();
+                const cId1 = resolvedWl1!.charId;
+                const eId2 = resolvedWl2!.eventId.toString();
+                const cId2 = resolvedWl2!.charId;
+
+                const [data1top, data1border, data2top, data2border] = await Promise.all([
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${eId1}/top100`),
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${eId1}/border`),
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${eId2}/top100`),
+                    fetchJsonWithBigInt(`${API_BASE_URL}/event/${eId2}/border`)
+                ]);
+
+                const processWlRankings = (topData: any, borderData: any, charId: string): SimpleRankData[] => {
+                    const topRanks = topData.userWorldBloomChapterRankings?.find((c: any) => c.gameCharacterId.toString() === charId)?.rankings || [];
+                    const borderRanks = borderData.userWorldBloomChapterRankingBorders?.find((c: any) => c.gameCharacterId.toString() === charId)?.borderRankings || [];
+                    
+                    const combined = [
+                        ...topRanks.map((r: any) => ({ rank: r.rank, score: r.score })),
+                        ...borderRanks.map((r: any) => ({ rank: r.rank, score: r.score }))
+                    ];
+                    const uniqueMap = new Map();
+                    combined.forEach(item => uniqueMap.set(item.rank, item));
+                    return Array.from(uniqueMap.values()).sort((a, b) => a.rank - b.rank).filter(item => item.score > 0);
+                };
+
+                const wlInfo1 = getWlDetail(Number(eId1));
+                const wlInfo2 = getWlDetail(Number(eId2));
+                
+                const charName1 = CHARACTERS[cId1]?.name || cId1;
+                const charName2 = CHARACTERS[cId2]?.name || cId2;
+
+                const color1 = CHARACTERS[cId1]?.color || '#06b6d4';
+                const color2 = CHARACTERS[cId2]?.color || '#ec4899';
+
+                setComparisonData({
+                    event1: { 
+                        name: `#${eId1} ${charName1}`, 
+                        data: processWlRankings(data1top, data1border, cId1), 
+                        duration: wlInfo1?.chDavg || 3, 
+                        id: Number(eId1),
+                        color: color1
+                    },
+                    event2: { 
+                        name: `#${eId2} ${charName2}`, 
+                        data: processWlRankings(data2top, data2border, cId2), 
+                        duration: wlInfo2?.chDavg || 3, 
+                        id: Number(eId2),
+                        color: color2
+                    }
+                });
+            }
 
         } catch (err) {
             setComparisonError(UI_TEXT.eventComparison.errorLoad);
@@ -175,8 +307,8 @@ const EventComparisonView: React.FC = () => {
 
     const ChartDisplay = useMemo(() => {
         if (!comparisonData.event1 || !comparisonData.event2) return null;
-        const color1 = getEventColor(comparisonData.event1.id) || '#06b6d4';
-        const color2 = getEventColor(comparisonData.event2.id) || '#ec4899';
+        const color1 = comparisonData.event1.color || getEventColor(comparisonData.event1.id) || '#06b6d4';
+        const color2 = comparisonData.event2.color || getEventColor(comparisonData.event2.id) || '#ec4899';
         const processData = (data: SimpleRankData[], duration: number) => data.map(d => ({ ...d, score: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, duration)) : d.score }));
         const d1 = processData(comparisonData.event1.data, comparisonData.event1.duration);
         const d2 = processData(comparisonData.event2.data, comparisonData.event2.duration);
@@ -239,17 +371,146 @@ const EventComparisonView: React.FC = () => {
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.eventComparison.title}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">{UI_TEXT.eventComparison.description}</p>
             </div>
-            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 mb-4 shadow-sm">
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                    <div className="lg:col-span-2"><Select label={UI_TEXT.eventComparison.selectLabelA} value={selectedId1} onChange={setSelectedId1} options={getOptions(selectedId1)} /></div>
-                    <div className="lg:col-span-2"><Select label={UI_TEXT.eventComparison.selectLabelB} value={selectedId2} onChange={setSelectedId2} options={getOptions(selectedId2)} /></div>
-                    <div className="lg:col-span-1"><Button variant="gradient" fullWidth disabled={isComparing || !selectedId1 || !selectedId2} onClick={handleCompare} isLoading={isComparing}>{isComparing ? UI_TEXT.eventComparison.btnAnalyzing : UI_TEXT.eventComparison.btnCompare}</Button></div>
-                 </div>
-                 <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
-                     <span className="text-xs font-bold text-slate-500 mr-1">{UI_TEXT.eventComparison.quickFilter}</span>
-                     <EventFilterGroup filters={filters} onFilterChange={setFilters} mode="exclusive" compact={true} containerClassName="flex flex-wrap gap-2 items-center" itemClassName="w-full sm:w-auto" />
-                 </div>
+
+            <div className="flex justify-between items-center mb-6">
+                {/* Mode Switcher */}
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
+                    <button
+                        onClick={() => {
+                            setCompareMode('general');
+                            setSelectedId1('');
+                            setSelectedId2('');
+                            setComparisonData({ event1: null, event2: null });
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                            compareMode === 'general'
+                                ? 'bg-white dark:bg-slate-700 shadow text-cyan-600 dark:text-cyan-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                    >
+                        一般活動比較
+                    </button>
+                    <button
+                        onClick={() => {
+                            setCompareMode('world_link');
+                            setComparisonData({ event1: null, event2: null });
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                            compareMode === 'world_link'
+                                ? 'bg-white dark:bg-slate-700 shadow text-pink-500'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                    >
+                        World Link 比較
+                    </button>
+                </div>
+
+                {/* Compare Button */}
+                <Button 
+                    variant="gradient" 
+                    disabled={isComparing || !canCompare} 
+                    onClick={handleCompare} 
+                    isLoading={isComparing}
+                    className="px-8 py-2"
+                >
+                    {isComparing ? UI_TEXT.eventComparison.btnAnalyzing : UI_TEXT.eventComparison.btnCompare}
+                </Button>
             </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+                {/* Panel A */}
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm flex flex-col gap-3">
+                    {compareMode === 'general' ? (
+                        <>
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2 mt-2">
+                                    <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
+                                    <span className="font-bold text-slate-700 dark:text-slate-200">活動 A (Base)</span>
+                                </div>
+                                <EventFilterGroup filters={filters1} onFilterChange={setFilters1} mode="exclusive" compact={true} containerClassName="items-end" />
+                            </div>
+                            <Select value={selectedId1} onChange={setSelectedId1} options={options1} />
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
+                                    <span className="font-bold text-slate-700 dark:text-slate-200">World Link A (Base)</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <select 
+                                    className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                                    value={wlRound1}
+                                    onChange={(e) => setWlRound1(e.target.value)}
+                                >
+                                    {availableRounds.map(r => <option key={r} value={r}>第 {r} 輪</option>)}
+                                </select>
+                                <select 
+                                    className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                                    value={wlChar1}
+                                    onChange={(e) => setWlChar1(e.target.value)}
+                                >
+                                    {chars1.map(cId => (
+                                        <option key={cId} value={cId}>{CHARACTERS[cId]?.name || cId}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 text-sm text-center text-slate-600 dark:text-slate-400 font-bold">
+                                {resolvedWl1 ? resolvedWl1.displayName : '請選擇輪次與角色'}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Panel B */}
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm flex flex-col gap-3">
+                    {compareMode === 'general' ? (
+                        <>
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2 mt-2">
+                                    <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+                                    <span className="font-bold text-slate-700 dark:text-slate-200">活動 B (Compare)</span>
+                                </div>
+                                <EventFilterGroup filters={filters2} onFilterChange={setFilters2} mode="exclusive" compact={true} containerClassName="items-end" />
+                            </div>
+                            <Select value={selectedId2} onChange={setSelectedId2} options={options2} />
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+                                    <span className="font-bold text-slate-700 dark:text-slate-200">World Link B (Compare)</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <select 
+                                    className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                                    value={wlRound2}
+                                    onChange={(e) => setWlRound2(e.target.value)}
+                                >
+                                    {availableRounds.map(r => <option key={r} value={r}>第 {r} 輪</option>)}
+                                </select>
+                                <select 
+                                    className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200"
+                                    value={wlChar2}
+                                    onChange={(e) => setWlChar2(e.target.value)}
+                                >
+                                    {chars2.map(cId => (
+                                        <option key={cId} value={cId}>{CHARACTERS[cId]?.name || cId}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 text-sm text-center text-slate-600 dark:text-slate-400 font-bold">
+                                {resolvedWl2 ? resolvedWl2.displayName : '請選擇輪次與角色'}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
             {comparisonError && <ErrorMessage message={comparisonError} />}
             {ChartDisplay && (
                 <div className="flex flex-col gap-4">
@@ -302,8 +563,8 @@ const EventComparisonView: React.FC = () => {
                             <div key={idx} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex justify-between items-center mb-2 border-b border-slate-100 dark:border-slate-700/50 pb-1"><span className="text-xs font-bold text-slate-500 dark:text-slate-400">{stat.range}</span></div>
                                 <div className="space-y-2">
-                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">{UI_TEXT.eventComparison.chart.steepness}</span><div className="flex items-center gap-1">{stat.steepnessWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : (stat.steepnessWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.steepnessWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.steepnessWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—')}</span></div></div>
-                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">{UI_TEXT.eventComparison.chart.avgScore}</span><div className="flex items-center gap-1">{stat.scoreWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.scoreWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.scoreWinner === 'A' ? ChartDisplay.color1 : (stat.scoreWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.scoreWinner === 'A' ? `第${comparisonData.event1?.id}期` : (stat.scoreWinner === 'B' ? `第${comparisonData.event2?.id}期` : '—')}</span></div></div>
+                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">{UI_TEXT.eventComparison.chart.steepness}</span><div className="flex items-center gap-1">{stat.steepnessWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.steepnessWinner === 'A' ? ChartDisplay.color1 : (stat.steepnessWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.steepnessWinner === 'A' ? comparisonData.event1?.name : (stat.steepnessWinner === 'B' ? comparisonData.event2?.name : '—')}</span></div></div>
+                                    <div className="flex flex-col text-xs"><span className="text-slate-400 mb-0.5">{UI_TEXT.eventComparison.chart.avgScore}</span><div className="flex items-center gap-1">{stat.scoreWinner !== 'equal' && (<div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stat.scoreWinner === 'A' ? ChartDisplay.color1 : ChartDisplay.color2 }}></div>)}<span className="font-bold truncate" style={{ color: stat.scoreWinner === 'A' ? ChartDisplay.color1 : (stat.scoreWinner === 'B' ? ChartDisplay.color2 : '#94a3b8') }}>{stat.scoreWinner === 'A' ? comparisonData.event1?.name : (stat.scoreWinner === 'B' ? comparisonData.event2?.name : '—')}</span></div></div>
                                     <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/30 text-[11px] leading-tight text-slate-600 dark:text-slate-300 font-medium">{stat.evaluation}</div>
                                 </div>
                             </div>

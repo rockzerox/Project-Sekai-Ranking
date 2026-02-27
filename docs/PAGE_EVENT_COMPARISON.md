@@ -2,28 +2,34 @@
 
 **文件代號**: `PAGE_EVENT_COMPARISON`
 **對應視圖**: `currentView === 'comparison'` (src/App.tsx)
-**主要用途**: 允許使用者並排比較任意兩期活動的榜單數據，分析分數膨脹趨勢與競爭型態差異。
+**主要用途**: 允許使用者並排比較任意兩期活動或 World Link 角色章節的榜單數據，分析分數膨脹趨勢與競爭型態差異。
 
 ---
 
 ## 1. 功能概述 (Feature Overview)
 
-本頁面是資深玩家評估活動難度與預測分數線的重要工具。
+本頁面是資深玩家評估活動難度與預測分數線的重要工具，支援「一般活動」與「World Link」兩種截然不同的比較模式。
 
 ### 1.1 核心功能
-*   **雙活動選取**: 下拉選單選擇 "Event A" (基準) 與 "Event B" (對照)。支援關鍵字搜尋與快速篩選。
+*   **雙模式切換 (Mode Switcher)**:
+    *   **一般活動比較**: 比較傳統的箱活、混活等。
+    *   **World Link 比較**: 專門針對 World Link 活動，比較特定「輪次」與「角色」的個人章節榜單。
+*   **獨立雙活動選取 (Dual Selection)**: 
+    *   提供「活動 A (Base)」與「活動 B (Compare)」兩個獨立的選擇區塊。
+    *   每個區塊擁有專屬的篩選器，互不干擾，方便跨團體、跨屬性進行精準比較。
 *   **數據正規化 (Normalization)**:
     *   **總分模式**: 直接比較原始分數。
-    *   **日均模式 (Daily Avg)**: 將分數除以活動天數，消除活動長度不同造成的偏差。
-*   **疊加圖表**: 將兩期活動的分數曲線繪製於同一張圖表上 (X軸: 排名, Y軸: 分數)。
+    *   **日均模式 (Daily Avg)**: 將分數除以活動天數 (或章節天數)，消除長度不同造成的偏差。
+*   **疊加圖表**: 將兩者的分數曲線繪製於同一張圖表上 (X軸: 排名, Y軸: 分數)。
 *   **自動化分析報告**:
     *   **陡峭度 (Steepness)**: 分析 T1-T10, T10-T100 等區間的斜率，判斷頭部競爭激烈程度。
     *   **平均分 (Avg Score)**: 比較整體分數水平。
-    *   **勝出判定**: 系統自動標示哪一期活動在特定區間更為「卷」(競爭激烈)。
+    *   **勝出判定**: 系統自動標示哪一期/哪位角色在特定區間更為「卷」(競爭激烈)。
 
 ### 1.2 互動機制
-*   **鼠標追蹤 (Crosshair)**: 滑鼠在圖表移動時，自動吸附至最近的排名點，並顯示兩期活動在該名次的具體分數。
-*   **快速篩選**: 在下拉選單上方提供團體/屬性篩選器，方便從上百期活動中快速找到目標 (例如：比較所有「25時」的箱活)。
+*   **動態連動選單 (World Link 模式)**: 選擇「第 X 輪」後，「角色」下拉選單會自動過濾，僅顯示該輪次有出場的角色，避免無效選擇。
+*   **鼠標追蹤 (Crosshair)**: 滑鼠在圖表移動時，自動吸附至最近的排名點，並顯示兩者在該名次的具體分數。
+*   **緊湊型過濾器 (Compact Filters)**: 一般模式下，使用 `EventFilterGroup` 的緊湊模式，將複雜的篩選條件收納於彈出選單中，保持畫面簡潔。
 
 ---
 
@@ -32,51 +38,47 @@
 ### 2.1 資料獲取 (Data Fetching)
 位於 `src/components/pages/EventComparisonView.tsx` 的 `handleCompare` 函式。
 
-*   **並行請求**: 使用 `Promise.all` 同時發送 4 個 API 請求：
-    1.  Event A Top 100 (`/event/{id}/top100`)
-    2.  Event A Borders (`/event/{id}/border`)
-    3.  Event B Top 100
-    4.  Event B Borders
+*   **一般模式 (General)**:
+    *   並行請求 4 個 API：Event A 的 `/top100` 與 `/border`，以及 Event B 的 `/top100` 與 `/border`。
+*   **World Link 模式 (World Link)**:
+    *   同樣並行請求 4 個 API：Event A 的 `/top100` 與 `/border`，以及 Event B 的 `/top100` 與 `/border`。
+    *   **資料萃取**: 從回傳的 `userWorldBloomChapterRankings` 與 `userWorldBloomChapterRankingBorders` 中，精準提取出使用者所選「角色 ID」對應的榜單陣列。
 *   **數據合併**: 將 Top 100 詳細名單與 Border 概略名單合併、去重、排序，產生完整的 `SimpleRankData[]`。
 
 ### 2.2 圖表繪製邏輯 (Chart Logic)
 *   **X軸變形 (Log-Linear Scale)**: 
-    *   由於 T1-T100 的關注度遠高於 T1000-T10000，且排名數值跨度大。
     *   採用 **分段比例尺**: 前 30% 寬度顯示 T1-T100，後 70% 寬度顯示 T100-T10000 (使用對數縮放)，讓頭部排名更清晰。
-*   **SVG 路徑生成**: 計算每個數據點的 `(x, y)` 座標，生成 SVG `<path d="M... L...">`。
+*   **動態顏色 (Dynamic Colors)**: 
+    *   一般活動使用 `getEventColor` 取得代表色。
+    *   World Link 模式則直接讀取 `CHARACTERS` 常數，套用該角色的專屬應援色。
 
 ### 2.3 分析演算法 (Analysis Algorithm)
 位於 `ChartDisplay` memo 中的 `getTrendAnalysis`。
 *   將排名切分為 `[1-10]`, `[10-100]`, `[100-1000]`, `[1000+]` 四個區間。
 *   計算每個區間的 **Spread (離散度)**: `(Max - Min) / Avg`。
-    *   Spread 越大，代表分數拉得越開（斷層大）。
-*   根據 Spread 與 Average Score 的比值 (Ratio)，判定 A 或 B 勝出，並生成對應的評語 (Evaluation Text)。
+*   根據 Spread 與 Average Score 的比值 (Ratio)，判定 A 或 B 勝出，並生成對應的評語 (動態帶入活動名稱或角色名稱)。
 
 ---
 
 ## 3. UI/UX 排版設計 (UI Layout)
 
-### 3.1 選擇區 (Selection Area)
-*   **兩欄式佈局**: 左側選擇活動 A，右側選擇活動 B。
-*   **中間動作鈕**: 「開始比較」按鈕，載入時顯示 Loading 狀態。
-*   **輔助篩選列**: 位於選單下方，提供 `EventFilterGroup` (收闔式篩選按鈕與彈跳視窗) 快速過濾器。
+### 3.1 頂部控制區 (Top Controls)
+*   **模式切換鈕**: 左上角提供「一般活動比較」與「World Link 比較」的按鈕群組。
+*   **開始比較鈕**: 右上角放置主要動作按鈕，載入時顯示 Loading 狀態。
 
-### 3.2 圖表區 (Chart Area)
-*   **標頭**: 顯示兩期活動的名稱、Logo、代表色點 (Legend) 與持續天數。
-*   **控制**: 右上角切換「總分 / 日均」模式。
-*   **繪圖區**: 
-    *   背景顯示 Y 軸網格。
-    *   使用 SVG 繪製兩條不同顏色的折線。
-    *   虛線標示 X 軸的比例尺切換點 (Scale Change)。
-*   **Tooltip**: 懸浮視窗顯示當前 Rank 及兩者的分數對比。
+### 3.2 選擇面板區 (Selection Panels)
+*   **兩欄式佈局**: 左側為「活動 A (Base)」，右側為「活動 B (Compare)」。
+*   **一般模式**:
+    *   標題列右側放置「篩選條件」按鈕 (Compact Filter)。
+    *   下方為活動下拉選單。
+*   **World Link 模式**:
+    *   提供「第幾輪」與「角色」兩個連動下拉選單。
+    *   下方顯示唯讀的結果確認框 (例如：`#112 (第1輪) - 星乃一歌`)，明確提示當前選擇目標。
 
-### 3.3 分析卡片區 (Analysis Cards)
-*   位於圖表下方，分為 4 個卡片 (對應 4 個排名區間)。
-*   **內容**:
-    *   區間標題 (e.g., Top 10-100)。
-    *   **競爭陡峭度**: 顯示勝出者的顏色條與名稱。
-    *   **平均分數**: 顯示較高者的顏色條與名稱。
-    *   **系統評語**: 一句簡短的總結 (e.g., "第XX期 分數大幅領先，且排名前段斷層極大")。
+### 3.3 圖表與分析區 (Chart & Analysis Area)
+*   **圖表標頭**: 顯示兩者的名稱、代表色點 (Legend) 與持續天數。
+*   **繪圖區**: 使用 SVG 繪製兩條不同顏色的折線，虛線標示 X 軸的比例尺切換點。
+*   **分析卡片**: 位於圖表下方，分為 4 個卡片，顯示競爭陡峭度、平均分數與系統評語。
 
 ---
 
@@ -84,7 +86,7 @@
 
 *   `src/components/pages/EventComparisonView.tsx` (獨立組件，內含圖表邏輯)
 *   `src/components/ui/Select.tsx`
-*   `src/components/ui/EventFilterGroup.tsx`
+*   `src/components/ui/EventFilterGroup.tsx` (提供獨立的篩選狀態)
 *   `src/hooks/useRankings.ts` (複用 `fetchJsonWithBigInt`)
 *   `src/utils/mathUtils.ts` (分數格式化)
-*   `src/config/uiText.ts`
+*   `src/config/constants.ts` (引用 `CHARACTERS` 獲取角色顏色與名稱)

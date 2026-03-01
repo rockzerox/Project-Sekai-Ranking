@@ -117,6 +117,7 @@ export interface EventDetail {
     storyType: 'unit_event' | 'mixed_event' | 'world_link';
     cardType: 'permanent' | 'limited' | 'special_limited';
     "4starcard"?: string;
+    tag?: string;
 }
 
 export interface WorldLinkInfo {

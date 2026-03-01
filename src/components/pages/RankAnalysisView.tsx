@@ -42,7 +42,7 @@ const RankAnalysisView: React.FC = () => {
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     
     const [filters, setFilters] = useState<EventFilterState>({
-        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all'
+        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all', theme: 'all'
     });
 
     useEffect(() => {
@@ -139,6 +139,7 @@ const RankAnalysisView: React.FC = () => {
         if (filters.banner !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.banner === filters.banner);
         if (filters.storyType !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.storyType === filters.storyType);
         if (filters.cardType !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.cardType === filters.cardType);
+        if (filters.theme !== 'all') filteredStats = filteredStats.filter(stat => eventDetails[stat.eventId]?.tag === filters.theme);
         if (filters.fourStar !== 'all') {
             filteredStats = filteredStats.filter(stat => {
                 const cards = eventDetails[stat.eventId]?.["4starcard"]?.split(',') || [];

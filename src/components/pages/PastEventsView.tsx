@@ -28,7 +28,8 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
     banner: 'all',
     storyType: 'all',
     cardType: 'all',
-    fourStar: 'all'
+    fourStar: 'all',
+    theme: 'all'
   });
   
   const [sortType, setSortType] = useState<'id' | 'duration'>('id');
@@ -85,6 +86,8 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
         });
     }
 
+    if (filters.theme !== 'all') currentEvents = currentEvents.filter(e => eventDetails[e.id]?.tag === filters.theme);
+
     if (selectedYear !== 'all') currentEvents = currentEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
 
     return currentEvents.sort((a, b) => {
@@ -133,6 +136,18 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
           case 'limited': return '限定';
           case 'special_limited': return '特殊限定';
           default: return '';
+      }
+  };
+
+  const getThemeLabel = (tag: string) => {
+      switch(tag) {
+          case 'new_year': return '新年';
+          case 'valentine': return '情人節';
+          case 'white_day': return '白情';
+          case 'half_anniversary': return '半週年';
+          case 'bride': return '婚約';
+          case 'anniversary': return '週年';
+          default: return tag;
       }
   };
 
@@ -227,6 +242,11 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                                     <div className="flex gap-1 mt-0.5">
                                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">{getStoryTypeLabel(details.storyType)}</span>
                                         <span className={`text-[9px] px-1.5 py-0.5 rounded ${getCardTypeStyle(details.cardType)}`}>{getCardTypeLabel(details.cardType)}</span>
+                                        {details.tag && details.tag !== '-' && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700 font-bold">
+                                                {getThemeLabel(details.tag)}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="text-right">

@@ -38,3 +38,15 @@ export const getCardTypeOptions = (allLabel: string | null = '卡池類型') => 
     const options = [{ value: 'permanent', label: '常駐' }, { value: 'limited', label: '限定' }, { value: 'special_limited', label: '特殊限定' }];
     return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
 };
+
+export const getThemeOptions = (allLabel: string | null = '主題活動') => {
+    const options = [
+        { value: 'new_year', label: '新年' },
+        { value: 'valentine', label: '情人節' },
+        { value: 'white_day', label: '白情' },
+        { value: 'half_anniversary', label: '半週年' },
+        { value: 'bride', label: '婚約' },
+        { value: 'anniversary', label: '週年' }
+    ];
+    return allLabel ? [{ value: 'all', label: allLabel }, ...options] : options;
+};

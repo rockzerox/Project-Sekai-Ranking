@@ -33,10 +33,10 @@ const EventComparisonView: React.FC = () => {
     const [selectedId2, setSelectedId2] = useState<string>('');
     
     const [filters1, setFilters1] = useState<EventFilterState>({
-        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all'
+        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all', theme: 'all'
     });
     const [filters2, setFilters2] = useState<EventFilterState>({
-        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all'
+        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all', theme: 'all'
     });
 
     const [wlRound1, setWlRound1] = useState<string>('');
@@ -136,6 +136,7 @@ const EventComparisonView: React.FC = () => {
         if (f.type !== 'all') result = result.filter(e => eventDetails[e.id]?.type === f.type);
         if (f.storyType !== 'all') result = result.filter(e => eventDetails[e.id]?.storyType === f.storyType);
         if (f.cardType !== 'all') result = result.filter(e => eventDetails[e.id]?.cardType === f.cardType);
+        if (f.theme !== 'all') result = result.filter(e => eventDetails[e.id]?.tag === f.theme);
         if (f.fourStar !== 'all') {
             result = result.filter(e => {
                 const cards = eventDetails[e.id]?.["4starcard"]?.split(',') || [];

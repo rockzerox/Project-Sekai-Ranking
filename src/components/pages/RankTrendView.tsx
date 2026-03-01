@@ -43,7 +43,7 @@ const RankTrendView: React.FC = () => {
     const [showStatLines, setShowStatLines] = useState(false);
 
     const [filters, setFilters] = useState<EventFilterState>({
-        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all'
+        unit: 'all', banner: 'all', type: 'all', storyType: 'all', cardType: 'all', fourStar: 'all', theme: 'all'
     });
 
     useEffect(() => {
@@ -144,6 +144,7 @@ const RankTrendView: React.FC = () => {
             if (filters.banner !== 'all' && details?.banner !== filters.banner) isMatch = false;
             if (filters.storyType !== 'all' && details?.storyType !== filters.storyType) isMatch = false;
             if (filters.cardType !== 'all' && details?.cardType !== filters.cardType) isMatch = false;
+            if (filters.theme !== 'all' && details?.tag !== filters.theme) isMatch = false;
             if (filters.fourStar !== 'all') { const cards = details?.["4starcard"]?.split(',') || []; if (!cards.some(cardId => cardId.split('-')[0] === filters.fourStar)) isMatch = false; }
             if (isMatch) visibleCount++;
             return { label: `${d.eventName}`, value: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, d.duration)) : d.score, rank: d.eventId, isHighlighted: !hasActiveFilters || isMatch, pointColor: getEventColor(d.eventId), year: d.year };

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Filter, X } from 'lucide-react';
-import { getUnitOptions, getBannerOptions, getEventTypeOptions, getStoryTypeOptions, getCardTypeOptions, getFourStarOptions } from '../../utils/filterUtils';
+import { getUnitOptions, getBannerOptions, getEventTypeOptions, getStoryTypeOptions, getCardTypeOptions, getFourStarOptions, getThemeOptions } from '../../utils/filterUtils';
 import Select from '../../components/ui/Select';
 import { UI_TEXT } from '../../config/uiText';
 
@@ -13,6 +13,7 @@ export interface EventFilterState {
     storyType: string;
     cardType: string;
     fourStar: string;
+    theme: string;
 }
 
 interface EventFilterGroupProps {
@@ -24,6 +25,7 @@ interface EventFilterGroupProps {
     showStoryType?: boolean;
     showCardType?: boolean;
     showFourStar?: boolean;
+    showTheme?: boolean;
     mode?: 'multi' | 'exclusive';
     compact?: boolean;
     containerClassName?: string;
@@ -39,6 +41,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
     showStoryType = true,
     showCardType = true,
     showFourStar = true,
+    showTheme = true,
     mode = 'multi',
     compact = false,
     containerClassName = "flex flex-wrap gap-2 items-center",
@@ -74,6 +77,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                 storyType: 'all',
                 cardType: 'all',
                 fourStar: 'all',
+                theme: 'all',
                 [key]: value
             });
         } else {
@@ -96,7 +100,8 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
             type: 'all',
             storyType: 'all',
             cardType: 'all',
-            fourStar: 'all'
+            fourStar: 'all',
+            theme: 'all'
         };
         setLocalFilters(cleared);
         onFilterChange(cleared);
@@ -120,6 +125,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
             case 'type': options = getEventTypeOptions('活動類型'); prefix = '類型'; break;
             case 'storyType': options = getStoryTypeOptions('劇情'); prefix = '劇情'; break;
             case 'cardType': options = getCardTypeOptions('卡池'); prefix = '卡池'; break;
+            case 'theme': options = getThemeOptions('主題'); prefix = '主題'; break;
         }
         const option = options.find(o => o.value === value);
         return option ? `${prefix}: ${option.label}` : `${prefix}: ${value}`;
@@ -247,6 +253,18 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                                         value={localFilters.cardType}
                                         onChange={(val) => handleSingleChange('cardType', val)}
                                         options={getCardTypeOptions('全部卡池')}
+                                    />
+                                </div>
+                            )}
+
+                            {showTheme && (
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">主題活動</label>
+                                    <Select
+                                        className={`w-full py-2 text-sm ${itemClassName}`}
+                                        value={localFilters.theme}
+                                        onChange={(val) => handleSingleChange('theme', val)}
+                                        options={getThemeOptions('全部主題')}
                                     />
                                 </div>
                             )}

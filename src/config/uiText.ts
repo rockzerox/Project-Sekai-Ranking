@@ -44,6 +44,7 @@ export const UI_TEXT = {
       playerProfile: "玩家狀態查詢",
       resourceEstimator: "預估資源計算機",
       mySekaiMining: "MySekai 採集計算機",
+      eventSongs: "活動曲目",
     },
     actions: {
       toggleTheme: "切換主題",
@@ -68,6 +69,7 @@ export const UI_TEXT = {
       playerProfile: { title: "玩家狀態查詢", desc: "查詢該玩家的詳細資料、綜合力組成與歌曲通關狀況。" },
       resourceEstimator: { title: "預估資源計算機", desc: "依據過往活動分數預估未來活動所需的大補充罐數。" },
       mySekaiMining: { title: "MySekai 採集計算機", desc: "提供透過 MySekai 採集機制及社群經驗公式計算獲得活動 Pt。" },
+      eventSongs: { title: "活動曲目", desc: "提供各期活動書下曲與官方MV連結。" },
     }
   },
   pastEvents: {
@@ -239,6 +241,35 @@ export const UI_TEXT = {
       negTrend: { title: "負趨勢 (-)：規模萎縮", desc: "代表即使排名放寬，新玩家增加的速度仍趕不上名次擴張。顯示該角色主要由極少數特定玩家群在反覆角逐。" },
       pivotPoint: { title: "趨勢反轉點 (Pivot Point)", desc: "趨勢正負交替處即為「行為分水嶺」，代表玩家競爭行為從該名次開始發生本質性的轉變。" }
     }
+  },
+  eventSongs: {
+    title: "活動曲目及MV",
+    description: "提供各期活動書下曲與官方MV連結",
+    filters: {
+      unit: "團體 (Unit)",
+      banner: "Banner 角色",
+      lyricist: "作詞 (Lyricist)",
+      composer: "作曲 (Composer)",
+      arranger: "編曲 (Arranger)",
+      reset: "重置條件",
+      allUnits: "所有團體",
+      allChars: "所有角色",
+    },
+    table: {
+      eventId: "活動ID",
+      eventName: "活動名稱",
+      unit: "團體",
+      banner: "Banner",
+      songName: "曲名",
+      lyricist: "作詞",
+      composer: "作曲",
+      arranger: "編曲",
+      mv2d: "2D MV",
+      mv3d: "3D MV",
+      watch: "觀看",
+      none: "-",
+    },
+    noData: "找不到符合條件的曲目",
   },
   mySekaiMining: {
     title: "MySekai 採集計算機",

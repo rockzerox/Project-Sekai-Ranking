@@ -66,6 +66,7 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
             features: [
                 { id: 'resourceEstimator', title: UI_TEXT.home.features.resourceEstimator.title, description: UI_TEXT.home.features.resourceEstimator.desc, charColor: CHARACTERS['17'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> },
                 { id: 'mySekaiMining', title: UI_TEXT.home.features.mySekaiMining.title, description: UI_TEXT.home.features.mySekaiMining.desc, charColor: '#8888CC', icon: <svg className="w-7 h-7" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M10 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
+                { id: 'eventSongs', title: UI_TEXT.eventSongs.title, description: UI_TEXT.eventSongs.description, charColor: CHARACTERS['20'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg> },
             ]
         }
     ];

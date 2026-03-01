@@ -76,6 +76,12 @@ const NAV_GROUPS: NavGroup[] = [
         charColor: '#8888CC', 
         icon: <svg className="w-5 h-5" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M10 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> 
       },
+      {
+        id: 'eventSongs',
+        label: UI_TEXT.sidebar.items.eventSongs,
+        charColor: CHARACTERS['20'].color, // Mizuki's color
+        icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
+      },
     ]
   }
 ];

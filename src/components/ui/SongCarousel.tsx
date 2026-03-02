@@ -84,6 +84,16 @@ const SongCarousel: React.FC<SongCarouselProps> = ({ songs }) => {
         return { zIndex, opacity, scale, x };
     };
 
+    // Helper to get song cover for previews
+    const getSongCover = (index: number) => {
+        const song = songs[index];
+        if (!song) return '';
+        return `https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking/songs/${song.songId.padStart(3, '0')}.webp`;
+    };
+
+    const prevIndex = (activeIndex - 1 + songs.length) % songs.length;
+    const nextIndex = (activeIndex + 1) % songs.length;
+
     return (
         <motion.div 
             className="relative w-full h-[750px] flex justify-center items-center overflow-hidden bg-slate-900 rounded-[3rem] border-8 border-slate-800 shadow-2xl ring-1 ring-white/10 group touch-pan-y"
@@ -115,6 +125,41 @@ const SongCarousel: React.FC<SongCarouselProps> = ({ songs }) => {
             <div className="absolute bottom-6 right-6 w-4 h-4 rounded-full bg-slate-700 shadow-inner border border-slate-600 flex items-center justify-center z-20">
                 <div className="w-2 h-0.5 bg-slate-900 rotate-45"></div>
                 <div className="w-2 h-0.5 bg-slate-900 -rotate-45 absolute"></div>
+            </div>
+
+            {/* Mobile Top Navigation Previews */}
+            <div className="absolute top-12 left-0 right-0 flex justify-between px-8 md:hidden z-30">
+                {/* Prev Preview */}
+                <div 
+                    onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                    className="flex flex-col items-center gap-1 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+                >
+                    <div className="w-16 h-16 rounded-lg border-2 border-slate-600 overflow-hidden shadow-lg bg-slate-800">
+                        <img 
+                            src={getSongCover(prevIndex)} 
+                            alt="Previous" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => e.currentTarget.style.display = 'none'}
+                        />
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">PREV</span>
+                </div>
+
+                {/* Next Preview */}
+                <div 
+                    onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                    className="flex flex-col items-center gap-1 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+                >
+                    <div className="w-16 h-16 rounded-lg border-2 border-slate-600 overflow-hidden shadow-lg bg-slate-800">
+                        <img 
+                            src={getSongCover(nextIndex)} 
+                            alt="Next" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => e.currentTarget.style.display = 'none'}
+                        />
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">NEXT</span>
+                </div>
             </div>
 
             {/* Items */}

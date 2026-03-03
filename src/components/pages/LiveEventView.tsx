@@ -15,6 +15,7 @@ import ChartAnalysis from '../charts/ChartAnalysis';
 import Pagination from '../ui/Pagination';
 import SortSelector from '../ui/SortSelector';
 import RankingList from '../shared/RankingList';
+import { useCardData } from '../../services/cardService';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -25,6 +26,7 @@ const LiveEventView: React.FC = () => {
     } = useRankings();
 
     const { getEventColor, isWorldLink, getWlDetail } = useConfig();
+    const { cards } = useCardData();
     
     const [activeChapter, setActiveChapter] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -270,7 +272,15 @@ const LiveEventView: React.FC = () => {
                             <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
                             <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
                         </div>
-                        <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} aggregateAt={liveEventTiming?.aggregateAt} eventDuration={currentEventDuration} />
+                        <RankingList 
+                            rankings={paginatedRankings} 
+                            sortOption={sortOption} 
+                            hideStats={shouldHideStats} 
+                            aggregateAt={liveEventTiming?.aggregateAt} 
+                            eventDuration={currentEventDuration}
+                            cardsMap={cards || undefined}
+                            isLiveEvent={true}
+                        />
                     </CollapsibleSection>
                 </>
             )}

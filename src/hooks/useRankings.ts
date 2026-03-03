@@ -2,6 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { RankEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import { API_BASE_URL } from '../config/constants';
+import { transformUserCardToPlayerInfo } from '../utils/transform';
 
 const API_URL = `${API_BASE_URL}/event/live/top100`;
 const BORDER_API_URL = `${API_BASE_URL}/event/live/border`;
@@ -64,7 +65,12 @@ export const useRankings = (): UseRankingsReturn => {
                 last24h: { count: item.last_24h_stats?.count ?? 0, score: item.last_24h_stats?.score ?? 0, speed: item.last_24h_stats?.speed ?? 0, average: item.last_24h_stats?.average ?? 0 }
             } : { last1h: zeroStat, last3h: zeroStat, last24h: zeroStat };
             
-            let userId = item.userId ? String(item.userId) : (item.last_player_info?.profile?.id ? String(item.last_player_info.profile.id) : "");
+            let lastPlayerInfo = item.last_player_info;
+            if (!lastPlayerInfo && item.userCard) {
+                lastPlayerInfo = transformUserCardToPlayerInfo(item);
+            }
+
+            let userId = item.userId ? String(item.userId) : (lastPlayerInfo?.profile?.id ? String(lastPlayerInfo.profile.id) : "");
             const name = item.name || item.display_name || "Unknown";
             
             return { 
@@ -78,7 +84,8 @@ export const useRankings = (): UseRankingsReturn => {
                     display_name: name, 
                     avatar: '', 
                     supporter_tier: 0 
-                } 
+                },
+                last_player_info: lastPlayerInfo
             };
         });
     };

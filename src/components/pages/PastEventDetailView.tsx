@@ -14,6 +14,7 @@ import ChartAnalysis from '../charts/ChartAnalysis';
 import Pagination from '../ui/Pagination';
 import SortSelector from '../ui/SortSelector';
 import RankingList from '../shared/RankingList';
+import { useCardData } from '../../services/cardService';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -30,6 +31,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
     } = useRankings();
 
     const { eventDetails, getEventColor, isWorldLink, getWlDetail } = useConfig();
+    const { cards } = useCardData();
     
     const [activeChapter, setActiveChapter] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -258,7 +260,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
                             <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
                             <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
                         </div>
-                        <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} eventDuration={currentEventDuration} />
+                        <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} eventDuration={currentEventDuration} cardsMap={cards || undefined} />
                     </CollapsibleSection>
                 </>
             )}

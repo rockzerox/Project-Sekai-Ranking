@@ -38,6 +38,21 @@ export interface RankEntry {
     avatar: string;
     supporter_tier: number;
   };
+  last_player_info?: {
+    card?: {
+      id: number;
+      level: number;
+      master_rank: number;
+      default_image: string;
+      special_training_status: string;
+    };
+    profile?: {
+      id: number;
+      word: string;
+      twitter_id: string;
+      image_type: string;
+    };
+  };
 }
 
 export interface UserProfileResponse {
@@ -85,12 +100,31 @@ export interface HisekaiBorderApiResponse {
   border_player_rankings: any[];
 }
 
+export interface RankingEntry {
+  isOwn: boolean;
+  name: string;
+  rank: number;
+  score: number;
+  userCard: (number | string | null)[];
+  userCheerfulCarnival: any;
+  userHonorMissions: any[];
+  userId: number;
+  userPlayerFrames: any[];
+  userProfile: {
+    profileImageType: string;
+    twitterId: string;
+    userId: number;
+    word: string;
+  };
+  userProfileHonors: any[];
+}
+
 export interface PastEventApiResponse {
   id: number;
   name: string;
   start_at: string;
   aggregate_at: string;
-  rankings: any[];
+  rankings: RankingEntry[];
   userWorldBloomChapterRankings?: WorldBloomChapter[];
 }
 
@@ -101,7 +135,7 @@ export interface PastEventBorderApiResponse {
 
 export interface WorldBloomChapter {
   gameCharacterId: number;
-  rankings: any[];
+  rankings: RankingEntry[];
 }
 
 export interface WorldBloomChapterBorder {

@@ -4,6 +4,7 @@ import { RankEntry, SortOption, UserProfileResponse } from '../../types';
 import CrownIcon from '../../components/icons/CrownIcon';
 import TrophyIcon from '../../components/icons/TrophyIcon';
 import { formatScoreToChinese } from '../../utils/mathUtils';
+import { getAssetUrl } from '../../utils/gameUtils';
 
 interface RankingItemProps {
   entry: RankEntry;
@@ -11,35 +12,18 @@ interface RankingItemProps {
   hideStats?: boolean;
   aggregateAt?: string;
   eventDuration?: number;
+  cardsMap?: Record<string, any>;
+  isLiveEvent?: boolean;
 }
 
 const getRankStyles = (rank: number) => {
-  switch (rank) {
-    case 1:
-      return {
-        container: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 shadow-lg shadow-yellow-500/10',
-        rankText: 'text-yellow-600 dark:text-yellow-300',
-        icon: <CrownIcon className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500 dark:text-yellow-400" />,
-      };
-    case 2:
-      return {
-        container: 'border-slate-300 dark:border-slate-400 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 shadow-lg shadow-slate-400/10',
-        rankText: 'text-slate-600 dark:text-slate-300',
-        icon: <TrophyIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 dark:text-slate-400" />,
-      };
-    case 3:
-      return {
-        container: 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 shadow-lg shadow-orange-500/10',
-        rankText: 'text-orange-600 dark:text-orange-400',
-        icon: <TrophyIcon className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-500" />,
-      };
-    default:
-      return {
-        container: 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/60',
-        rankText: 'text-slate-500 dark:text-slate-400',
-        icon: null,
-      };
-  }
+  // Unified style for all ranks, keeping only text color distinction if desired, 
+  // but user requested removing "special ranking styles" which implies the big cards/backgrounds.
+  // We'll keep it clean and uniform.
+  return {
+    container: 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/60',
+    rankText: rank <= 3 ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400', 
+  };
 };
 
 const formatLastPlayed = (dateString: string) => {
@@ -157,7 +141,28 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
     }
 }
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration }) => {
+const DetailStatCard: React.FC<{ title: string, stat: { count: number, score: number, speed: number, average: number } }> = ({ title, stat }) => {
+  const renderStatDetail = (label: string, value: string | number) => (
+    <div className="flex justify-between items-baseline text-sm py-1.5 border-b border-slate-200 dark:border-slate-700/50 last:border-b-0">
+      <span className="text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="font-semibold text-slate-700 dark:text-slate-200">{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-transparent">
+      <h4 className="font-bold text-cyan-600 dark:text-cyan-400 mb-2 text-center text-sm sm:text-base">{title}</h4>
+      <div className="space-y-1">
+        {renderStatDetail('次數 (Plays)', stat.count.toLocaleString())}
+        {renderStatDetail('得分 (Score)', stat.score.toLocaleString())}
+        {renderStatDetail('時速 (Speed)', Math.round(stat.speed).toLocaleString())}
+        {renderStatDetail('平均分 (Avg)', Math.round(stat.average).toLocaleString())}
+      </div>
+    </div>
+  );
+};
+
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { rank, user, stats } = entry;
   const styles = getRankStyles(rank);
@@ -175,25 +180,23 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
           setIsExpanded(!isExpanded);
       }
   };
-
-  const renderStatDetail = (label: string, value: string | number) => (
-    <div className="flex justify-between items-baseline text-sm py-1.5 border-b border-slate-200 dark:border-slate-700/50 last:border-b-0">
-      <span className="text-slate-500 dark:text-slate-400">{label}</span>
-      <span className="font-semibold text-slate-700 dark:text-slate-200">{value}</span>
-    </div>
-  );
   
-  const DetailStatCard: React.FC<{ title: string, stat: typeof stats.last1h }> = ({ title, stat }) => (
-    <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-transparent">
-      <h4 className="font-bold text-cyan-600 dark:text-cyan-400 mb-2 text-center text-sm sm:text-base">{title}</h4>
-      <div className="space-y-1">
-        {renderStatDetail('次數 (Plays)', stat.count.toLocaleString())}
-        {renderStatDetail('得分 (Score)', stat.score.toLocaleString())}
-        {renderStatDetail('時速 (Speed)', Math.round(stat.speed).toLocaleString())}
-        {renderStatDetail('平均分 (Avg)', Math.round(stat.average).toLocaleString())}
-      </div>
-    </div>
-  );
+  // Determine avatar URL
+  // Logic: Try to get cardId from last_player_info. If available, look up in cardsMap to get characterId.
+  let avatarUrl: string | undefined;
+  if (cardsMap && entry.last_player_info?.card?.id) {
+      const cardId = entry.last_player_info.card.id.toString();
+      const cardData = cardsMap[cardId];
+      if (cardData?.characterId) {
+          // Use gameUtils to get asset URL. 
+          // Assuming getAssetUrl handles the logic. 
+          // Note: If special_training_status is 'done', we might want the 'after_training' image, 
+          // but getAssetUrl usually just takes characterId for icon. 
+          // If we want card icon, we might need a different function or parameter.
+          // For now, sticking to existing logic which seems to use characterId.
+          avatarUrl = getAssetUrl(cardData.characterId.toString(), 'character');
+      }
+  }
 
   return (
     <div
@@ -209,26 +212,34 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
         aria-controls={`details-${user.id}`}
       >
         {/* Rank Section */}
-        <div className="flex items-center w-12 sm:w-20 flex-shrink-0">
-          <span className={`text-base sm:text-2xl font-bold w-6 sm:w-10 text-center ${styles.rankText}`}>
+        <div className="flex items-center justify-center w-12 sm:w-16 flex-shrink-0">
+          <span className={`text-lg sm:text-xl font-bold ${styles.rankText}`}>
             {rank}
           </span>
-          <div className="w-3 h-3 sm:w-6 sm:h-6 ml-0.5 sm:ml-1 flex items-center justify-center">
-              {styles.icon}
-          </div>
+        </div>
+
+        {/* Avatar Section */}
+        <div className="flex-shrink-0 mx-2 sm:mx-3">
+            {avatarUrl ? (
+                <img 
+                    src={avatarUrl} 
+                    alt="Leader" 
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700"
+                    onError={(e) => e.currentTarget.style.display = 'none'}
+                />
+            ) : (
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                    <span className="text-xs text-slate-400">No Img</span>
+                </div>
+            )}
         </div>
 
         {/* Name Section */}
-        <div className="flex-grow overflow-hidden ml-2 mr-2 flex flex-col justify-center">
-          <p className="text-sm sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
-            {user.display_name}
-          </p>
-          <span 
-            className="text-xs text-slate-400 font-mono mt-0.5 select-all"
-            onClick={(e) => e.stopPropagation()}
-          >
-             {/* ID removed */}
-          </span>
+        <div className="flex-grow overflow-hidden mr-2 flex flex-col justify-center">
+            <p className="text-sm sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
+              {user.display_name}
+            </p>
+            {/* Optional: Show ID or other info if needed, currently hidden/empty in original */}
         </div>
 
         {/* Stats Section */}

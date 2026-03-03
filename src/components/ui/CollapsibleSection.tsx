@@ -11,11 +11,18 @@ interface CollapsibleSectionProps {
 const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children, isOpen, onToggle }) => {
   return (
     <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden mb-4 transition-shadow hover:shadow-cyan-500/10">
-      <button
+      <div
         onClick={onToggle}
-        className="w-full flex justify-between items-center p-4 text-left font-bold text-lg text-white hover:bg-slate-700/50 transition-colors"
+        className="w-full flex justify-between items-center p-4 text-left font-bold text-lg text-white hover:bg-slate-700/50 transition-colors cursor-pointer"
         aria-expanded={isOpen}
-        aria-controls={`collapsible-content`}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
       >
         <span className="flex-1 flex items-center gap-2 overflow-hidden">{title}</span>
         <svg
@@ -27,7 +34,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </div>
       <div className={`collapsible-content ${isOpen ? 'open' : ''}`}>
         <div className="p-4 border-t border-slate-700">
           {children}

@@ -12,8 +12,9 @@
 
 ### 1.1 核心功能
 *   **即時榜單查詢**: 顯示 Top 100 玩家的即時分數、名稱、隊伍資訊。
+*   **角色頭像顯示**: 在排行榜中顯示玩家當前隊伍隊長卡片的 Q 版角色頭像 (Chibi Avatar)。
 *   **精彩片段 (Highlights)**: 切換模式以查看特定名次（如 T200, T500, T1000, T2000, T5000, T10000）的分數線，而非連續的 1-100 名。
-*   **倒數計時**: 顯示距離活動結算（Aggregate At）的剩餘時間。
+*   **倒數計時**: 顯示距離活動結算 (Aggregate At) 的剩餘時間。
 *   **競爭數據儀表板**: 自動計算 T1/T10、T10/T50 等區間的分數倍率與差值，以及 T50-T100 的變異係數 (CV)，用以判斷競爭激烈程度。
 *   **動態圖表**: 繪製分數分佈曲線，視覺化呈現排名斷層。
 *   **安全線/死心線計算**:
@@ -105,12 +106,14 @@ const giveUpThreshold = targetScore - maxGain;
 *   **列表內容 (`RankingList`)**:
     *   由多個 `RankingItem` 組成。
     *   **排名樣式**:
-        *   Rank 1: 金色皇冠 + 背景高亮。
-        *   Rank 2: 銀色獎盃 + 灰色背景。
-        *   Rank 3: 銅色獎盃 + 橙色背景。
+        *   **現時活動 (Live Event)**: 統一採用標準樣式，取消前三名的特殊皇冠與背景色，以保持介面整潔並突顯角色頭像。
+        *   **歷代活動 (Past Events)**: 亦採用統一標準樣式，與現時活動保持一致。
     *   **卡片佈局**:
-        *   **左**: 名次、趨勢圖示。
-        *   **中**: 玩家名稱、ID (隱藏/縮小顯示)。
+        *   **左**: 名次 (Rank)。
+        *   **中**:
+            *   **角色頭像 (Avatar)**: 顯示玩家隊長卡片的 Q 版角色圖 (Chibi)。透過 `cards.json` 將卡片 ID 轉換為角色 ID。
+            *   **玩家名稱**: 粗體文字，若過長則截斷顯示。
+            *   **ID**: 隱藏/縮小顯示 (User ID displayed below).
         *   **右**: 主要分數數據 (依排序依據變化)。
             *   **分數顯示**: 一般情況採用 `text-base` (行動版) 至 `text-lg` (桌機版)；若顯示安全/死心線則統一為 `text-base` 以容納更多資訊。
             *   **輔助資訊**: 僅在分數排序時，於分數旁顯示安全線/死心線提示。
@@ -119,6 +122,17 @@ const giveUpThreshold = targetScore - maxGain;
 ---
 
 ## 4. 模組依賴 (Module Dependencies)
+
+### 4.1 資料來源 (Data Fetching)
+*   **Top 100 榜單**: `/event/live/top100`
+*   **邊線榜單 (Borders)**: `/event/live/border`
+*   **外部資源**:
+    *   **卡片對照表**: `cards.json` (GitHub Raw)
+    *   **角色圖片**: `Chibi/{characterId}.png` (GitHub Raw)
+
+### 4.2 狀態管理
+*   **`useRankings`**: 管理榜單數據與快取。
+*   **`cardService`**: 管理卡片資料的獲取與快取 (`useCardData`)。
 
 *   `src/components/pages/LiveEventView.tsx` (主容器)
 *   `src/components/shared/RankingList.tsx`

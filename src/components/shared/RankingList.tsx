@@ -9,9 +9,11 @@ interface RankingListProps {
   hideStats?: boolean;
   aggregateAt?: string;
   eventDuration?: number;
+  cardsMap?: Record<string, any>;
+  isLiveEvent?: boolean;
 }
 
-const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false, aggregateAt, eventDuration }) => {
+const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent }) => {
   if (rankings.length === 0) {
     return (
       <div className="text-center py-20">
@@ -37,6 +39,8 @@ const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideSta
                 hideStats={hideStats}
                 aggregateAt={aggregateAt}
                 eventDuration={eventDuration}
+                cardsMap={cardsMap}
+                isLiveEvent={isLiveEvent}
             />
         );
       })}

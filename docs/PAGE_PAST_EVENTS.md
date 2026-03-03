@@ -85,6 +85,7 @@
     *   右側顯示該期活動的競爭數據 (T1/T10 差距等)。
 *   **排行榜內容**:
     *   重複使用 `RankingList` 與 `ChartAnalysis` 組件。
+    *   **角色頭像支援**: 透過資料轉換層 (`transformUserCardToPlayerInfo`)，將歷代活動的 `userCard` 格式轉換為標準格式，從而支援顯示隊長角色的 Q 版頭像。
     *   若為 World Link，標題列會額外出現 **章節切換 Tabs** (總榜 / 角色 A / 角色 B...)。
 
 ---

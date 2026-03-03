@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 歷代活動 (Past Events)
 
 **文件代號**: `PAGE_PAST_EVENTS`
-**對應視圖**: `currentView === 'past'` (src/App.tsx)
+**對應視圖**: `currentView === 'past'` (src/components/pages/PastEventsView.tsx & src/components/pages/PastEventDetailView.tsx)
 **主要用途**: 提供完整的歷史活動資料庫，支援多維度搜尋、篩選與回顧詳細榜單。
 
 ---
@@ -55,9 +55,9 @@
 *   **Past**: 卡片可點擊，進入詳情模式。
 
 #### C. 詳情模式路由 (Detail View Routing)
-*   本頁面由 `selectedEvent` 狀態控制顯示內容：
-    *   `selectedEvent === null`: 顯示活動列表與篩選器。
-    *   `selectedEvent !== null`: 隱藏列表，顯示「返回按鈕」與該活動的 `RankingList` / `ChartAnalysis`。
+*   本頁面由 `App.tsx` 中的 `selectedEvent` 狀態控制顯示內容：
+    *   `selectedEvent === null`: 渲染 `PastEventsView`，顯示活動列表與篩選器。
+    *   `selectedEvent !== null`: 渲染 `PastEventDetailView`，顯示「返回按鈕」與該活動的 `RankingList` / `ChartAnalysis`。
 
 ---
 
@@ -91,11 +91,13 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `src/components/pages/PastEventsView.tsx` (主容器)
+*   `src/components/pages/PastEventsView.tsx` (主容器 - 列表)
+*   `src/components/pages/PastEventDetailView.tsx` (主容器 - 詳情)
 *   `src/components/ui/EventFilterGroup.tsx` (篩選器群組)
 *   `src/components/ui/Card.tsx`
 *   `src/components/ui/SearchBar.tsx`
 *   `src/components/shared/RankingList.tsx` (詳情頁復用)
+*   `src/components/shared/StatsDisplay.tsx` (詳情頁復用)
 *   `src/components/charts/ChartAnalysis.tsx` (詳情頁復用)
 *   `src/hooks/useEventList.ts` (取得列表)
 *   `src/hooks/useRankings.ts` (取得詳情)

@@ -129,7 +129,7 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
                      {giveUpLine !== null && safeLine !== null ? (
                          <div className="flex items-center gap-2">
                              <div className="text-right">
-                                 <p className="text-lg font-bold text-cyan-600 dark:text-cyan-400 leading-none">
+                                 <p className="text-base font-bold text-cyan-600 dark:text-cyan-400 leading-none">
                                      {Math.round(entry.score).toLocaleString()}
                                  </p>
                                  <p className="text-[10px] text-slate-500">總分</p>
@@ -210,17 +210,17 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
       >
         {/* Rank Section */}
         <div className="flex items-center w-12 sm:w-20 flex-shrink-0">
-          <span className={`text-lg sm:text-2xl font-bold w-6 sm:w-10 text-center ${styles.rankText}`}>
+          <span className={`text-base sm:text-2xl font-bold w-6 sm:w-10 text-center ${styles.rankText}`}>
             {rank}
           </span>
-          <div className="w-4 h-4 sm:w-6 sm:h-6 ml-0.5 sm:ml-1 flex items-center justify-center">
+          <div className="w-3 h-3 sm:w-6 sm:h-6 ml-0.5 sm:ml-1 flex items-center justify-center">
               {styles.icon}
           </div>
         </div>
 
         {/* Name Section */}
         <div className="flex-grow overflow-hidden ml-2 mr-2 flex flex-col justify-center">
-          <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
+          <p className="text-sm sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
             {user.display_name}
           </p>
           <span 

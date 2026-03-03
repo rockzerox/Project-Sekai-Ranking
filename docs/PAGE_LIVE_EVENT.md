@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 現時活動 (Live Event)
 
 **文件代號**: `PAGE_LIVE_EVENT`
-**對應視圖**: `currentView === 'live'` (src/App.tsx)
+**對應視圖**: `currentView === 'live'` (src/components/pages/LiveEventView.tsx)
 **主要用途**: 提供正在進行中的活動即時排名資訊、競爭數據分析與預測。
 
 ---
@@ -54,7 +54,7 @@ const giveUpThreshold = targetScore - maxGain;
 ```
 
 #### B. 競爭數據計算
-位於 `src/App.tsx` 的 `competitiveStats` memo。
+位於 `src/components/pages/LiveEventView.tsx` 的 `competitiveStats` memo。
 *   計算特定名次間的倍率 (Ratio) 與差值 (Diff)。
 *   利用 `src/utils/mathUtils.ts` 計算變異係數 (CV)，數值越低代表分數分佈越平均（競爭越膠著）。
 
@@ -70,9 +70,23 @@ const giveUpThreshold = targetScore - maxGain;
 
 ### 3.1 頁面頭部 (Header Section)
 *   **標題**: 顯示「現時活動 (Live Event)」。
-*   **活動資訊卡**:
-    *   **左側**: 活動 Logo、活動名稱 (依據設定檔顯示主題色)、剩餘時間倒數、最後更新時間。
-    *   **右側**: `StatsDisplay` 組件，以緊湊的數據陣列顯示 T1/T10 等競爭指標。
+*   **活動資訊看板 (Event Header)**:
+    *   採用響應式佈局 (Responsive Layout)。
+    *   **手機與平板版 (Mobile & Tablet, < 1024px)**:
+        *   採用垂直堆疊佈局 (Grid Layout)。
+        *   **順序**:
+            1.  **活動名稱** (Title)
+            2.  **活動圖片** (Image)
+            3.  **倒數計時器** (Countdown)
+            4.  **最後更新時間** (Update Time)
+            5.  **競爭數據** (Stats Display)
+    *   **桌機版 (Desktop, >= 1024px)**:
+        *   採用 Grid 佈局，橫向排列。
+        *   **順序 (由左至右)**:
+            1.  **活動圖片** (跨兩列)
+            2.  **活動名稱** (上) / **最後更新時間** (下)
+            3.  **倒數計時器** (跨兩列)
+            4.  **競爭數據** (跨兩列，最右側)
 
 ### 3.2 圖表分析區 (Chart Section) - 可折疊
 *   使用 `CollapsibleSection` 包覆。
@@ -97,20 +111,26 @@ const giveUpThreshold = targetScore - maxGain;
     *   **卡片佈局**:
         *   **左**: 名次、趨勢圖示。
         *   **中**: 玩家名稱、ID (隱藏/縮小顯示)。
-        *   **右**: 主要分數數據 (依排序依據變化)、安全/死心線提示 (僅在分數排序時顯示)。
+        *   **右**: 主要分數數據 (依排序依據變化)。
+            *   **分數顯示**: 一般情況採用 `text-base` (行動版) 至 `text-lg` (桌機版)；若顯示安全/死心線則統一為 `text-base` 以容納更多資訊。
+            *   **輔助資訊**: 僅在分數排序時，於分數旁顯示安全線/死心線提示。
     *   **展開詳情**: 點擊後向下滑出，顯示 1H / 3H / 24H 的詳細數據卡片 (次數/得分/時速/平均)。
 
 ---
 
 ## 4. 模組依賴 (Module Dependencies)
 
+*   `src/components/pages/LiveEventView.tsx` (主容器)
 *   `src/components/shared/RankingList.tsx`
 *   `src/components/shared/RankingItem.tsx`
+*   `src/components/shared/StatsDisplay.tsx`
 *   `src/components/charts/ChartAnalysis.tsx`
 *   `src/components/charts/LineChart.tsx`
 *   `src/components/ui/Pagination.tsx`
 *   `src/components/ui/SortSelector.tsx`
 *   `src/components/ui/CollapsibleSection.tsx`
+*   `src/components/ui/EventHeaderCountdown.tsx`
+*   `src/components/ui/CountdownTimer.tsx`
 *   `src/hooks/useRankings.ts`
 *   `src/utils/mathUtils.ts` (計算 CV, 格式化分數)
 *   `src/config/uiText.ts` (多語言文案引用)

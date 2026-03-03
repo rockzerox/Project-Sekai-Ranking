@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react';
-
-interface CardData {
-  characterId: number;
-  cardRarityType: string;
-  attr: string;
-  assetbundleName: string;
-}
-
-interface CardsMap {
-  [key: string]: CardData;
-}
+import { CardData, CardsMap } from '../types';
 
 const CARDS_JSON_URL = 'https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking/cards.json';
 

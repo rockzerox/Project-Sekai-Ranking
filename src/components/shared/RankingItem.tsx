@@ -1,8 +1,6 @@
 
 import React, { useState } from 'react';
-import { RankEntry, SortOption, UserProfileResponse } from '../../types';
-import CrownIcon from '../../components/icons/CrownIcon';
-import TrophyIcon from '../../components/icons/TrophyIcon';
+import { RankEntry, SortOption, CardsMap } from '../../types';
 import { formatScoreToChinese } from '../../utils/mathUtils';
 import { getAssetUrl } from '../../utils/gameUtils';
 
@@ -12,8 +10,9 @@ interface RankingItemProps {
   hideStats?: boolean;
   aggregateAt?: string;
   eventDuration?: number;
-  cardsMap?: Record<string, any>;
+  cardsMap?: CardsMap;
   isLiveEvent?: boolean;
+  now?: number;
 }
 
 const getRankStyles = (rank: number) => {
@@ -37,7 +36,7 @@ const formatLastPlayed = (dateString: string) => {
     });
 }
 
-const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStats: boolean, aggregateAt?: string, eventDuration?: number }> = ({ entry, sortOption, hideStats, aggregateAt, eventDuration = 1 }) => {
+const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStats: boolean, aggregateAt?: string, eventDuration?: number, now?: number }> = ({ entry, sortOption, hideStats, aggregateAt, eventDuration = 1, now }) => {
     const renderStat = (value: number, label: string) => (
         <>
             <p className="text-base sm:text-lg font-bold text-cyan-600 dark:text-cyan-400">{Math.round(value).toLocaleString()}</p>
@@ -49,10 +48,10 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
     let safeLine: number | null = null;
 
     // 只有在排序為「總分」且有結算時間時才顯示安全線與死心線
-    if (hideStats && aggregateAt && sortOption === 'score') {
-        const now = Date.now();
+    if (hideStats && aggregateAt && sortOption === 'score' && now) {
+        const currentTime = now;
         const end = new Date(aggregateAt).getTime();
-        const remainingSeconds = (end - now) / 1000;
+        const remainingSeconds = (end - currentTime) / 1000;
         
         if (remainingSeconds > 0) {
             const maxGain = (remainingSeconds / 100) * 68000;
@@ -70,7 +69,7 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
                 <p className="text-sm sm:text-base font-bold text-cyan-600 dark:text-cyan-400">{formatLastPlayed(entry.lastPlayedAt)}</p>
                 <p className="text-[10px] sm:text-xs text-slate-500">最後上線</p>
             </>;
-        case 'dailyAvg':
+        case 'dailyAvg': {
             const daily = Math.ceil(entry.score / eventDuration);
             return <>
                 <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">
@@ -78,6 +77,7 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
                 </p>
                 <p className="text-[10px] sm:text-xs text-slate-500">日均分</p>
             </>;
+        }
         // 1 Hour Stats
         case 'last1h_count':
             return renderStat(entry.stats.last1h.count, '1H 次數');
@@ -162,7 +162,7 @@ const DetailStatCard: React.FC<{ title: string, stat: { count: number, score: nu
   );
 };
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent }) => {
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent, now }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { rank, user, stats } = entry;
   const styles = getRankStyles(rank);
@@ -244,7 +244,7 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
 
         {/* Stats Section */}
         <div className="text-right flex-shrink-0 w-auto min-w-[5rem] sm:min-w-[7rem] px-2">
-          <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} eventDuration={eventDuration} />
+          <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} eventDuration={eventDuration} now={now} />
         </div>
 
         {/* Expand Icon - Only show if clickable */}

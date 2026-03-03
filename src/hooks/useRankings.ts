@@ -6,9 +6,9 @@ import { transformUserCardToPlayerInfo } from '../utils/transform';
 
 const API_URL = `${API_BASE_URL}/event/live/top100`;
 const BORDER_API_URL = `${API_BASE_URL}/event/live/border`;
-const BIGINT_REGEX = /"([^"]+)"\s*:\s*(-?\d{15,})(?=[,\}\s])/g;
+const BIGINT_REGEX = /"([^"]+)"\s*:\s*(-?\d{15,})(?=[,}\s])/g;
 
-export const fetchJsonWithBigInt = async (url: string, signal?: AbortSignal) => {
+export const fetchJsonWithBigInt = async <T = any>(url: string, signal?: AbortSignal): Promise<T | null> => {
     const response = await fetch(url, { signal });
     if (!response.ok) throw new Error(`API 請求失敗: ${response.status} (路徑: ${url})`);
     const contentType = response.headers.get('content-type');

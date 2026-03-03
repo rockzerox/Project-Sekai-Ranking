@@ -218,3 +218,14 @@ export interface UnitInfo {
     style: string;
     urlKey: string; 
 }
+
+export interface CardData {
+  characterId: number;
+  cardRarityType: string;
+  attr: string;
+  assetbundleName: string;
+}
+
+export interface CardsMap {
+  [key: string]: CardData;
+}

@@ -62,70 +62,105 @@ const LineChart: React.FC<LineChartProps> = ({
       return [...data].sort((a, b) => (a.rank || 0) - (b.rank || 0));
   }, [data, variant]);
 
-  if (!sortedData || sortedData.length < 2) {
-    return <p className="text-slate-400 text-center py-10">Not enough data to draw a chart.</p>;
-  }
+  const hasEnoughData = sortedData && sortedData.length >= 2;
 
-  const hasFiltering = useMemo(() => sortedData.some(d => d.isHighlighted === false), [sortedData]);
+  const hasFiltering = useMemo(() => {
+      if (!hasEnoughData) return false;
+      return sortedData.some(d => d.isHighlighted === false);
+  }, [sortedData, hasEnoughData]);
 
-  const maxScore = Math.max(...sortedData.map(d => d.value));
-  const minScore = Math.min(...sortedData.map(d => d.value));
-  
-  const yDomainMin = Math.max(0, minScore - (maxScore - minScore) * 0.05);
-  const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
-  const yRange = yDomainMax - yDomainMin || 1;
-
-  // 判斷線條是否在顯示範圍內
-  const isSafeLineVisible = safeThreshold !== undefined && safeThreshold >= yDomainMin && safeThreshold <= yDomainMax;
-  const isGiveUpLineVisible = giveUpThreshold !== undefined && giveUpThreshold >= yDomainMin && giveUpThreshold <= yDomainMax;
-
-  const minRank = sortedData[0].rank || 1;
-  const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
-  
   const isTrend = variant === 'trend';
   const isHighlights = variant === 'highlights';
+  const containerHeightClass = isTrend ? "h-64 md:h-[500px]" : "h-48 md:h-64";
 
-  const containerHeightClass = isTrend ? "h-64 md:h-[500px]" : "h-48 md:h-64"; 
+  const chartMetrics = useMemo(() => {
+      if (!hasEnoughData) return null;
+      
+      const maxScore = Math.max(...sortedData.map(d => d.value));
+      const minScore = Math.min(...sortedData.map(d => d.value));
+      
+      const yDomainMin = Math.max(0, minScore - (maxScore - minScore) * 0.05);
+      const yDomainMax = maxScore + (maxScore - minScore) * 0.1;
+      const yRange = yDomainMax - yDomainMin || 1;
 
-  const getXPercent = (rank: number) => {
-      if (isTrend) {
+      const minRank = sortedData[0].rank || 1;
+      const maxRank = sortedData[sortedData.length - 1].rank || sortedData.length;
+
+      return { yDomainMin, yDomainMax, yRange, minRank, maxRank };
+  }, [sortedData, hasEnoughData]);
+
+  const points = useMemo(() => {
+      if (!chartMetrics) return [];
+      const { yDomainMin, yRange, minRank, maxRank } = chartMetrics;
+
+      const getXPercent = (rank: number) => {
+          if (isTrend) {
+              const range = maxRank - minRank;
+              if (range === 0) return 50;
+              return ((rank - minRank) / range) * 100;
+          }
+    
+          if (isHighlights) {
+              if (rank <= 1000) {
+                  const rMin = 100; 
+                  const rMax = 1000;
+                  let ratio = (rank - rMin) / (rMax - rMin);
+                  ratio = Math.max(0, Math.min(1, ratio));
+                  return ratio * 50;
+              } else {
+                  const rMin = 1000;
+                  const rMax = 10000; 
+                  let ratio = (rank - rMin) / (rMax - rMin);
+                  ratio = Math.max(0, Math.min(1, ratio));
+                  return 50 + (ratio * 50);
+              }
+          }
+    
           const range = maxRank - minRank;
           if (range === 0) return 50;
           return ((rank - minRank) / range) * 100;
-      }
+      };
+    
+      const getYPercent = (score: number) => {
+          return 100 - ((score - yDomainMin) / yRange) * 100;
+      };
 
-      if (isHighlights) {
-          if (rank <= 1000) {
-              const rMin = 100; 
-              const rMax = 1000;
-              let ratio = (rank - rMin) / (rMax - rMin);
-              ratio = Math.max(0, Math.min(1, ratio));
-              return ratio * 50;
-          } else {
-              const rMin = 1000;
-              const rMax = 10000; 
-              let ratio = (rank - rMin) / (rMax - rMin);
-              ratio = Math.max(0, Math.min(1, ratio));
-              return 50 + (ratio * 50);
-          }
-      }
-
-      const range = maxRank - minRank;
-      if (range === 0) return 50;
-      return ((rank - minRank) / range) * 100;
-  };
-
-  const getYPercent = (score: number) => {
-      return 100 - ((score - yDomainMin) / yRange) * 100;
-  };
-
-  const points = sortedData.map(d => ({
-      x: getXPercent(d.rank || 0),
-      y: getYPercent(d.value),
-      ...d
-  }));
+      return sortedData.map(d => ({
+          x: getXPercent(d.rank || 0),
+          y: getYPercent(d.value),
+          ...d
+      }));
+  }, [sortedData, chartMetrics, isTrend, isHighlights]);
 
   const pathD = useMemo(() => {
+      if (!chartMetrics || points.length === 0) return "";
+      const { minRank, maxRank, yDomainMin, yRange } = chartMetrics;
+
+      const getXPercent = (rank: number) => {
+          if (isTrend) {
+              const range = maxRank - minRank;
+              if (range === 0) return 50;
+              return ((rank - minRank) / range) * 100;
+          }
+          if (isHighlights) {
+              if (rank <= 1000) {
+                  const rMin = 100; const rMax = 1000;
+                  let ratio = (rank - rMin) / (rMax - rMin);
+                  ratio = Math.max(0, Math.min(1, ratio));
+                  return ratio * 50;
+              } else {
+                  const rMin = 1000; const rMax = 10000; 
+                  let ratio = (rank - rMin) / (rMax - rMin);
+                  ratio = Math.max(0, Math.min(1, ratio));
+                  return 50 + (ratio * 50);
+              }
+          }
+          const range = maxRank - minRank;
+          if (range === 0) return 50;
+          return ((rank - minRank) / range) * 100;
+      };
+      const getYPercent = (score: number) => 100 - ((score - yDomainMin) / yRange) * 100;
+
       if (isHighlights) {
           let path = "";
           for (let i = 0; i < sortedData.length - 1; i++) {
@@ -153,7 +188,39 @@ const LineChart: React.FC<LineChartProps> = ({
       } else {
           return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
       }
-  }, [sortedData, isHighlights, points]);
+  }, [sortedData, isHighlights, points, chartMetrics, isTrend]);
+
+  if (!hasEnoughData || !chartMetrics) {
+    return <p className="text-slate-400 text-center py-10">Not enough data to draw a chart.</p>;
+  }
+
+  const { yDomainMin, yDomainMax, yRange, minRank, maxRank } = chartMetrics;
+
+  const getXPercent = (rank: number) => {
+      if (isTrend) {
+          const range = maxRank - minRank;
+          if (range === 0) return 50;
+          return ((rank - minRank) / range) * 100;
+      }
+      if (isHighlights) {
+          if (rank <= 1000) {
+              const rMin = 100; const rMax = 1000;
+              let ratio = (rank - rMin) / (rMax - rMin);
+              ratio = Math.max(0, Math.min(1, ratio));
+              return ratio * 50;
+          } else {
+              const rMin = 1000; const rMax = 10000; 
+              let ratio = (rank - rMin) / (rMax - rMin);
+              ratio = Math.max(0, Math.min(1, ratio));
+              return 50 + (ratio * 50);
+          }
+      }
+      const range = maxRank - minRank;
+      if (range === 0) return 50;
+      return ((rank - minRank) / range) * 100;
+  };
+
+  const getYPercent = (score: number) => 100 - ((score - yDomainMin) / yRange) * 100;
 
   const yGridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
       const val = yDomainMin + (yRange * ratio);
@@ -184,6 +251,10 @@ const LineChart: React.FC<LineChartProps> = ({
   
   xGridRanks = xGridRanks.filter(r => r <= maxRank && r >= minRank);
   xGridRanks = Array.from(new Set(xGridRanks)).sort((a, b) => a - b);
+
+  // 判斷線條是否在顯示範圍內
+  const isSafeLineVisible = safeThreshold !== undefined && safeThreshold >= yDomainMin && safeThreshold <= yDomainMax;
+  const isGiveUpLineVisible = giveUpThreshold !== undefined && giveUpThreshold >= yDomainMin && giveUpThreshold <= yDomainMax;
 
   return (
     <div className="bg-slate-900/70 p-4 pb-12 rounded-lg w-full border border-slate-800">

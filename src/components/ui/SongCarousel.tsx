@@ -15,7 +15,7 @@ const SongCarousel: React.FC<SongCarouselProps> = ({ songs }) => {
         if (activeIndex >= songs.length) {
             setActiveIndex(0);
         }
-    }, [songs.length]);
+    }, [songs.length, activeIndex]);
 
     const handleNext = useCallback(() => {
         setActiveIndex((prev) => (prev + 1) % songs.length);

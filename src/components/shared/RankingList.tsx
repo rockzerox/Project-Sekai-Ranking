@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { RankEntry, SortOption } from '../../types';
+import { RankEntry, SortOption, CardsMap } from '../../types';
 import RankingItem from '../../components/shared/RankingItem';
 
 interface RankingListProps {
@@ -9,11 +9,12 @@ interface RankingListProps {
   hideStats?: boolean;
   aggregateAt?: string;
   eventDuration?: number;
-  cardsMap?: Record<string, any>;
+  cardsMap?: CardsMap;
   isLiveEvent?: boolean;
+  now?: number;
 }
 
-const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent }) => {
+const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent, now }) => {
   if (rankings.length === 0) {
     return (
       <div className="text-center py-20">
@@ -41,6 +42,7 @@ const RankingList: React.FC<RankingListProps> = ({ rankings, sortOption, hideSta
                 eventDuration={eventDuration}
                 cardsMap={cardsMap}
                 isLiveEvent={isLiveEvent}
+                now={now}
             />
         );
       })}

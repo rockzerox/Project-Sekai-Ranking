@@ -29,11 +29,12 @@ const LiveEventView: React.FC = () => {
     const { cards } = useCardData();
     
     const [activeChapter, setActiveChapter] = useState<string>('all');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm] = useState('');
     const [sortOption, setSortOption] = useState<SortOption>('score');
     const [isRankingsOpen, setIsRankingsOpen] = useState(true);
     const [isChartsOpen, setIsChartsOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
+    const [now] = useState(Date.now());
 
     // Initial fetch
     useEffect(() => {
@@ -55,7 +56,7 @@ const LiveEventView: React.FC = () => {
 
     // Reset page on search/sort change
     useEffect(() => { 
-        if (currentPage !== 'highlights') setCurrentPage(1); 
+        setCurrentPage(prev => prev === 'highlights' ? prev : 1); 
     }, [searchTerm, sortOption]);
 
     const handlePageChange = (page: number | 'highlights') => {
@@ -71,13 +72,12 @@ const LiveEventView: React.FC = () => {
 
     const currentEventDuration = useMemo(() => {
         if (liveEventTiming) {
-            const now = Date.now();
             const start = new Date(liveEventTiming.startAt).getTime();
             const agg = new Date(liveEventTiming.aggregateAt).getTime();
             return Math.max(0.01, (Math.min(now, agg) - start) / MS_PER_DAY);
         }
         return 1;
-    }, [liveEventTiming]);
+    }, [liveEventTiming, now]);
 
     const sortedAndFilteredRankings = useMemo(() => {
         const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -280,6 +280,7 @@ const LiveEventView: React.FC = () => {
                             eventDuration={currentEventDuration}
                             cardsMap={cards || undefined}
                             isLiveEvent={true}
+                            now={now}
                         />
                     </CollapsibleSection>
                 </>

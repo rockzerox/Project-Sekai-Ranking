@@ -72,6 +72,8 @@ const PlayerAnalysisView: React.FC = () => {
 
     // 2. 批次處理活動數據
     useEffect(() => {
+        if (!isAnalyzing) return;
+
         if (eventsQueue.length === 0) {
             if (totalEventsCount > 0 && processedCount === totalEventsCount) {
                 setIsAnalyzing(false);
@@ -79,7 +81,7 @@ const PlayerAnalysisView: React.FC = () => {
             return;
         }
         
-        if (!isAnalyzing || isPausedRef.current) return;
+        if (isPausedRef.current) return;
 
         const processBatch = async () => {
             const controller = new AbortController();

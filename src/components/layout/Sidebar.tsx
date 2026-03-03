@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (parentGroup && !expandedGroups.has(parentGroup.category)) {
       setExpandedGroups(prev => new Set(prev).add(parentGroup.category));
     }
-  }, [currentView]);
+  }, [currentView, expandedGroups]);
 
   const toggleGroup = (category: string) => {
     if (isCollapsed) return; 

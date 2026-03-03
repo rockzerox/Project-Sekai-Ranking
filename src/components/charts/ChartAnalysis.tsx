@@ -83,6 +83,8 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   }, [sortOption, eventId, isHighlights]);
 
 
+  const [now] = useState(Date.now());
+
   const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant, remainingSafeSlots, t100ExtendedStats } = useMemo(() => {
     let data: { label: string, value: number, rank?: number }[] = [];
     let chartTitle = '';
@@ -122,7 +124,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
     };
 
     if (!eventId && liveAggregateAt && t100Score > 0) {
-        const now = Date.now();
         const end = new Date(liveAggregateAt).getTime();
         const sec = (end - now) / 1000;
         if (sec > 0) {
@@ -154,7 +155,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 variant = 'highlights';
                 data = borderData.filter(b => b.rank <= 10000 && b.score > 0).map(b => ({ label: `#${b.rank} ${b.name || 'Player'}`, value: b.score, rank: b.rank })).sort((a, b) => (a.rank || 0) - (b.rank || 0));
                 if (!eventId && liveAggregateAt) {
-                    const now = Date.now();
                     const end = new Date(liveAggregateAt).getTime();
                     const remainingSeconds = (end - now) / 1000;
                     if (remainingSeconds > 0) {
@@ -172,7 +172,6 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 variant = 'live'; 
                 data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.score, rank: r.rank }));
                 if (!eventId && liveAggregateAt && data.length > 0) {
-                    const now = Date.now();
                     const end = new Date(liveAggregateAt).getTime();
                     const remainingSeconds = (end - now) / 1000;
                     if (remainingSeconds > 0) {
@@ -187,17 +186,28 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             }
             chartColor = 'cyan';
             break;
-        case 'lastPlayedAt':
+        case 'lastPlayedAt': {
             chartTitle = '最後上線時間'; axisY = '分鐘 (Mins)';
-            const now = Date.now();
             data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank}`, value: Math.max(0, (now - new Date(r.lastPlayedAt).getTime()) / 60000), rank: r.rank }));
             chartColor = 'indigo'; axisFormatter = (v) => Math.round(v).toLocaleString(); 
             break;
+        }
         default:
-            data = isHighlights ? [] : sourceData.map(r => ({ label: `#${r.rank}`, value: (r.stats as any)[sortOption.split('_')[0]]?.[sortOption.split('_')[1]] || 0, rank: r.rank }));
+            data = isHighlights ? [] : sourceData.map(r => {
+                const [period, metric] = sortOption.split('_');
+                let val = 0;
+                if (period in r.stats) {
+                     const p = period as keyof typeof r.stats;
+                     const statsObj = r.stats[p];
+                     if (statsObj && metric in statsObj) {
+                         val = statsObj[metric as keyof typeof statsObj] || 0;
+                     }
+                }
+                return { label: `#${r.rank}`, value: val, rank: r.rank };
+            });
     }
     return { chartData: data, title: chartTitle, valueFormatter: formatter, yAxisFormatter: axisFormatter, color: chartColor, yLabel: axisY, safeThreshold: calculatedSafeThreshold, giveUpThreshold: calculatedGiveUpThreshold, safeRankCutoff: calculatedSafeRankCutoff, giveUpRankCutoff: calculatedGiveUpRankCutoff, chartVariant: variant, remainingSafeSlots: calculatedRemainingSlots, t100ExtendedStats: calculatedT100Extended };
-  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score]);
+  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score, now]);
 
   const dashboardStats = useMemo(() => {
     if (!isHighlights || safeRankCutoff === undefined || giveUpRankCutoff === undefined) return null;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary } from '../../types';
 import { UNIT_ORDER, UNIT_MASTER, API_BASE_URL } from '../../config/constants';
@@ -17,6 +16,36 @@ const STORY_TYPES: { id: StoryType, label: string }[] = [
 
 const RANK_TARGETS = [1, 10, 100, 500, 1000, 5000, 10000];
 
+interface StatCardProps {
+    label: string;
+    value: number;
+    sub: string;
+    unitThemeColor: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ label, value, sub, unitThemeColor }) => (
+    <div 
+        className="flex-1 flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border shadow-sm transition-colors"
+        style={{ borderColor: `${unitThemeColor}44` }}
+    >
+        <div className="flex flex-col">
+            <span className="text-[13px] font-black text-slate-400 uppercase tracking-tight mb-0.5">{label}</span>
+            <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase">{sub}</span>
+        </div>
+        <div className="text-right">
+            <div className="text-lg font-black text-slate-800 dark:text-white font-mono" style={{ color: unitThemeColor }}>
+                {Stats.formatScoreToChinese(value)}
+            </div>
+        </div>
+    </div>
+);
+
+interface AnalyzedEventData {
+    id: number;
+    name: string;
+    score: number;
+}
+
 const UnitAnalysisView: React.FC = () => {
     const { eventDetails, getEventColor } = useConfig();
     const [selectedUnit, setSelectedUnit] = useState<string>('1'); // Leo/need ID
@@ -24,7 +53,7 @@ const UnitAnalysisView: React.FC = () => {
     const [rankTarget, setRankTarget] = useState<number>(100);
 
     const [events, setEvents] = useState<EventSummary[]>([]);
-    const [analyzedData, setAnalyzedData] = useState<any[]>([]);
+    const [analyzedData, setAnalyzedData] = useState<AnalyzedEventData[]>([]);
     const [uniquePlayers, setUniquePlayers] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(true);
     const [progress, setProgress] = useState(0);
@@ -68,7 +97,7 @@ const UnitAnalysisView: React.FC = () => {
                 return;
             }
 
-            const results: any[] = [];
+            const results: AnalyzedEventData[] = [];
             const playerIds = new Set<string>();
 
             const BATCH_SIZE = 5;
@@ -91,18 +120,18 @@ const UnitAnalysisView: React.FC = () => {
                         let targetScore = 0;
                         if (jsonScore) {
                             const rankings = isT100 ? jsonScore.rankings : jsonScore.borderRankings;
-                            targetScore = rankings?.find((r: any) => r.rank === rankTarget)?.score || 0;
+                            targetScore = rankings?.find((r: { rank: number, score: number }) => r.rank === rankTarget)?.score || 0;
                         }
 
                         if (jsonTop100 && jsonTop100.rankings) {
-                            jsonTop100.rankings.forEach((r: any) => playerIds.add(String(r.userId)));
+                            jsonTop100.rankings.forEach((r: { userId: string | number }) => playerIds.add(String(r.userId)));
                         }
 
                         return { id: evt.id, name: evt.name, score: targetScore };
-                    } catch (e) { return null; }
+                    } catch { return null; }
                 }));
 
-                results.push(...batchResults.filter(r => r !== null && r.score > 0));
+                results.push(...(batchResults.filter(r => r !== null && r.score > 0) as AnalyzedEventData[]));
                 setProgress(Math.round(((i + batch.length) / filteredEvents.length) * 100));
             }
 
@@ -140,23 +169,6 @@ const UnitAnalysisView: React.FC = () => {
     const top5 = useMemo(() => {
         return [...analyzedData].sort((a, b) => b.score - a.score).slice(0, 5);
     }, [analyzedData]);
-
-    const StatCard: React.FC<{ label: string, value: number, sub: string }> = ({ label, value, sub }) => (
-        <div 
-            className="flex-1 flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border shadow-sm transition-colors"
-            style={{ borderColor: `${unitThemeColor}44` }}
-        >
-            <div className="flex flex-col">
-                <span className="text-[13px] font-black text-slate-400 uppercase tracking-tight mb-0.5">{label}</span>
-                <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase">{sub}</span>
-            </div>
-            <div className="text-right">
-                <div className="text-lg font-black text-slate-800 dark:text-white font-mono" style={{ color: unitThemeColor }}>
-                    {Stats.formatScoreToChinese(value)}
-                </div>
-            </div>
-        </div>
-    );
 
     const storyLabel = useMemo(() => STORY_TYPES.find(t => t.id === storyType)?.label || '箱活', [storyType]);
 
@@ -265,11 +277,11 @@ const UnitAnalysisView: React.FC = () => {
                             </div>
                         )}
 
-                        <StatCard label={UI_TEXT.common.stats.max} value={stats.max} sub="MAX RECORD" />
-                        <StatCard label={UI_TEXT.common.stats.mean} value={stats.mean} sub="MEAN AVERAGE" />
-                        <StatCard label={UI_TEXT.common.stats.median} value={stats.median} sub="MEDIAN SCORE" />
-                        <StatCard label={UI_TEXT.common.stats.min} value={stats.min} sub="MIN RECORD" />
-                        <StatCard label={UI_TEXT.common.stats.stdDev} value={stats.stdDev} sub="STANDARD DEVIATION" />
+                        <StatCard label={UI_TEXT.common.stats.max} value={stats.max} sub="MAX RECORD" unitThemeColor={unitThemeColor} />
+                        <StatCard label={UI_TEXT.common.stats.mean} value={stats.mean} sub="MEAN AVERAGE" unitThemeColor={unitThemeColor} />
+                        <StatCard label={UI_TEXT.common.stats.median} value={stats.median} sub="MEDIAN SCORE" unitThemeColor={unitThemeColor} />
+                        <StatCard label={UI_TEXT.common.stats.min} value={stats.min} sub="MIN RECORD" unitThemeColor={unitThemeColor} />
+                        <StatCard label={UI_TEXT.common.stats.stdDev} value={stats.stdDev} sub="STANDARD DEVIATION" unitThemeColor={unitThemeColor} />
                     </div>
                 </div>
 

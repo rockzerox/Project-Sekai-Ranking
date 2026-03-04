@@ -16,12 +16,27 @@ interface RankingItemProps {
 }
 
 const getRankStyles = (rank: number) => {
-  // Unified style for all ranks, keeping only text color distinction if desired, 
-  // but user requested removing "special ranking styles" which implies the big cards/backgrounds.
-  // We'll keep it clean and uniform.
+  if (rank === 1) {
+    return {
+      container: 'border-yellow-400 dark:border-yellow-500/50 bg-yellow-50/80 dark:bg-yellow-500/10 hover:bg-yellow-100 dark:hover:bg-yellow-500/20',
+      rankText: 'text-yellow-600 dark:text-yellow-400',
+    };
+  }
+  if (rank === 2) {
+    return {
+      container: 'border-slate-300 dark:border-slate-400/50 bg-slate-100/80 dark:bg-slate-400/10 hover:bg-slate-200 dark:hover:bg-slate-400/20',
+      rankText: 'text-slate-600 dark:text-slate-300',
+    };
+  }
+  if (rank === 3) {
+    return {
+      container: 'border-amber-600 dark:border-amber-600/50 bg-amber-50/80 dark:bg-amber-600/10 hover:bg-amber-100 dark:hover:bg-amber-600/20',
+      rankText: 'text-amber-700 dark:text-amber-500',
+    };
+  }
   return {
     container: 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/60',
-    rankText: rank <= 3 ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400', 
+    rankText: 'text-slate-500 dark:text-slate-400', 
   };
 };
 
@@ -224,12 +239,12 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
                 <img 
                     src={avatarUrl} 
                     alt="Leader" 
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700"
                     onError={(e) => e.currentTarget.style.display = 'none'}
                 />
             ) : (
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                    <span className="text-xs text-slate-400">No Img</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                    <span className="text-[10px] text-slate-400">No Img</span>
                 </div>
             )}
         </div>

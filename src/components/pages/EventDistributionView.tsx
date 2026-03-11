@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { EventSummary } from '../../types';
 import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL } from '../../config/constants';
 import { getAssetUrl, getChar } from '../../utils/gameUtils';
@@ -47,70 +47,8 @@ const getCardTypeInfo = (type: string) => {
     }
 };
 
-const HoverTooltip: React.FC<{ 
-    event: ProcessedEvent | null; 
-    position: { x: number, y: number } | null;
-    filterType: FilterType;
-}> = ({ event, position, filterType }) => {
-    if (!event || !position) return null;
-
-    const logoUrl = getAssetUrl(event.id.toString(), 'event');
-    const cardTypeInfo = getCardTypeInfo(event.cardType);
-    const formatDate = (date: Date) => date.toLocaleDateString(undefined, {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
-    const dateRange = `${formatDate(event.startDate)} - ${formatDate(event.endDate)}`;
-
-    let nameColor = (filterType === 'unit') ? event.unitColor : event.charColor;
-    if (filterType === 'all' && event.storyType === 'world_link') nameColor = event.unitColor;
-
-    const TOOLTIP_WIDTH = 256;
-    const TOOLTIP_HEIGHT = 200; 
-    const OFFSET = 15;
-
-    let left = position.x + OFFSET;
-    let top = position.y + OFFSET;
-
-    if (left + TOOLTIP_WIDTH > window.innerWidth) {
-        left = position.x - TOOLTIP_WIDTH - OFFSET;
-    }
-    if (top + TOOLTIP_HEIGHT > window.innerHeight) {
-        top = position.y - TOOLTIP_HEIGHT - OFFSET;
-    }
-    
-    left = Math.max(10, left);
-    top = Math.max(10, top);
-
-    return (
-        <div 
-            className="fixed z-50 bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl border border-slate-700 pointer-events-none backdrop-blur-md animate-fadeIn w-64 flex flex-col gap-2"
-            style={{ top, left }}
-        >
-            <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
-                <span className="text-xs font-mono text-cyan-400 font-bold">#{event.id}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${cardTypeInfo.className}`}>
-                    {cardTypeInfo.label}
-                </span>
-            </div>
-            
-            {logoUrl && (
-                <div className="w-full bg-white/5 rounded p-1 flex justify-center">
-                    <img src={logoUrl} alt="logo" className="h-14 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                </div>
-            )}
-
-            <div className="font-bold text-sm leading-tight" style={{ color: nameColor }}>{event.name}</div>
-            
-            <div className="flex flex-col gap-1 mt-1">
-                <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: event.unitColor }}></div>
-                    <span className="text-[10px] text-slate-400">{event.unitName} • {event.bannerCharName}</span>
-                </div>
-                <span className="text-[10px] font-mono text-cyan-500/80 bg-slate-800/50 px-2 py-1 rounded border border-slate-700/50">
-                    {dateRange}
-                </span>
-            </div>
-        </div>
-    );
-};
+import { PortalTooltip, TooltipHandle } from '../../components/ui/PortalTooltip';
+import { useRef } from 'react';
 
 const EventDistributionView: React.FC = () => {
     const { eventDetails } = useConfig();
@@ -121,8 +59,7 @@ const EventDistributionView: React.FC = () => {
     const [scrollIndex, setScrollIndex] = useState(0); 
     const VIEWPORT_MONTHS = 12;
 
-    const [hoveredEvent, setHoveredEvent] = useState<ProcessedEvent | null>(null);
-    const [tooltipPos, setTooltipPos] = useState<{x: number, y: number} | null>(null);
+    const tooltipRef = useRef<TooltipHandle>(null);
 
     const [filter, setFilter] = useState<FilterState>({
         type: 'all', value: 'all', storyType: 'all'
@@ -162,7 +99,7 @@ const EventDistributionView: React.FC = () => {
 
                 setEvents(processed);
                 setIsLoading(false);
-            } catch (err) {
+            } catch {
                 setError('無法載入活動資料');
                 setIsLoading(false);
             }
@@ -177,7 +114,7 @@ const EventDistributionView: React.FC = () => {
         const lastDate = events[events.length - 1].startDate;
         const monthsList: string[] = [];
         
-        let current = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+        const current = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
         const end = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 1);
 
         while (current <= end) {
@@ -224,12 +161,12 @@ const EventDistributionView: React.FC = () => {
         if (allMonths.length > VIEWPORT_MONTHS) setScrollIndex(allMonths.length - VIEWPORT_MONTHS);
     }, [allMonths.length]);
 
-    const isMatch = (event: ProcessedEvent) => {
+    const isMatch = useCallback((event: ProcessedEvent) => {
         if (filter.storyType !== 'all' && event.storyType !== filter.storyType) return false;
         if (filter.type === 'character') return event.bannerCharId === filter.value;
         if (filter.type === 'unit') return event.unitId === filter.value;
         return true;
-    };
+    }, [filter]);
 
     const stats = useMemo(() => {
         const filtered = events.filter(isMatch);
@@ -275,7 +212,7 @@ const EventDistributionView: React.FC = () => {
             unitMaxInterval, unitMinInterval: unitMinInterval === Infinity ? 0 : unitMinInterval,
             mixedMaxInterval, mixedMinInterval: mixedMinInterval === Infinity ? 0 : mixedMinInterval
         };
-    }, [events, filter]);
+    }, [events, filter, isMatch]);
 
     const handleWheel = (e: React.WheelEvent) => {
         const max = Math.max(0, allMonths.length - VIEWPORT_MONTHS);
@@ -297,7 +234,7 @@ const EventDistributionView: React.FC = () => {
 
     return (
         <div className="w-full animate-fadeIn pb-4">
-            <HoverTooltip event={hoveredEvent} position={tooltipPos} filterType={filter.type} />
+            <PortalTooltip ref={tooltipRef} />
 
             <div className="mb-4 px-2 flex flex-col md:flex-row justify-between md:items-end gap-4">
                 <div>
@@ -308,7 +245,7 @@ const EventDistributionView: React.FC = () => {
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{UI_TEXT.eventDistribution.filterType}</span>
                     <div className="flex gap-1.5">
                         {[{ id: 'all', label: UI_TEXT.eventDistribution.types.all }, { id: 'unit_event', label: UI_TEXT.eventDistribution.types.unit }, { id: 'mixed_event', label: UI_TEXT.eventDistribution.types.mixed }, { id: 'world_link', label: UI_TEXT.eventDistribution.types.wl }].map(t => (
-                            <button key={t.id} onClick={() => setFilter(p => ({ ...p, storyType: t.id as any }))} className={`px-4 py-1.5 rounded-full text-[11px] font-black border transition-all ${filter.storyType === t.id ? 'bg-cyan-600 text-white dark:bg-cyan-500 border-transparent shadow-lg scale-105' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}>{t.label}</button>
+                            <button key={t.id} onClick={() => setFilter(p => ({ ...p, storyType: t.id as StoryType }))} className={`px-4 py-1.5 rounded-full text-[11px] font-black border transition-all ${filter.storyType === t.id ? 'bg-cyan-600 text-white dark:bg-cyan-500 border-transparent shadow-lg scale-105' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}>{t.label}</button>
                         ))}
                     </div>
                 </div>
@@ -414,9 +351,61 @@ const EventDistributionView: React.FC = () => {
                                                             borderRadius: '3px',
                                                             border: '1px solid rgba(255,255,255,0.1)'
                                                         }}
-                                                        onMouseEnter={(e) => { setHoveredEvent(seg.event); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                                                        onMouseMove={(e) => { setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                                                        onMouseLeave={() => { setHoveredEvent(null); setTooltipPos(null); }}
+                                                        onMouseEnter={(e) => { 
+                                                            tooltipRef.current?.show(e.clientX, e.clientY, (
+                                                                <div className="w-64 flex flex-col gap-2">
+                                                                    <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
+                                                                        <span className="text-xs font-mono text-cyan-400 font-bold">#{seg.event.id}</span>
+                                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${getCardTypeInfo(seg.event.cardType).className}`}>
+                                                                            {getCardTypeInfo(seg.event.cardType).label}
+                                                                        </span>
+                                                                    </div>
+                                                                    {getAssetUrl(seg.event.id.toString(), 'event') && (
+                                                                        <div className="w-full bg-white/5 rounded p-1 flex justify-center">
+                                                                            <img src={getAssetUrl(seg.event.id.toString(), 'event')} alt="logo" className="h-14 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="font-bold text-sm leading-tight" style={{ color: (filter.type === 'unit') ? seg.event.unitColor : seg.event.charColor }}>{seg.event.name}</div>
+                                                                    <div className="flex flex-col gap-1 mt-1">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: seg.event.unitColor }}></div>
+                                                                            <span className="text-[10px] text-slate-400">{seg.event.unitName} • {seg.event.bannerCharName}</span>
+                                                                        </div>
+                                                                        <span className="text-[10px] font-mono text-cyan-500/80 bg-slate-800/50 px-2 py-1 rounded border border-slate-700/50">
+                                                                            {seg.event.startDate.toLocaleDateString(undefined, {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})} - {seg.event.endDate.toLocaleDateString(undefined, {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        }}
+                                                        onMouseMove={(e) => { 
+                                                            tooltipRef.current?.show(e.clientX, e.clientY, (
+                                                                <div className="w-64 flex flex-col gap-2">
+                                                                    <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
+                                                                        <span className="text-xs font-mono text-cyan-400 font-bold">#{seg.event.id}</span>
+                                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${getCardTypeInfo(seg.event.cardType).className}`}>
+                                                                            {getCardTypeInfo(seg.event.cardType).label}
+                                                                        </span>
+                                                                    </div>
+                                                                    {getAssetUrl(seg.event.id.toString(), 'event') && (
+                                                                        <div className="w-full bg-white/5 rounded p-1 flex justify-center">
+                                                                            <img src={getAssetUrl(seg.event.id.toString(), 'event')} alt="logo" className="h-14 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="font-bold text-sm leading-tight" style={{ color: (filter.type === 'unit') ? seg.event.unitColor : seg.event.charColor }}>{seg.event.name}</div>
+                                                                    <div className="flex flex-col gap-1 mt-1">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: seg.event.unitColor }}></div>
+                                                                            <span className="text-[10px] text-slate-400">{seg.event.unitName} • {seg.event.bannerCharName}</span>
+                                                                        </div>
+                                                                        <span className="text-[10px] font-mono text-cyan-500/80 bg-slate-800/50 px-2 py-1 rounded border border-slate-700/50">
+                                                                            {seg.event.startDate.toLocaleDateString(undefined, {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})} - {seg.event.endDate.toLocaleDateString(undefined, {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        }}
+                                                        onMouseLeave={() => { tooltipRef.current?.hide(); }}
                                                     />
                                                 );
                                             })}

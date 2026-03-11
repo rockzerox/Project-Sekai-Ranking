@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 玩家排名結構 (Player Structure)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_PLAYER_STRUCTURE`
 **對應視圖**: `currentView === 'playerStructure'` (src/App.tsx)
 **主要用途**: 透過數學模型分析前百名玩家的「換血率 (Turnover Rate)」，剖析遊戲生態的流動性與固化程度。
@@ -45,7 +48,7 @@
 
 ### 2.2 SVG 繪圖
 *   使用原生 SVG `<path>` 繪製曲線。
-*   **互動游標**: 滑鼠移動時，計算最近的 $K$ 值，並顯示該點的具體數值與趨勢標籤。
+*   **互動游標**: 滑鼠移動時，計算最近的 $K$ 值，並透過 `PortalTooltip` 顯示該點的具體數值與趨勢標籤，確保 tooltip 不會被 SVG 容器遮擋。
 *   **動態縮放**: Y 軸設定為 40% ~ 100%，以放大曲線差異。
 
 ---
@@ -76,3 +79,27 @@
 *   `contexts/ConfigContext.ts`
 *   `src/hooks/useRankings.ts`
 *   `src/utils/mathUtils.ts`
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

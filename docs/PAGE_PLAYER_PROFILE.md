@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 玩家狀態查詢 (Player Profile)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_PLAYER_PROFILE`
 **對應視圖**: `currentView === 'playerProfile'` (src/App.tsx)
 **主要用途**: 針對單一玩家 ID 進行深度查詢，展示其綜合力組成、歌曲通關進度以及歷史活動的戰績。
@@ -63,3 +66,27 @@
 *   `src/components/ui/Button.tsx`
 *   `src/hooks/useEventList.ts` (用於取得掃描目標列表)
 *   `src/hooks/useRankings.ts` (fetchJsonWithBigInt)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

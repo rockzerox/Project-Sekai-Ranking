@@ -2,12 +2,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CHARACTER_MASTER, UNIT_MASTER, API_BASE_URL, UNIT_ORDER } from '../../config/constants';
 import { getAssetUrl } from '../../utils/gameUtils';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import ErrorMessage from '../../components/ui/ErrorMessage';
 import { useConfig } from '../../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
-import { EventSummary, PastEventApiResponse } from '../../types';
+import { EventSummary, PastEventApiResponse, RankingEntry } from '../../types';
 import { UI_TEXT } from '../../config/uiText';
+import { PortalTooltip, TooltipHandle } from '../ui/PortalTooltip';
 
 interface AnalysisResult {
     id: string;
@@ -121,13 +120,14 @@ const PlayerStructureView: React.FC = () => {
     const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
     const [selectedEntries, setSelectedEntries] = useState<{ type: 'global' | 'unit' | 'char', id: string }[]>([{ type: 'global', id: '' }]);
     const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('banner');
-    const [eventDataCache, setEventDataCache] = useState<Record<number, any[]>>({});
+    const [eventDataCache, setEventDataCache] = useState<Record<number, RankingEntry[]>>({});
     const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [error, setError] = useState<string | null>(null);
+    const [, setError] = useState<string | null>(null);
     const [hoveredK, setHoveredK] = useState<number | null>(null);
     const [showFormula, setShowFormula] = useState(false);
+    const tooltipRef = useRef<TooltipHandle>(null);
     
     const abortControllerRef = useRef<AbortController | null>(null);
     const SUPPORTED_UNITS = ["Leo/need", "MORE MORE JUMP!", "Vivid BAD SQUAD", "Wonderlands × Showtime", "25點，Nightcord見。"];
@@ -176,7 +176,7 @@ const PlayerStructureView: React.FC = () => {
                         try {
                             const res: PastEventApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${id}/top100`, controller.signal);
                             return { id, rankings: res.rankings || [] };
-                        } catch (e) { return null; }
+                        } catch { return null; }
                     }));
                     results.forEach(res => { if (res) newCache[res.id] = res.rankings; });
                     setProgress(Math.round(((i + batch.length) / (missingIds.length || 1)) * 100));
@@ -188,14 +188,14 @@ const PlayerStructureView: React.FC = () => {
                     const rankSets: Set<string>[] = Array.from({ length: 100 }, () => new Set());
                     targetEvents.forEach(id => {
                         const rankings = newCache[id] || [];
-                        rankings.forEach((entry: any) => {
+                        rankings.forEach((entry: RankingEntry) => {
                             const r = entry.rank;
                             if (r >= 1 && r <= 100) { for (let k = r; k <= 100; k++) rankSets[k - 1].add(String(entry.userId)); }
                         });
                     });
                     const uCurve = rankSets.map((s, idx) => parseFloat(((s.size / (N * (idx + 1))) * 100).toFixed(2)));
-                    let name = entry.type === 'global' ? '整體遊戲' : (entry.type === 'unit' ? entry.id : CHARACTER_MASTER[entry.id]?.name);
-                    let color = entry.type === 'global' ? '#64748b' : (entry.type === 'unit' ? UNIT_MASTER[UNIT_ORDER.find(id => UNIT_MASTER[id].name === entry.id)!]?.color : CHARACTER_MASTER[entry.id]?.color) || '#06b6d4';
+                    const name = entry.type === 'global' ? '整體遊戲' : (entry.type === 'unit' ? entry.id : CHARACTER_MASTER[entry.id]?.name);
+                    const color = entry.type === 'global' ? '#64748b' : (entry.type === 'unit' ? UNIT_MASTER[UNIT_ORDER.find(id => UNIT_MASTER[id].name === entry.id)!]?.color : CHARACTER_MASTER[entry.id]?.color) || '#06b6d4';
                     
                     let rawId = entry.id;
                     if (entry.type === 'unit') {
@@ -205,9 +205,10 @@ const PlayerStructureView: React.FC = () => {
                     newResults.push({ id: `${entry.type}-${entry.id}`, type: entry.type, rawId, name, color, eventCount: N, data: uCurve });
                 });
                 setAnalysisResults(newResults);
-            } catch (err: any) { if (err.name !== 'AbortError') setError(err.message); } finally { setIsAnalyzing(false); }
+            } catch (err) { if (err instanceof Error && err.name !== 'AbortError') setError(err.message); } finally { setIsAnalyzing(false); }
         };
         runAnalysis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedEntries, analysisMode, allEvents, eventDetails]);
 
     const toggleEntry = (type: 'global' | 'unit' | 'char', id: string) => {
@@ -366,7 +367,6 @@ const PlayerStructureView: React.FC = () => {
                                     const isPos = t.val && t.val.startsWith('+');
                                     const isNeg = t.val && t.val.startsWith('-');
                                     // 動態邊框與背景色：若 active 則使用主要色，否則預設
-                                    const dynamicStyle = isActive ? { borderColor: trends?.primaryColor, color: trends?.primaryColor } : {};
                                     
                                     return (
                                         <div 
@@ -394,8 +394,37 @@ const PlayerStructureView: React.FC = () => {
                                 <svg viewBox="0 0 1000 420" className="w-full h-full overflow-visible select-none transition-all duration-300" onMouseMove={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     const k = Math.round(((e.clientX - rect.left) / rect.width) * 99) + 1;
-                                    setHoveredK(Math.max(1, Math.min(100, k)));
-                                }} onMouseLeave={() => setHoveredK(null)}>
+                                    const newHoveredK = Math.max(1, Math.min(100, k));
+                                    setHoveredK(newHoveredK);
+                                    
+                                    if (tooltipRef.current && analysisResults.length > 0) {
+                                        tooltipRef.current.show(
+                                            e.clientX,
+                                            e.clientY,
+                                            <div className="flex flex-col gap-2">
+                                                <div className="text-cyan-400 font-black text-[14px] uppercase tracking-widest underline font-mono text-center mb-1">
+                                                    Rank {newHoveredK}
+                                                </div>
+                                                {analysisResults.map((res) => {
+                                                    const icon = getIconUrl(res);
+                                                    return (
+                                                        <div key={`tooltip-item-${res.id}`} className="flex items-center gap-2">
+                                                            {icon && <img src={icon} alt="" className="w-[18px] h-[18px] rounded-full" />}
+                                                            <span className={`text-[12px] font-black font-sans ${res.type === 'global' && isGlobalDimmed ? 'text-slate-400' : 'text-white'}`}>
+                                                                {res.name.substring(0,8)}: {res.data[newHoveredK - 1]}%
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    }
+                                }} onMouseLeave={() => {
+                                    setHoveredK(null);
+                                    if (tooltipRef.current) {
+                                        tooltipRef.current.hide();
+                                    }
+                                }}>
                                     {/* 網格輔助線 (40, 50, ..., 100) */}
                                     {[40, 50, 60, 70, 80, 90, 100].map(v => (
                                         <g key={v}>
@@ -439,24 +468,6 @@ const PlayerStructureView: React.FC = () => {
                                                     </g>
                                                 );
                                             })}
-
-                                            {/* Tooltip */}
-                                            <rect x={hoveredK > 75 ? 60 + ((hoveredK - 1) / 99) * 910 - 170 : 60 + ((hoveredK - 1) / 99) * 910 + 12} y="30" width="160" height={analysisResults.length * 30 + 55} rx="16" fill="#0f172a" opacity="0.96" className="shadow-2xl" />
-                                            <text x={hoveredK > 75 ? 60 + ((hoveredK - 1) / 99) * 910 - 90 : 60 + ((hoveredK - 1) / 99) * 910 + 92} y="58" textAnchor="middle" className="fill-cyan-400 font-black text-[14px] uppercase tracking-widest underline font-mono">Rank {hoveredK}</text>
-                                            
-                                            {analysisResults.map((res, i) => {
-                                                const icon = getIconUrl(res);
-                                                const xBase = hoveredK > 75 ? 60 + ((hoveredK - 1) / 99) * 910 - 155 : 60 + ((hoveredK - 1) / 99) * 910 + 25;
-                                                const yBase = 88 + i * 30;
-                                                return (
-                                                    <g key={`tooltip-item-${res.id}`}>
-                                                        {icon && <image href={icon} x={xBase} y={yBase - 14} width="18" height="18" className="rounded-full" />}
-                                                        <text x={xBase + (icon ? 22 : 0)} y={yBase} className="text-[12px] font-black font-sans" fill={res.type === 'global' && isGlobalDimmed ? '#94a3b8' : 'white'}>
-                                                            {res.name.substring(0,8)}: {res.data[hoveredK - 1]}%
-                                                        </text>
-                                                    </g>
-                                                );
-                                            })}
                                         </g>
                                     )}
                                 </svg>
@@ -487,6 +498,8 @@ const PlayerStructureView: React.FC = () => {
                     </div>
                 </div>
             </div>
+            
+            <PortalTooltip ref={tooltipRef} />
         </div>
     );
 };

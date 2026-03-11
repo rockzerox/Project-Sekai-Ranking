@@ -43,7 +43,6 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
     showFourStar = true,
     showTheme = true,
     mode = 'multi',
-    compact = false,
     containerClassName = "flex flex-wrap gap-2 items-center",
     itemClassName = "w-full sm:w-auto"
 }) => {

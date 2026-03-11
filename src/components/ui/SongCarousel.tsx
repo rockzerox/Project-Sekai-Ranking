@@ -13,7 +13,7 @@ const SongCarousel: React.FC<SongCarouselProps> = ({ songs }) => {
     // Reset index if songs change drastically
     useEffect(() => {
         if (activeIndex >= songs.length) {
-            setActiveIndex(0);
+            setTimeout(() => setActiveIndex(0), 0);
         }
     }, [songs.length, activeIndex]);
 

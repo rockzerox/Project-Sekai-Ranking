@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 活動比較分析 (Event Comparison)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_EVENT_COMPARISON`
 **對應視圖**: `currentView === 'comparison'` (src/App.tsx)
 **主要用途**: 允許使用者並排比較任意兩期活動或 World Link 角色章節的榜單數據，分析分數膨脹趨勢與競爭型態差異。
@@ -28,7 +31,7 @@
 
 ### 1.2 互動機制
 *   **動態連動選單 (World Link 模式)**: 選擇「第 X 輪」後，「角色」下拉選單會自動過濾，僅顯示該輪次有出場的角色，避免無效選擇。
-*   **鼠標追蹤 (Crosshair)**: 滑鼠在圖表移動時，自動吸附至最近的排名點，並顯示兩者在該名次的具體分數。
+*   **鼠標追蹤 (Crosshair)**: 滑鼠在圖表移動時，自動吸附至最近的排名點，並透過 `PortalTooltip` 顯示兩者在該名次的具體分數，解決 tooltip 被 SVG 邊界截斷的問題。
 *   **緊湊型過濾器 (Compact Filters)**: 一般模式下，使用 `EventFilterGroup` 的緊湊模式，將複雜的篩選條件收納於彈出選單中，保持畫面簡潔。
 
 ---
@@ -90,3 +93,27 @@
 *   `src/hooks/useRankings.ts` (複用 `fetchJsonWithBigInt`)
 *   `src/utils/mathUtils.ts` (分數格式化)
 *   `src/config/constants.ts` (引用 `CHARACTERS` 獲取角色顏色與名稱)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

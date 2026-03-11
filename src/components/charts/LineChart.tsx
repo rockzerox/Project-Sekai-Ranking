@@ -1,5 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { getAssetUrl } from '../../utils/gameUtils';
+import { CardsMap } from '../../types';
+import { PortalTooltip, TooltipHandle } from '../ui/PortalTooltip';
 
 interface ChartData {
   label: string;
@@ -8,6 +10,7 @@ interface ChartData {
   isHighlighted?: boolean;
   pointColor?: string;
   year?: number;
+  captainCharacterId?: number;
 }
 
 type ChartVariant = 'live' | 'trend' | 'highlights' | 'default';
@@ -26,6 +29,7 @@ interface LineChartProps {
   safeRankCutoff?: number; 
   giveUpThreshold?: number; 
   giveUpRankCutoff?: number; 
+  cardsMap?: CardsMap;
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -45,6 +49,7 @@ const LineChart: React.FC<LineChartProps> = ({
 }) => {
   const axisFormatter = yAxisFormatter || valueFormatter;
   const [isMobile, setIsMobile] = useState(false);
+  const tooltipRef = useRef<TooltipHandle>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -229,7 +234,7 @@ const LineChart: React.FC<LineChartProps> = ({
   });
 
   let xGridRanks: number[] = [];
-  let yearTicks: { x: number, year: number }[] = [];
+  const yearTicks: { x: number, year: number }[] = [];
   
   if (isTrend) {
       for (let i = minRank; i <= maxRank; i++) {
@@ -243,7 +248,7 @@ const LineChart: React.FC<LineChartProps> = ({
           }
       });
   } else if (isHighlights) {
-      xGridRanks = [100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+      xGridRanks = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
       if (isMobile) xGridRanks = [100, 500, 1000, 5000, 10000];
   } else {
       xGridRanks = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
@@ -323,54 +328,56 @@ const LineChart: React.FC<LineChartProps> = ({
 
                 {points.map((point, index) => {
                     const eventLogoUrl = isTrend ? getAssetUrl(point.rank?.toString(), 'event') : undefined;
-                    
-                    let tooltipLeft = "50%";
-                    let tooltipTranslate = "-50%";
-                    let arrowLeft = "50%";
 
-                    if (point.x > 70) {
-                        tooltipLeft = "calc(100% - 12px)";
-                        tooltipTranslate = "-100%";
-                        arrowLeft = "90%";
-                    } else if (point.x < 20) {
-                        tooltipLeft = "0%";
-                        tooltipTranslate = "0%";
-                        arrowLeft = "10%";
-                    }
-
-                    return (
-                        <div key={`hit-${index}`} className="absolute w-4 h-4 -ml-[8px] -mt-[8px] rounded-full cursor-pointer z-20 hover:bg-white/10 group" style={{ left: `${point.x}%`, top: `${point.y}%` }}>
-                            <div 
-                                className={`hidden group-hover:flex absolute bottom-full mb-3 ${isMobile ? 'w-[210px]' : 'w-64'} bg-slate-900/95 text-white p-3 rounded-xl shadow-2xl z-50 border border-slate-700 pointer-events-none backdrop-blur-md animate-fadeIn flex-col gap-2`}
-                                style={{ left: tooltipLeft, transform: `translateX(${tooltipTranslate})` }}
-                            >
-                                <div className="flex justify-between items-center border-b border-slate-700/50 pb-2 mb-1">
-                                    <span className="text-xs font-mono text-cyan-400 font-black">
-                                        {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
-                                    </span>
+                    const renderTooltipContent = () => (
+                        <div className={`flex flex-col gap-1 ${isMobile ? 'w-[180px]' : 'w-56'}`}>
+                            <div className="flex justify-between items-center border-b border-slate-700/50 pb-1 mb-0.5">
+                                <span className="text-[10px] font-mono text-cyan-400 font-black">
+                                    {isTrend ? `第 ${point.rank} 期` : `Rank ${point.rank}`}
+                                </span>
+                            </div>
+                            
+                            <div className={`flex ${isTrend ? 'flex-col' : 'flex-row'} items-center gap-2 py-1`}>
+                                {(() => {
+                                    if (isTrend && eventLogoUrl) {
+                                        return (
+                                            <img src={eventLogoUrl} alt="event logo" className="w-2/3 h-auto object-contain rounded-sm bg-white/5" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                        );
+                                    }
+                                    const charId = point.captainCharacterId;
+                                    return charId ? (
+                                        <img src={getAssetUrl(charId.toString(), 'character')} alt="captain" className="w-8 h-8 rounded-full border border-slate-600 object-cover" />
+                                    ) : null;
+                                })()}
+                                <div className={`font-bold text-xs leading-tight ${isTrend ? 'text-center w-full' : 'truncate'}`} style={{ color: point.pointColor || 'inherit' }}>
+                                    {point.label.replace(/^#\d+\s/, '')}
                                 </div>
-                                
-                                {eventLogoUrl && (
-                                    <div className="w-full bg-white/5 rounded-lg p-1.5 flex justify-center">
-                                        <img src={eventLogoUrl} alt="logo" className="h-14 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                                    </div>
-                                )}
-
-                                <div className="font-black text-sm leading-tight text-center" style={{ color: point.pointColor || 'inherit' }}>
-                                    {point.label}
-                                </div>
-                                
-                                <div className="flex flex-col gap-1 mt-1 bg-black/30 p-2 rounded-lg border border-white/5">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">分數 (Score)</span>
-                                        <span className="text-sm font-mono font-black text-white">
-                                            {valueFormatter(point.value)}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="absolute top-full border-[6px] border-transparent border-t-slate-900/95 -translate-x-1/2" style={{ left: arrowLeft }}></div>
+                            </div>
+                            
+                            <div className="flex justify-between items-center bg-black/30 px-2 py-1 rounded border border-white/5">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">分數</span>
+                                <span className="text-xs font-mono font-black text-white">
+                                    {valueFormatter(point.value)}
+                                </span>
                             </div>
                         </div>
+                    );
+
+                    return (
+                        <div 
+                            key={`hit-${index}`} 
+                            className="absolute w-4 h-4 -ml-[8px] -mt-[8px] rounded-full cursor-pointer z-20 hover:bg-white/10" 
+                            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                            onMouseEnter={(e) => {
+                                tooltipRef.current?.show(e.clientX, e.clientY, renderTooltipContent());
+                            }}
+                            onMouseMove={(e) => {
+                                tooltipRef.current?.show(e.clientX, e.clientY, renderTooltipContent());
+                            }}
+                            onMouseLeave={() => {
+                                tooltipRef.current?.hide();
+                            }}
+                        />
                     );
                 })}
             </div>
@@ -403,6 +410,7 @@ const LineChart: React.FC<LineChartProps> = ({
               建議橫向觀看以獲得最佳體驗 (Landscape mode recommended)
           </div>
       )}
+      <PortalTooltip ref={tooltipRef} />
     </div>
   );
 };

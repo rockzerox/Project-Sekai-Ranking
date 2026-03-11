@@ -1,5 +1,8 @@
 # 活動曲目及MV (Event Songs and MVs) 頁面規格書
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 ## 1. 功能概述
 「活動曲目及MV」頁面位於「工具 SEKAI」分類下，主要提供 Project Sekai 台服各期活動的關聯歌曲資訊。
 使用者可以透過此頁面查詢各期活動的書下曲（或相關曲目），並以沉浸式的輪播介面瀏覽歌曲詳情、試聽片段及觀看 MV。
@@ -75,3 +78,27 @@
 *   `src/components/ui/SongCarousel.tsx`: 輪播組件。
 *   `src/components/ui/SongCard.tsx`: 歌曲卡片組件。
 *   `src/components/ui/EventFilterGroup.tsx`: 篩選器組件。
+
+## 8. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorMessage from '../../components/ui/ErrorMessage';
-import { UNIT_MASTER, CHARACTER_MASTER } from '../../config/constants';
+import { UNIT_MASTER } from '../../config/constants';
 import { getAssetUrl, getChar } from '../../utils/gameUtils';
 import { calculateDisplayDuration, calculatePreciseDuration, getEventStatus } from '../../utils/timeUtils';
 import { useEventList } from '../../hooks/useEventList';
@@ -40,18 +40,20 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
     return events.filter(e => new Date(e.closed_at).getTime() < now).length;
   }, [events]);
 
+  const initialYearSet = useRef(false);
   useEffect(() => {
-      if (events.length > 0 && selectedYear === 'all') {
+      if (!initialYearSet.current && events.length > 0 && selectedYear === 'all') {
         const currentYear = new Date().getFullYear();
         const hasCurrentYear = events.some(e => new Date(e.start_at).getFullYear() === currentYear);
         if (hasCurrentYear) {
-            setSelectedYear(currentYear);
+            setTimeout(() => setSelectedYear(currentYear), 0);
         } else {
             const latestYear = new Date(events[0].start_at).getFullYear();
-            if (!isNaN(latestYear)) setSelectedYear(latestYear);
+            if (!isNaN(latestYear)) setTimeout(() => setSelectedYear(latestYear), 0);
         }
+        initialYearSet.current = true;
       }
-  }, [events]);
+  }, [events, selectedYear]);
 
   const years = useMemo(() => {
     const uniqueYears = new Set<number>();

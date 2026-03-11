@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary, PastEventApiResponse } from '../../types';
-import { UNITS, UNIT_ORDER, API_BASE_URL } from '../../config/constants';
+import { UNITS, API_BASE_URL } from '../../config/constants';
 import DashboardTable from '../../components/ui/DashboardTable';
 import Select from '../../components/ui/Select';
 import { useConfig } from '../../contexts/ConfigContext';
@@ -76,7 +76,7 @@ const PlayerAnalysisView: React.FC = () => {
 
         if (eventsQueue.length === 0) {
             if (totalEventsCount > 0 && processedCount === totalEventsCount) {
-                setIsAnalyzing(false);
+                setTimeout(() => setIsAnalyzing(false), 0);
             }
             return;
         }

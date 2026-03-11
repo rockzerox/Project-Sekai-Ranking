@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 活動分布概況 (Event Distribution)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_EVENT_DISTRIBUTION`
 **對應視圖**: `currentView === 'distribution'` (src/App.tsx)
 **主要用途**: 以視覺化的時間軸（甘特圖）呈現活動歷史，分析角色與團體的活動密度、輪替規律與空窗期 (Gap)。
@@ -23,7 +26,7 @@
 *   **快速導航**: 點擊年份按鈕可快速捲動至該年度的時間軸位置。
 
 ### 1.2 互動機制
-*   **懸停提示 (Tooltip)**: 滑鼠移至活動條上，顯示該期活動的詳細資訊（Banner、屬性、卡池類型、Logo）。
+*   **懸停提示 (Tooltip)**: 滑鼠移至活動條上，透過 `PortalTooltip` 顯示該期活動的詳細資訊（Banner、屬性、卡池類型、Logo），避免被時間軸容器裁切。
 *   **點擊切換**: 點擊篩選器中的角色頭像，可從「全覽模式」切換至「單一角色聚焦模式」。
 
 ---
@@ -87,3 +90,27 @@
 *   `contexts/ConfigContext.ts` (讀取詳細設定)
 *   `src/config/uiText.ts`
 *   `src/utils/mathUtils.ts` (日期計算輔助)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

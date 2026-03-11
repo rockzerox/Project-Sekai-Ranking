@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 活動榜線排名 (Rank Analysis)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_RANK_ANALYSIS`
 **對應視圖**: `currentView === 'analysis'` (src/App.tsx)
 **主要用途**: 統計並列出歷代活動中，各個關鍵名次（T1, T10, T100, Border）的最高分數紀錄，猶如「名人堂」般的數據展示。
@@ -82,3 +85,27 @@
 *   `src/hooks/useRankings.ts` (fetchJsonWithBigInt)
 *   `src/utils/mathUtils.ts` (計算日期與分數格式化)
 *   `contexts/ConfigContext.ts`
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

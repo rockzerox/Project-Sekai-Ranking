@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 活動榜線趨勢 (Rank Trend)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_RANK_TREND`
 **對應視圖**: `currentView === 'trend'` (src/App.tsx)
 **主要用途**: 以折線圖視覺化呈現特定排名（如 Top 100）的分數隨活動期數演進的變化趨勢，分析台服環境的「內捲」程度。
@@ -20,7 +23,7 @@
 *   **多維度篩選**: 即使在選定範圍內，仍可疊加 Unit / Type 等篩選器，例如「查看 2023 年所有 25 點箱活的 T100 趨勢」。
 
 ### 1.2 互動機制
-*   **數據點懸停**: 滑鼠移至圖表上的點，顯示該期活動的詳細資訊（Logo、名稱、分數）。
+*   **數據點懸停**: 滑鼠移至圖表上的點，透過 `PortalTooltip` 顯示該期活動的詳細資訊（Logo、名稱、分數），確保提示框不受圖表容器的 `overflow: hidden` 限制。
 *   **點擊跳轉** (預留): 未來可實作點擊數據點跳轉至該活動詳情。
 
 ---
@@ -78,3 +81,27 @@
 *   `src/components/ui/Input.tsx` (ID 範圍輸入)
 *   `src/hooks/useRankings.ts`
 *   `src/utils/mathUtils.ts` (計算統計數據)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

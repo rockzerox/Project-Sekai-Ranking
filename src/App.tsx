@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { EventSummary } from './types';
+import { EventSummary, ViewType } from './types';
 import TrophyIcon from './components/icons/TrophyIcon';
 import Sidebar from './components/layout/Sidebar';
 import PastEventsView from './components/pages/PastEventsView';
@@ -27,7 +27,7 @@ import { fetchJsonWithBigInt } from './hooks/useRankings';
 import { ConfigProvider } from './contexts/ConfigContext';
 
 const MainContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile' | 'mySekaiMining' | 'eventSongs'>('home');
+  const [currentView, setCurrentView] = useState<ViewType>('home');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
@@ -59,6 +59,7 @@ const MainContent: React.FC = () => {
               if (selectedEvent) {
                   return (
                       <PastEventDetailView 
+                          key={selectedEvent.id}
                           event={selectedEvent} 
                           onBack={() => setSelectedEvent(null)} 
                           allEvents={allEvents}

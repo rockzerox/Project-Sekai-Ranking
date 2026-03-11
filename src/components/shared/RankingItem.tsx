@@ -177,7 +177,7 @@ const DetailStatCard: React.FC<{ title: string, stat: { count: number, score: nu
   );
 };
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent, now }) => {
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, now }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { rank, user, stats } = entry;
   const styles = getRankStyles(rank);

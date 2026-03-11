@@ -51,8 +51,9 @@ const HorizontalBarChart: React.FC<{
                 const percentage = maxVal > 0 ? (val / maxVal) * 100 : 0;
                 const charImg = getAssetUrl(char.charId, 'character');
                 return (
-                    <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group">
-                        <div className="w-24 sm:w-32 flex-shrink-0 text-right pr-3 truncate font-bold" style={{ color: char.color }}>{char.charName}</div>
+                    <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group relative">
+                        <div className="hidden sm:block w-24 flex-shrink-0 text-right pr-3 truncate font-bold" style={{ color: char.color }}>{char.charName}</div>
+                        <div className="absolute left-0 -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 dark:bg-slate-800/90 px-2 py-1 rounded text-xs font-bold shadow-md z-30 pointer-events-none" style={{ color: char.color }}>{char.charName}</div>
                         <div className="flex-1 h-8 bg-slate-200 dark:bg-slate-700/50 rounded-r relative flex items-center overflow-visible">
                             <div className="h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-2" style={{ width: `${percentage}%`, backgroundColor: char.color, opacity: 0.85 }}></div>
                             <span className="absolute left-2 text-slate-700 dark:text-white font-mono drop-shadow-md font-bold z-10 pointer-events-none">{val.toLocaleString()}</span>
@@ -103,8 +104,9 @@ const GlobalScoreChart: React.FC<{
                 const barWidth = (val / globalMax) * 100;
                 const charImg = getAssetUrl(char.charId, 'character');
                 return (
-                    <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group">
-                        <div className="w-24 sm:w-32 flex-shrink-0 text-right pr-3 truncate font-bold" style={{ color: char.color }}>{char.charName}</div>
+                    <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group relative">
+                        <div className="hidden sm:block w-24 flex-shrink-0 text-right pr-3 truncate font-bold" style={{ color: char.color }}>{char.charName}</div>
+                        <div className="absolute left-0 -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 dark:bg-slate-800/90 px-2 py-1 rounded text-xs font-bold shadow-md z-30 pointer-events-none" style={{ color: char.color }}>{char.charName}</div>
                         <div className="flex-1 h-8 bg-slate-100 dark:bg-slate-800/30 rounded-r relative border-l border-slate-300 dark:border-slate-700 overflow-visible">
                             <div className="absolute top-0 left-0 h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-2" style={{ width: `${barWidth}%`, backgroundColor: char.color, opacity: 0.4 }}>
                                 <div className="text-[10px] text-slate-700 dark:text-white font-mono font-bold whitespace-nowrap drop-shadow-sm pointer-events-none">{displayMode === 'daily' ? val.toLocaleString() : `${(val / 10000).toFixed(1)}萬`}</div>

@@ -103,7 +103,7 @@ const RankAnalysisView: React.FC = () => {
                             const top50 = dataTop?.rankings?.[49]?.score || 0;
                             const top100 = dataTop?.rankings?.[99]?.score || 0;
                             const borderScores: Record<number, number> = {};
-                            dataBorder?.borderRankings?.forEach((item: any) => { borderScores[item.rank] = item.score; });
+                            dataBorder?.borderRankings?.forEach((item: { rank: number, score: number }) => { borderScores[item.rank] = item.score; });
                             return { 
                                 eventId: event.id, 
                                 eventName: event.name, 
@@ -112,7 +112,7 @@ const RankAnalysisView: React.FC = () => {
                                 top1, top10, top50, top100, 
                                 borders: borderScores 
                             } as EventStat;
-                        } catch (err) { return null; }
+                        } catch { return null; }
                     }));
                     if (!alive) return;
                     const validStats = chunkResults.filter((r): r is EventStat => r !== null);

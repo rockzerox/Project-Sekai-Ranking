@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import TrophyIcon from '../../components/icons/TrophyIcon';
 import { CHARACTERS } from '../../config/constants';
 import { UI_TEXT } from '../../config/uiText';
+import { ViewType } from '../../types';
 
 interface NavItem {
-  id: string;
+  id: ViewType;
   label: string;
   icon: React.ReactNode;
   charColor: string;
@@ -18,8 +19,8 @@ interface NavGroup {
 }
 
 interface SidebarProps {
-  currentView: string;
-  setCurrentView: (view: any) => void;
+  currentView: ViewType;
+  setCurrentView: (view: ViewType) => void;
   isOpen: boolean;
   toggleSidebar: () => void;
   isCollapsed: boolean;
@@ -103,10 +104,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     const parentGroup = NAV_GROUPS.find(group => 
       group.items.some(item => item.id === currentView)
     );
-    if (parentGroup && !expandedGroups.has(parentGroup.category)) {
-      setExpandedGroups(prev => new Set(prev).add(parentGroup.category));
+    if (parentGroup) {
+      setTimeout(() => {
+        setExpandedGroups(prev => {
+          if (prev.has(parentGroup.category)) return prev;
+          return new Set(prev).add(parentGroup.category);
+        });
+      }, 0);
     }
-  }, [currentView, expandedGroups]);
+  }, [currentView]);
 
   const toggleGroup = (category: string) => {
     if (isCollapsed) return; 
@@ -118,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  const itemClass = (viewId: string, charColor: string) => `
+  const itemClass = (viewId: string) => `
     w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-left font-bold group relative
     ${currentView === viewId
       ? 'bg-slate-100 dark:bg-slate-700/50 shadow-sm translate-x-1'
@@ -184,7 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <button 
                         key={item.id} 
                         onClick={() => { setCurrentView(item.id); if (window.innerWidth < 768) toggleSidebar(); }} 
-                        className={itemClass(item.id, item.charColor)}
+                        className={itemClass(item.id)}
                         title={isCollapsed ? item.label : undefined}
                       >
                         <div 

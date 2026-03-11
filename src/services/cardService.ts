@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CardData, CardsMap } from '../types';
+import { CardsMap } from '../types';
 
 const CARDS_JSON_URL = 'https://raw.githubusercontent.com/rockzerox/Storage/refs/heads/main/Project-Sekai-Ranking/cards.json';
 
@@ -46,7 +46,7 @@ export const useCardData = () => {
         setIsLoading(false);
       });
     } else {
-      setIsLoading(false);
+      setTimeout(() => setIsLoading(false), 0);
     }
   }, []);
 

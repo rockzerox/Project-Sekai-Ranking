@@ -4,8 +4,10 @@ import TrophyIcon from '../../components/icons/TrophyIcon';
 import { CHARACTERS } from '../../config/constants';
 import { UI_TEXT } from '../../config/uiText';
 
+import { ViewType } from '../../types';
+
 interface HomeViewProps {
-    setCurrentView: (view: any) => void;
+    setCurrentView: (view: ViewType) => void;
 }
 
 interface Feature {
@@ -100,7 +102,7 @@ const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
                         <div className="px-4 py-3 rounded-2xl border-2 font-black text-xl uppercase tracking-[0.1em] text-center shadow-lg transition-all" style={{ backgroundColor: `${section.color}15`, color: section.color, borderColor: `${section.color}50` }}>{section.category}</div>
                         <div className="space-y-3">
                             {section.features.map((feature) => (
-                                <button key={feature.id} onClick={() => setCurrentView(feature.id as any)} className="w-full text-left bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all duration-300 shadow-sm flex flex-col group hover:shadow-2xl hover:-translate-y-1.5 active:scale-95 min-h-[110px]" onMouseEnter={(e) => e.currentTarget.style.borderColor = `${feature.charColor}80`} onMouseLeave={(e) => e.currentTarget.style.borderColor = ''}>
+                                <button key={feature.id} onClick={() => setCurrentView(feature.id as ViewType)} className="w-full text-left bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all duration-300 shadow-sm flex flex-col group hover:shadow-2xl hover:-translate-y-1.5 active:scale-95 min-h-[110px]" onMouseEnter={(e) => e.currentTarget.style.borderColor = `${feature.charColor}80`} onMouseLeave={(e) => e.currentTarget.style.borderColor = ''}>
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors flex-shrink-0" style={{ color: feature.charColor }}>{feature.icon}</div>
                                         <h3 className="text-lg font-black text-slate-800 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 leading-tight" style={{ color: feature.charColor }}>{feature.title}</h3>

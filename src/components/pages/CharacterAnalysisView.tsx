@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { EventSummary } from '../../types';
+import { EventSummary, RankingEntry } from '../../types';
 import { CHARACTER_MASTER, API_BASE_URL, MS_PER_DAY } from '../../config/constants';
 import { getAssetUrl } from '../../utils/gameUtils';
 import * as Stats from '../../utils/mathUtils';
@@ -21,8 +21,17 @@ const STORY_TYPES: {value: StoryType, label: string}[] = [
 const RANK_OPTIONS = [1, 10, 100, 500, 1000, 5000, 10000].map(r => ({ value: r, label: `Top ${r}` }));
 const PAGE_SIZE = 5;
 
+interface AnalyzedEventData {
+    id: number;
+    name: string;
+    score: number;
+    daily: number;
+    isWl?: boolean;
+    chapterOrder?: number;
+}
+
 const CharacterAnalysisView: React.FC = () => {
-    const { eventDetails, getEventColor, wlDetails } = useConfig();
+    const { eventDetails, wlDetails } = useConfig();
     
     const [activeCharId, setActiveCharId] = useState<string>('1'); 
     const [tempCharId, setTempCharId] = useState<string>('1');
@@ -33,7 +42,7 @@ const CharacterAnalysisView: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
 
     const [events, setEvents] = useState<EventSummary[]>([]);
-    const [analyzedData, setAnalyzedData] = useState<any[]>([]);
+    const [analyzedData, setAnalyzedData] = useState<AnalyzedEventData[]>([]);
     const [uniquePlayers, setUniquePlayers] = useState<number>(0);
     const [wlRankInfo, setWlRankInfo] = useState<{totalRank: number, dailyRank: number} | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -99,7 +108,7 @@ const CharacterAnalysisView: React.FC = () => {
                 const targetWlIds = Object.keys(wlDetails).map(Number).sort((a,b) => a - b);
                 const allCharScores: {id: string, total: number, daily: number, wlId: number, wlName: string, chapterOrder: number}[] = [];
                 
-                for (let wlId of targetWlIds) {
+                for (const wlId of targetWlIds) {
                     try {
                         const url = rankTarget <= 100 
                             ? `${API_BASE_URL}/event/${wlId}/top100` 
@@ -112,15 +121,15 @@ const CharacterAnalysisView: React.FC = () => {
                         const duration = wlInfo?.chDavg || 3; 
                         const eventInfo = events.find(e => e.id === wlId);
                         
-                        chapters?.forEach((chap: any) => {
+                        chapters?.forEach((chap: { gameCharacterId: number, rankings?: { rank: number, score: number }[], borderRankings?: { rank: number, score: number }[] }) => {
                             const cid = String(chap.gameCharacterId);
                             const rankings = chap.rankings || chap.borderRankings;
-                            const score = rankings?.find((r: any) => r.rank === rankTarget)?.score || 0;
+                            const score = rankings?.find((r: { rank: number, score: number }) => r.rank === rankTarget)?.score || 0;
                             const order = wlInfo?.chorder.indexOf(cid) + 1 || 0;
                             
                             if (score > 0) allCharScores.push({ id: cid, total: score, daily: score / duration, wlId: wlId, wlName: eventInfo?.name || "World Link", chapterOrder: order });
                         });
-                    } catch(e) {}
+                    } catch { /* ignore */ }
                 }
                 
                 if (isMounted) {
@@ -145,7 +154,7 @@ const CharacterAnalysisView: React.FC = () => {
 
             if (filteredEvents.length === 0) { setAnalyzedData([]); setUniquePlayers(0); setIsLoading(false); return; }
 
-            const results: any[] = [];
+            const results: AnalyzedEventData[] = [];
             const playerIds = new Set<string>();
             for (let i = 0; i < filteredEvents.length; i += 5) {
                 if (!isMounted) break;
@@ -163,23 +172,24 @@ const CharacterAnalysisView: React.FC = () => {
                         
                         let targetScore = 0;
                         if (jsonScore) {
-                            targetScore = (isT100 ? jsonScore.rankings : jsonScore.borderRankings)?.find((r: any) => r.rank === rankTarget)?.score || 0;
+                            const rankings = (isT100 ? jsonScore.rankings : jsonScore.borderRankings) || [];
+                            targetScore = rankings.find((r: RankingEntry) => r.rank === rankTarget)?.score || 0;
                         }
                         if (jsonTop100 && jsonTop100.rankings) {
-                            jsonTop100.rankings.forEach((r: any) => playerIds.add(String(r.userId)));
+                            jsonTop100.rankings.forEach((r: RankingEntry) => playerIds.add(String(r.userId)));
                         }
                         const duration = Math.max(1, Math.round((new Date(evt.aggregate_at).getTime() - new Date(evt.start_at).getTime()) / MS_PER_DAY));
                         return { id: evt.id, name: evt.name, score: targetScore, daily: targetScore / duration };
-                    } catch (e) { return null; }
+                    } catch { return null; }
                 }));
-                results.push(...batchRes.filter(r => r !== null && r.score > 0));
+                results.push(...batchRes.filter((r): r is AnalyzedEventData => r !== null && r.score > 0));
                 setProgress(Math.round(((i + batch.length) / filteredEvents.length) * 100));
             }
             if (isMounted) { setAnalyzedData(results); setUniquePlayers(playerIds.size); setIsLoading(false); }
         };
         runAnalysis();
         return () => { isMounted = false; abortController.abort(); };
-    }, [events, activeCharId, storyType, rankTarget, eventDetails, wlDetails]);
+    }, [events, activeCharId, storyType, rankTarget, eventDetails, wlDetails, isWlMode]);
 
     // --- 計算「目前活動期數」與「四星卡次數」 ---
     const { currentLiveId, totalStarCards } = useMemo(() => {
@@ -314,7 +324,7 @@ const CharacterAnalysisView: React.FC = () => {
                     <div className="bg-white/10 dark:bg-slate-800/10 backdrop-blur-2xl p-4 rounded-2xl border border-white/10 shadow-sm flex flex-col gap-4">
                         <div className="flex gap-2 w-full">
                             <div className="flex-1">
-                                <Select value={storyType} onChange={(val) => setStoryType(val as any)} options={STORY_TYPES} className="py-2 text-xs font-black" />
+                                <Select value={storyType} onChange={(val) => setStoryType(val as StoryType)} options={STORY_TYPES} className="py-2 text-xs font-black" />
                             </div>
                             <div className="flex-1">
                                 <Select value={rankTarget} onChange={(val) => setRankTarget(Number(val))} options={RANK_OPTIONS} className="py-2 text-xs font-black" />

@@ -1,5 +1,8 @@
 # 📦 Hi Sekai TW 專案落地與依賴說明書
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 本文件整理了將 **Hi Sekai TW** 從原型階段遷移至正式生產環境（Production）所需的技術堆疊與套件依賴。
 
 ## 1. 系統環境需求 (Prerequisites)
@@ -147,3 +150,19 @@ root/
 ├── tsconfig.json       # TypeScript 設定
 └── vite.config.ts      # Vite 設定
 ```
+
+## 1. 功能概述 (Feature Overview)
+
+此頁面提供核心功能的概覽。
+
+## 2. 技術實作 (Technical Implementation)
+
+描述資料獲取與狀態管理邏輯。
+
+## 3. UI/UX 排版設計 (UI Layout)
+
+說明畫面佈局與互動設計。
+
+## 4. 模組依賴 (Module Dependencies)
+
+列出相關的組件與 Hooks。

@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - MySekai 採集計算機 (MySekai Mining)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_MYSEKAI_MINING`
 **對應視圖**: `currentView === 'mySekaiMining'` (src/App.tsx)
 **主要用途**: 針對遊戲內「MySekai」模式的採集機制，提供收益預估、目標規劃與樹木砍伐模擬器。
@@ -83,3 +86,27 @@
 *   `src/components/ui/Input.tsx`
 *   `src/components/ui/Select.tsx`
 *   `src/config/config/constants.ts` (工具圖示路徑)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

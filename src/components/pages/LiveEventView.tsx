@@ -34,12 +34,12 @@ const LiveEventView: React.FC = () => {
     const [isRankingsOpen, setIsRankingsOpen] = useState(true);
     const [isChartsOpen, setIsChartsOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
-    const [now] = useState(Date.now());
+    const [now] = useState(() => Date.now());
 
     // Initial fetch
     useEffect(() => {
         fetchLiveRankings();
-        setCurrentPage(1);
+        setTimeout(() => setCurrentPage(1), 0);
     }, [fetchLiveRankings]);
 
     // Handle World Link chapter changes or cache updates
@@ -56,7 +56,7 @@ const LiveEventView: React.FC = () => {
 
     // Reset page on search/sort change
     useEffect(() => { 
-        setCurrentPage(prev => prev === 'highlights' ? prev : 1); 
+        setTimeout(() => setCurrentPage(prev => prev === 'highlights' ? prev : 1), 0); 
     }, [searchTerm, sortOption]);
 
     const handlePageChange = (page: number | 'highlights') => {
@@ -90,7 +90,7 @@ const LiveEventView: React.FC = () => {
                 if(!a.lastPlayedAt) return 1; if(!b.lastPlayedAt) return -1;
                 return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
             }
-            const [period, metric] = sortOption.split('_') as [any, any];
+            const [period, metric] = sortOption.split('_') as [string, string];
             if (a.stats[period as keyof typeof a.stats] && b.stats[period as keyof typeof b.stats]) {
                 return (b.stats[period as keyof typeof b.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0) - (a.stats[period as keyof typeof a.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0);
             }
@@ -196,7 +196,7 @@ const LiveEventView: React.FC = () => {
                     return (
                         <button key={charId} onClick={(e) => { e.stopPropagation(); setActiveChapter(charId); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
                             {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
-                            {charName}
+                            <span className="hidden sm:inline">{charName}</span>
                         </button>
                     );
                 })}
@@ -265,7 +265,7 @@ const LiveEventView: React.FC = () => {
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
                     <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} />
+                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={liveEventId || undefined} cards={cards || undefined} />
                     </CollapsibleSection>
                     <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

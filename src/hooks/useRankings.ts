@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { RankEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
+import { RankEntry, RankingEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import { API_BASE_URL } from '../config/constants';
 import { transformUserCardToPlayerInfo } from '../utils/transform';
 
@@ -8,6 +8,7 @@ const API_URL = `${API_BASE_URL}/event/live/top100`;
 const BORDER_API_URL = `${API_BASE_URL}/event/live/border`;
 const BIGINT_REGEX = /"([^"]+)"\s*:\s*(-?\d{15,})(?=[,}\s])/g;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const fetchJsonWithBigInt = async <T = any>(url: string, signal?: AbortSignal): Promise<T | null> => {
     const response = await fetch(url, { signal });
     if (!response.ok) throw new Error(`API 請求失敗: ${response.status} (路徑: ${url})`);
@@ -20,7 +21,7 @@ export const fetchJsonWithBigInt = async <T = any>(url: string, signal?: AbortSi
     const sanitized = text.replace(BIGINT_REGEX, '"$1": "$2"');
     try {
         return JSON.parse(sanitized);
-    } catch (e) {
+    } catch {
         throw new Error("解析 JSON 失敗，數據格式不正確。");
     }
 };
@@ -56,7 +57,8 @@ export const useRankings = (): UseRankingsReturn => {
     const [liveEventId, setLiveEventId] = useState<number | null>(null);
     const [liveEventTiming, setLiveEventTiming] = useState<{ startAt: string, aggregateAt: string, rankingAnnounceAt: string } | null>(null);
 
-    const transformRankings = (data: any[]): RankEntry[] => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transformRankings = (data: Record<string, any>[]): RankEntry[] => {
         const zeroStat = { count: 0, score: 0, speed: 0, average: 0 };
         return data.map(item => {
             const stats = item.last_1h_stats ? {
@@ -67,10 +69,10 @@ export const useRankings = (): UseRankingsReturn => {
             
             let lastPlayerInfo = item.last_player_info;
             if (!lastPlayerInfo && item.userCard) {
-                lastPlayerInfo = transformUserCardToPlayerInfo(item);
+                lastPlayerInfo = transformUserCardToPlayerInfo(item as unknown as RankingEntry);
             }
 
-            let userId = item.userId ? String(item.userId) : (lastPlayerInfo?.profile?.id ? String(lastPlayerInfo.profile.id) : "");
+            const userId = item.userId ? String(item.userId) : (lastPlayerInfo?.profile?.id ? String(lastPlayerInfo.profile.id) : "");
             const name = item.name || item.display_name || "Unknown";
             
             return { 
@@ -91,7 +93,7 @@ export const useRankings = (): UseRankingsReturn => {
     };
 
     const fetchLiveRankings = useCallback(async () => {
-        setIsLoading(true); setError(null);
+        setIsLoading(true); setError(null); setWorldLinkChapters({});
         try {
             const responseData: HisekaiApiResponse = await fetchJsonWithBigInt(API_URL);
             if (responseData && Array.isArray(responseData.top_100_player_rankings)) {
@@ -101,17 +103,31 @@ export const useRankings = (): UseRankingsReturn => {
                 if (responseData.start_at && responseData.aggregate_at && responseData.ranking_announce_at) {
                     setLiveEventTiming({ startAt: responseData.start_at, aggregateAt: responseData.aggregate_at, rankingAnnounceAt: responseData.ranking_announce_at });
                 }
+                if (responseData.userWorldBloomChapterRankings) {
+                    const chapterMap: Record<string, RankEntry[]> = {};
+                    responseData.userWorldBloomChapterRankings.forEach(chapter => {
+                        chapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.rankings);
+                    });
+                    setWorldLinkChapters(chapterMap);
+                }
                 setLastUpdated(new Date());
             } else throw new Error('無法取得即時活動數據。');
         } catch (e) { setError(e instanceof Error ? e.message : '取得排名失敗'); } finally { setIsLoading(false); }
     }, []);
 
     const fetchBorderRankings = useCallback(async () => {
-        setIsLoading(true); setError(null);
+        setIsLoading(true); setError(null); setWorldLinkChapters({});
         try {
             const responseData: HisekaiBorderApiResponse = await fetchJsonWithBigInt(BORDER_API_URL);
             if (responseData && Array.isArray(responseData.border_player_rankings)) {
                 setRankings(transformRankings(responseData.border_player_rankings));
+                if (responseData.userWorldBloomChapterRankingBorders) {
+                    const chapterMap: Record<string, RankEntry[]> = {};
+                    responseData.userWorldBloomChapterRankingBorders.forEach(chapter => {
+                        chapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.borderRankings);
+                    });
+                    setWorldLinkChapters(chapterMap);
+                }
             }
         } catch (e) { setError(e instanceof Error ? e.message : '取得精彩片段失敗'); } finally { setIsLoading(false); }
     }, []);

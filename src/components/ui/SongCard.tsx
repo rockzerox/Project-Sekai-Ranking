@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { getAssetUrl, getChar } from '../../utils/gameUtils';
 import { UNIT_MASTER } from '../../config/constants';
-import { cn } from '../../utils/cn';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Info, X } from 'lucide-react';
 
 export interface SongCardProps {

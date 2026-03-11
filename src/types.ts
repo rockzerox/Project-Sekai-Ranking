@@ -2,6 +2,7 @@ export type SortOption =
   | 'score' 
   | 'dailyAvg' 
   | 'lastPlayedAt' 
+  | 'captain'
   | 'last1h_count' | 'last1h_score' | 'last1h_speed' | 'last1h_average'
   | 'last3h_count' | 'last3h_score' | 'last3h_speed' | 'last3h_average'
   | 'last24h_count' | 'last24h_score' | 'last24h_speed' | 'last24h_average';
@@ -93,11 +94,13 @@ export interface HisekaiApiResponse {
   start_at: string;
   aggregate_at: string;
   ranking_announce_at: string;
-  top_100_player_rankings: any[];
+  top_100_player_rankings: RankingEntry[];
+  userWorldBloomChapterRankings?: WorldBloomChapter[];
 }
 
 export interface HisekaiBorderApiResponse {
-  border_player_rankings: any[];
+  border_player_rankings: RankingEntry[];
+  userWorldBloomChapterRankingBorders?: WorldBloomChapterBorder[];
 }
 
 export interface RankingEntry {
@@ -106,17 +109,17 @@ export interface RankingEntry {
   rank: number;
   score: number;
   userCard: (number | string | null)[];
-  userCheerfulCarnival: any;
-  userHonorMissions: any[];
+  userCheerfulCarnival: unknown;
+  userHonorMissions: unknown[];
   userId: number;
-  userPlayerFrames: any[];
+  userPlayerFrames: unknown[];
   userProfile: {
     profileImageType: string;
     twitterId: string;
     userId: number;
     word: string;
   };
-  userProfileHonors: any[];
+  userProfileHonors: unknown[];
 }
 
 export interface PastEventApiResponse {
@@ -129,7 +132,7 @@ export interface PastEventApiResponse {
 }
 
 export interface PastEventBorderApiResponse {
-  borderRankings: any[];
+  borderRankings: RankingEntry[];
   userWorldBloomChapterRankingBorders?: WorldBloomChapterBorder[];
 }
 
@@ -140,10 +143,10 @@ export interface WorldBloomChapter {
 
 export interface WorldBloomChapterBorder {
   gameCharacterId: number;
-  borderRankings: any[];
+  borderRankings: RankingEntry[];
 }
 
-// --- Config Types ---
+export type ViewType = 'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile' | 'mySekaiMining' | 'eventSongs';
 export interface EventDetail {
     unit: string;
     type: 'marathon' | 'cheerful_carnival' | 'world_link';

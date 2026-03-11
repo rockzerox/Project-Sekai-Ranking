@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 現時活動 (Live Event)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_LIVE_EVENT`
 **對應視圖**: `currentView === 'live'` (src/components/pages/LiveEventView.tsx)
 **主要用途**: 提供正在進行中的活動即時排名資訊、競爭數據分析與預測。
@@ -12,6 +15,7 @@
 
 ### 1.1 核心功能
 *   **即時榜單查詢**: 顯示 Top 100 玩家的即時分數、名稱、隊伍資訊。
+*   **World Link 章節切換**: 若當前活動為 World Link 類型，支援切換「總榜」與各角色的「個人章節」排行榜。
 *   **角色頭像顯示**: 在排行榜中顯示玩家當前隊伍隊長卡片的 Q 版角色頭像 (Chibi Avatar)。
 *   **精彩片段 (Highlights)**: 切換模式以查看特定名次（如 T200, T500, T1000, T2000, T5000, T10000）的分數線，而非連續的 1-100 名。
 *   **倒數計時**: 顯示距離活動結算 (Aggregate At) 的剩餘時間。
@@ -148,3 +152,27 @@ const giveUpThreshold = targetScore - maxGain;
 *   `src/hooks/useRankings.ts`
 *   `src/utils/mathUtils.ts` (計算 CV, 格式化分數)
 *   `src/config/uiText.ts` (多語言文案引用)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

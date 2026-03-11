@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { RankEntry, SortOption, HisekaiBorderApiResponse, PastEventBorderApiResponse, HisekaiApiResponse } from '../../types';
+import { useCardData } from '../../services/cardService';
+import { RankEntry, SortOption, HisekaiBorderApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, CardsMap } from '../../types';
 import LineChart from '../../components/charts/LineChart';
 import CrownIcon from '../../components/icons/CrownIcon';
 import { API_BASE_URL } from '../../config/constants';
@@ -11,6 +12,7 @@ interface ChartAnalysisProps {
   sortOption: SortOption;
   isHighlights?: boolean;
   eventId?: number; 
+  cards?: CardsMap;
 }
 
 interface BorderItem {
@@ -19,7 +21,9 @@ interface BorderItem {
     name: string;
 }
 
-const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId }) => {
+const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp }) => {
+  const { cards: cardsFromHook } = useCardData();
+  const cards = cardsProp || cardsFromHook;
   const [borderData, setBorderData] = useState<BorderItem[]>([]);
   const [liveAggregateAt, setLiveAggregateAt] = useState<string | null>(null);
   const [t100Score, setT100Score] = useState<number>(0);
@@ -83,7 +87,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
   }, [sortOption, eventId, isHighlights]);
 
 
-  const [now] = useState(Date.now());
+  const [now] = useState(() => Date.now());
 
   const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant, remainingSafeSlots, t100ExtendedStats } = useMemo(() => {
     let data: { label: string, value: number, rank?: number }[] = [];
@@ -153,13 +157,13 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisFormatter = formatScoreForChart;
             if (isHighlights) {
                 variant = 'highlights';
-                data = borderData.filter(b => b.rank <= 10000 && b.score > 0).map(b => ({ label: `#${b.rank} ${b.name || 'Player'}`, value: b.score, rank: b.rank })).sort((a, b) => (a.rank || 0) - (b.rank || 0));
+                data = borderData.filter(b => b.rank <= 10000 && b.score > 0).map(b => ({ label: `#${b.rank} ${b.name || 'Player'}`, value: b.score, rank: b.rank, eventId })).sort((a, b) => (a.rank || 0) - (b.rank || 0));
                 if (!eventId && liveAggregateAt) {
                     const end = new Date(liveAggregateAt).getTime();
                     const remainingSeconds = (end - now) / 1000;
                     if (remainingSeconds > 0) {
                         const maxGain = (remainingSeconds / 100) * 68000;
-                        let rankScore = selectedHighlightRank === 100 ? t100Score : (borderData.find(b => b.rank === selectedHighlightRank)?.score || 0);
+                        const rankScore = selectedHighlightRank === 100 ? t100Score : (borderData.find(b => b.rank === selectedHighlightRank)?.score || 0);
                         if (rankScore > 0) {
                             calculatedSafeThreshold = rankScore + maxGain;
                             calculatedGiveUpThreshold = Math.max(0, rankScore - maxGain);
@@ -170,7 +174,14 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 }
             } else {
                 variant = 'live'; 
-                data = sourceData.map(r => ({ label: `#${r.rank} ${r.user.display_name}`, value: r.score, rank: r.rank }));
+                data = sourceData.map(r => {
+                    let captainCharacterId: number | undefined;
+                    if (cards && r.last_player_info?.card?.id) {
+                        const card = cards[r.last_player_info.card.id.toString()];
+                        if (card) captainCharacterId = card.characterId;
+                    }
+                    return { label: `#${r.rank} ${r.user.display_name}`, value: r.score, rank: r.rank, captainCharacterId, eventId };
+                });
                 if (!eventId && liveAggregateAt && data.length > 0) {
                     const end = new Date(liveAggregateAt).getTime();
                     const remainingSeconds = (end - now) / 1000;
@@ -205,9 +216,23 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 }
                 return { label: `#${r.rank}`, value: val, rank: r.rank };
             });
+            break;
+        case 'captain': {
+            chartTitle = '隊長角色'; axisY = '隊長 ID';
+            data = isHighlights ? [] : sourceData.map(r => {
+                let captainCharacterId: number | undefined;
+                if (cards && r.last_player_info?.card?.id) {
+                    const card = cards[r.last_player_info.card.id.toString()];
+                    if (card) captainCharacterId = card.characterId;
+                }
+                return { label: `#${r.rank} ${r.user.display_name}`, value: captainCharacterId || 0, rank: r.rank, captainCharacterId, eventId };
+            });
+            chartColor = 'purple';
+            break;
+        }
     }
     return { chartData: data, title: chartTitle, valueFormatter: formatter, yAxisFormatter: axisFormatter, color: chartColor, yLabel: axisY, safeThreshold: calculatedSafeThreshold, giveUpThreshold: calculatedGiveUpThreshold, safeRankCutoff: calculatedSafeRankCutoff, giveUpRankCutoff: calculatedGiveUpRankCutoff, chartVariant: variant, remainingSafeSlots: calculatedRemainingSlots, t100ExtendedStats: calculatedT100Extended };
-  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score, now]);
+  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score, now, cards]);
 
   const dashboardStats = useMemo(() => {
     if (!isHighlights || safeRankCutoff === undefined || giveUpRankCutoff === undefined) return null;
@@ -256,7 +281,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             )}
         </div>
         {chartData.length > 0 ? (
-            <LineChart data={chartData} variant={chartVariant} lineColor={color} valueFormatter={valueFormatter} yAxisFormatter={yAxisFormatter} xAxisLabel="Rank" yAxisLabel={yLabel} safeThreshold={safeThreshold} safeRankCutoff={safeRankCutoff} giveUpThreshold={giveUpThreshold} giveUpRankCutoff={giveUpRankCutoff} />
+            <LineChart data={chartData} variant={chartVariant} lineColor={color} valueFormatter={valueFormatter} yAxisFormatter={yAxisFormatter} xAxisLabel="Rank" yAxisLabel={yLabel} safeThreshold={safeThreshold} safeRankCutoff={safeRankCutoff} giveUpThreshold={giveUpThreshold} giveUpRankCutoff={giveUpRankCutoff} cardsMap={cards || undefined} />
         ) : (
              <div className="text-center py-10"><p className="text-slate-400">暫無資料顯示</p></div>
         )}

@@ -1,5 +1,8 @@
 # 🧩 組件規格說明書 - 側邊導航欄 (Sidebar)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `COMPONENT_SIDEBAR`
 **檔案路徑**: `src/components/layout/Sidebar.tsx`
 **主要用途**: 全域導航控制器，負責視圖切換、主題切換與選單收合。
@@ -73,3 +76,21 @@
 *   `src/components/icons/TrophyIcon.tsx`
 *   `src/config/uiText.ts`
 *   `src/config/config/constants.ts` (引用 `CHARACTERS` 顏色)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant Sidebar as Sidebar 組件
+    participant App as App (根組件)
+
+    User->>Sidebar: 點擊導航連結
+    Sidebar->>App: 觸發 setCurrentView(viewId)
+    App->>App: 更新 currentView State
+    App->>User: 渲染對應的頁面組件
+    
+    opt 手機版模式
+        Sidebar->>Sidebar: 點擊後自動收合選單 (setIsMobileMenuOpen(false))
+    end
+```

@@ -115,7 +115,7 @@ const PlayerProfileView: React.FC = () => {
                         const entry = data.rankings.find(r => String(r.userId) === targetUserId);
                         if (entry) results.push({ eventId: event.id, eventName: event.name, rank: entry.rank, score: entry.score });
                     }
-                } catch (e) {}
+                } catch { /* ignore */ }
             }));
             setScanProgress(Math.round(((i + batch.length) / pastEvents.length) * 100));
         }

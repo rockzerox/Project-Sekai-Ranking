@@ -1,5 +1,8 @@
 # 📄 頁面規格說明書 - 歷代活動 (Past Events)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `PAGE_PAST_EVENTS`
 **對應視圖**: `currentView === 'past'` (src/components/pages/PastEventsView.tsx & src/components/pages/PastEventDetailView.tsx)
 **主要用途**: 提供完整的歷史活動資料庫，支援多維度搜尋、篩選與回顧詳細榜單。
@@ -86,7 +89,7 @@
 *   **排行榜內容**:
     *   重複使用 `RankingList` 與 `ChartAnalysis` 組件。
     *   **角色頭像支援**: 透過資料轉換層 (`transformUserCardToPlayerInfo`)，將歷代活動的 `userCard` 格式轉換為標準格式，從而支援顯示隊長角色的 Q 版頭像。
-    *   若為 World Link，標題列會額外出現 **章節切換 Tabs** (總榜 / 角色 A / 角色 B...)。
+    *   若為 World Link，標題列會額外出現 **章節切換 Tabs** (總榜 / 角色 A / 角色 B...)。在手機版 (小於 `sm` 斷點) 自動隱藏角色名稱，僅顯示頭像以優化觸控體驗。
 
 ---
 
@@ -104,3 +107,27 @@
 *   `src/hooks/useRankings.ts` (取得詳情)
 *   `contexts/ConfigContext.ts` (提供 eventDetails 靜態資料)
 *   `src/config/uiText.ts`
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant View as 視圖組件 (View)
+    participant Hook as 自訂 Hook / 狀態管理
+    participant API as 後端 API / 本地資料
+
+    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
+    View->>Hook: 觸發資料請求或狀態更新
+    Hook->>API: 發送非同步請求 (若需要)
+    alt 請求成功 / 處理完成
+        API-->>Hook: 回傳資料
+        Hook-->>View: 更新 State
+        View->>User: 重新渲染畫面與圖表
+    else 請求失敗
+        API-->>Hook: 回傳錯誤
+        Hook-->>View: 設置錯誤狀態
+        View->>User: 顯示錯誤提示介面
+    end
+```
+

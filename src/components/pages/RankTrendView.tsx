@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { EventSummary, PastEventApiResponse, PastEventBorderApiResponse } from '../../types';
+import { EventSummary } from '../../types';
 import LineChart from '../../components/charts/LineChart';
 import { API_BASE_URL } from '../../config/constants';
 import { calculatePreciseDuration } from '../../utils/timeUtils';
@@ -71,6 +71,7 @@ const RankTrendView: React.FC = () => {
             }
         };
         fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -81,12 +82,12 @@ const RankTrendView: React.FC = () => {
         const fetchTrendData = async () => {
             setFetchError(null); setFallbackNotice(null);
             const now = new Date();
-            let allPastEvents = allEvents.filter(e => new Date(e.closed_at) < now);
+            const allPastEvents = allEvents.filter(e => new Date(e.closed_at) < now);
             let targetEvents: EventSummary[] = [];
 
             if (rangeMode === 'all') targetEvents = allPastEvents;
             else if (rangeMode === 'year') {
-                let yearEvents = allPastEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
+                const yearEvents = allPastEvents.filter(e => new Date(e.start_at).getFullYear() === selectedYear);
                 if (yearEvents.length < 9) {
                     const latest = allPastEvents[allPastEvents.length - 1].id;
                     targetEvents = allPastEvents.filter(evt => evt.id >= (latest - 19) && evt.id <= latest);
@@ -117,13 +118,13 @@ const RankTrendView: React.FC = () => {
                                 if (selectedRank === 1) score = json.rankings?.[0]?.score || 0;
                                 else if (selectedRank === 10) score = json.rankings?.[9]?.score || 0;
                                 else if (selectedRank === 100) score = json.rankings?.[99]?.score || 0;
-                                else score = json.rankings?.find((r:any) => r.rank === selectedRank)?.score || 0;
+                                else score = json.rankings?.find((r: { rank: number, score: number }) => r.rank === selectedRank)?.score || 0;
                             } else {
-                                score = json.borderRankings?.find((r:any) => r.rank === selectedRank)?.score || 0;
+                                score = json.borderRankings?.find((r: { rank: number, score: number }) => r.rank === selectedRank)?.score || 0;
                             }
                         }
                         return { eventId: event.id, eventName: event.name, duration: calculatePreciseDuration(event.start_at, event.aggregate_at), score, year: new Date(event.start_at).getFullYear() };
-                    } catch (e) { return null; }
+                    } catch { return null; }
                 }));
                 const validPoints = batchResults.filter((r): r is TrendDataPoint => r !== null && r.score > 0);
                 if (alive) { setTrendData(prev => [...prev, ...validPoints].sort((a, b) => a.eventId - b.eventId)); setLoadingProgress(Math.round(((i + batch.length) / total) * 100)); }
@@ -147,7 +148,7 @@ const RankTrendView: React.FC = () => {
             if (filters.theme !== 'all' && details?.tag !== filters.theme) isMatch = false;
             if (filters.fourStar !== 'all') { const cards = details?.["4starcard"]?.split(',') || []; if (!cards.some(cardId => cardId.split('-')[0] === filters.fourStar)) isMatch = false; }
             if (isMatch) visibleCount++;
-            return { label: `${d.eventName}`, value: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, d.duration)) : d.score, rank: d.eventId, isHighlighted: !hasActiveFilters || isMatch, pointColor: getEventColor(d.eventId), year: d.year };
+            return { label: `${d.eventName}`, value: displayMode === 'daily' ? Math.ceil(d.score / Math.max(1, d.duration)) : d.score, rank: d.eventId, isHighlighted: !hasActiveFilters || isMatch, pointColor: getEventColor(d.eventId), year: d.year, eventId: d.eventId };
         });
         const activeValues = mappedData.filter(d => d.isHighlighted).map(d => d.value).sort((a, b) => a - b);
         let mean = 0, median = 0;

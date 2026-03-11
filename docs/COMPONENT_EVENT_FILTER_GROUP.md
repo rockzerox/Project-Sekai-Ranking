@@ -1,5 +1,8 @@
 # 🧩 組件規格說明書 - 活動篩選器群組 (EventFilterGroup)
 
+**撰寫日期**: 2026-03-11
+**版本號**: 1.1.0
+
 **文件代號**: `COMPONENT_EVENT_FILTER_GROUP`
 **檔案路徑**: `src/components/ui/EventFilterGroup.tsx`
 **主要用途**: 提供統一且可複用的活動屬性篩選介面，支援多種篩選條件（團體、活動類型、劇情類型、卡面屬性、四星角色）。
@@ -77,3 +80,19 @@ interface EventFilterGroupProps {
 *   `src/config/constants.ts` (引用各項常數與字典)
 *   `src/utils/gameUtils.ts` (引用 `getAssetUrl` 獲取圖示)
 *   `lucide-react` (引用 `Filter` 圖示)
+
+## 5. 序列圖 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant Parent as 父組件 (如各頁面 View)
+    participant Filter as EventFilterGroup 組件
+
+    User->>Filter: 點擊篩選條件 (如特定團體、屬性)
+    Filter->>Filter: 計算新的篩選狀態 (newFilters)
+    Filter->>Parent: 觸發 onFilterChange(newFilters)
+    Parent->>Parent: 更新自身的 filters State
+    Parent->>Parent: 根據新條件重新過濾資料
+    Parent->>User: 重新渲染過濾後的畫面
+```

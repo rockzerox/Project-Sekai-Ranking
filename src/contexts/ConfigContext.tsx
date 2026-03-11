@@ -65,6 +65,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useConfig = (): ConfigContextType => {
     const context = useContext(ConfigContext);
     if (context === undefined) throw new Error('useConfig must be used within a ConfigProvider');

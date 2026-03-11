@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { EventSummary, SimpleRankData, ComparisonResult } from '../../types';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { EventSummary, SimpleRankData, ComparisonResult, PastEventApiResponse, PastEventBorderApiResponse } from '../../types';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import { API_BASE_URL, CHARACTERS } from '../../config/constants';
 import { calculatePreciseDuration } from '../../utils/timeUtils';
@@ -12,10 +12,11 @@ import { formatScoreForChart } from '../../utils/mathUtils';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
 import { useEventList } from '../../hooks/useEventList';
 import { UI_TEXT } from '../../config/uiText';
+import { PortalTooltip, TooltipHandle } from '../../components/ui/PortalTooltip';
 
 const EventComparisonView: React.FC = () => {
     const { eventDetails, getEventColor, isWorldLink, getWlDetail } = useConfig();
-    const { events: allEvents, isLoading: isListLoading, error: listError } = useEventList();
+    const { events: allEvents, error: listError } = useEventList();
 
     const [compareMode, setCompareMode] = useState<'general' | 'world_link'>('general');
 
@@ -60,7 +61,7 @@ const EventComparisonView: React.FC = () => {
         }
     }, [availableRounds, wlRound1, wlRound2]);
 
-    const getAvailableCharsForRound = (roundStr: string) => {
+    const getAvailableCharsForRound = useCallback((roundStr: string) => {
         if (!roundStr) return [];
         const chars = new Set<string>();
         wlEvents.forEach(e => {
@@ -76,10 +77,10 @@ const EventComparisonView: React.FC = () => {
             const numB = parseInt(b.split('-')[0] || b, 10);
             return numA - numB;
         });
-    };
+    }, [wlEvents, getWlDetail]);
 
-    const chars1 = useMemo(() => getAvailableCharsForRound(wlRound1), [wlRound1, wlEvents, getWlDetail]);
-    const chars2 = useMemo(() => getAvailableCharsForRound(wlRound2), [wlRound2, wlEvents, getWlDetail]);
+    const chars1 = useMemo(() => getAvailableCharsForRound(wlRound1), [wlRound1, getAvailableCharsForRound]);
+    const chars2 = useMemo(() => getAvailableCharsForRound(wlRound2), [wlRound2, getAvailableCharsForRound]);
 
     useEffect(() => {
         if (chars1.length > 0 && !chars1.includes(wlChar1)) setWlChar1(chars1[0]);
@@ -89,7 +90,7 @@ const EventComparisonView: React.FC = () => {
         if (chars2.length > 0 && !chars2.includes(wlChar2)) setWlChar2(chars2[0]);
     }, [chars2, wlChar2]);
 
-    const resolveWlSelection = (roundStr: string, charId: string) => {
+    const resolveWlSelection = useCallback((roundStr: string, charId: string) => {
         if (!roundStr || !charId) return null;
         
         // Find the specific event in this round that contains this character
@@ -106,10 +107,10 @@ const EventComparisonView: React.FC = () => {
             charId: charId,
             displayName: `#${event.id} (第${roundStr}輪) - ${charName}`
         };
-    };
+    }, [wlEvents, getWlDetail]);
 
-    const resolvedWl1 = useMemo(() => resolveWlSelection(wlRound1, wlChar1), [wlRound1, wlChar1, wlEvents, getWlDetail]);
-    const resolvedWl2 = useMemo(() => resolveWlSelection(wlRound2, wlChar2), [wlRound2, wlChar2, wlEvents, getWlDetail]);
+    const resolvedWl1 = useMemo(() => resolveWlSelection(wlRound1, wlChar1), [wlRound1, wlChar1, resolveWlSelection]);
+    const resolvedWl2 = useMemo(() => resolveWlSelection(wlRound2, wlChar2), [wlRound2, wlChar2, resolveWlSelection]);
     
     const [comparisonData, setComparisonData] = useState<ComparisonResult>({ event1: null, event2: null });
     const [isComparing, setIsComparing] = useState(false);
@@ -121,6 +122,7 @@ const EventComparisonView: React.FC = () => {
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     const [isMobile, setIsMobile] = useState(false);
     const plotAreaRef = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<TooltipHandle>(null);
 
     useEffect(() => {
         const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -129,7 +131,7 @@ const EventComparisonView: React.FC = () => {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    const filterEvents = (eventList: EventSummary[], f: EventFilterState) => {
+    const filterEvents = useCallback((eventList: EventSummary[], f: EventFilterState) => {
         let result = eventList;
         if (f.unit !== 'all') result = result.filter(e => eventDetails[e.id]?.unit === f.unit);
         if (f.banner !== 'all') result = result.filter(e => eventDetails[e.id]?.banner === f.banner);
@@ -144,10 +146,10 @@ const EventComparisonView: React.FC = () => {
             });
         }
         return result;
-    };
+    }, [eventDetails]);
 
-    const filteredEventOptions1 = useMemo(() => filterEvents(events, filters1), [events, filters1, eventDetails]);
-    const filteredEventOptions2 = useMemo(() => filterEvents(events, filters2), [events, filters2, eventDetails]);
+    const filteredEventOptions1 = useMemo(() => filterEvents(events, filters1), [events, filters1, filterEvents]);
+    const filteredEventOptions2 = useMemo(() => filterEvents(events, filters2), [events, filters2, filterEvents]);
 
     const getGeneralOptions = (filteredOptions: EventSummary[], currentSelected: string) => {
         const baseOptions = filteredOptions.map(e => ({
@@ -212,19 +214,19 @@ const EventComparisonView: React.FC = () => {
                 const duration1 = eventSummary1 ? calculatePreciseDuration(eventSummary1.start_at, eventSummary1.aggregate_at) : 0;
                 const duration2 = eventSummary2 ? calculatePreciseDuration(eventSummary2.start_at, eventSummary2.aggregate_at) : 0;
 
-                const processRankings = (topData: any = {}, borderData: any = {}): SimpleRankData[] => {
+                const processRankings = (topData: PastEventApiResponse = {} as PastEventApiResponse, borderData: PastEventBorderApiResponse = {} as PastEventBorderApiResponse): SimpleRankData[] => {
                     const combined = [
-                        ...(topData.rankings || []).map((r: any) => ({ rank: r.rank, score: r.score })),
-                        ...(borderData.borderRankings || []).map((r: any) => ({ rank: r.rank, score: r.score }))
+                        ...(topData.rankings || []).map((r) => ({ rank: r.rank, score: r.score })),
+                        ...(borderData.borderRankings || []).map((r) => ({ rank: r.rank, score: r.score }))
                     ];
-                    const uniqueMap = new Map();
+                    const uniqueMap = new Map<number, SimpleRankData>();
                     combined.forEach(item => uniqueMap.set(item.rank, item));
                     return Array.from(uniqueMap.values()).sort((a, b) => a.rank - b.rank).filter(item => item.score > 0);
                 };
 
                 setComparisonData({
-                    event1: { name: eventName1, data: processRankings(data1top, data1border), duration: duration1, id: Number(selectedId1) },
-                    event2: { name: eventName2, data: processRankings(data2top, data2border), duration: duration2, id: Number(selectedId2) }
+                    event1: { name: eventName1, data: processRankings(data1top as PastEventApiResponse, data1border as PastEventBorderApiResponse), duration: duration1, id: Number(selectedId1) },
+                    event2: { name: eventName2, data: processRankings(data2top as PastEventApiResponse, data2border as PastEventBorderApiResponse), duration: duration2, id: Number(selectedId2) }
                 });
             } else {
                 const eId1 = resolvedWl1!.eventId.toString();
@@ -239,15 +241,15 @@ const EventComparisonView: React.FC = () => {
                     fetchJsonWithBigInt(`${API_BASE_URL}/event/${eId2}/border`)
                 ]);
 
-                const processWlRankings = (topData: any, borderData: any, charId: string): SimpleRankData[] => {
-                    const topRanks = topData.userWorldBloomChapterRankings?.find((c: any) => c.gameCharacterId.toString() === charId)?.rankings || [];
-                    const borderRanks = borderData.userWorldBloomChapterRankingBorders?.find((c: any) => c.gameCharacterId.toString() === charId)?.borderRankings || [];
+                const processWlRankings = (topData: PastEventApiResponse, borderData: PastEventBorderApiResponse, charId: string): SimpleRankData[] => {
+                    const topRanks = topData.userWorldBloomChapterRankings?.find((c) => c.gameCharacterId.toString() === charId)?.rankings || [];
+                    const borderRanks = borderData.userWorldBloomChapterRankingBorders?.find((c) => c.gameCharacterId.toString() === charId)?.borderRankings || [];
                     
                     const combined = [
-                        ...topRanks.map((r: any) => ({ rank: r.rank, score: r.score })),
-                        ...borderRanks.map((r: any) => ({ rank: r.rank, score: r.score }))
+                        ...topRanks.map((r) => ({ rank: r.rank, score: r.score })),
+                        ...borderRanks.map((r) => ({ rank: r.rank, score: r.score }))
                     ];
-                    const uniqueMap = new Map();
+                    const uniqueMap = new Map<number, SimpleRankData>();
                     combined.forEach(item => uniqueMap.set(item.rank, item));
                     return Array.from(uniqueMap.values()).sort((a, b) => a.rank - b.rank).filter(item => item.score > 0);
                 };
@@ -287,7 +289,7 @@ const EventComparisonView: React.FC = () => {
         }
     };
 
-    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, getXPercent: (rank: number) => number, maxRank: number, ranks: number[]) => {
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>, getXPercent: (rank: number) => number, maxRank: number, ranks: number[]) => {
         if (!plotAreaRef.current) return;
         const rect = plotAreaRef.current.getBoundingClientRect();
         const relX = e.clientX - rect.left;
@@ -301,10 +303,38 @@ const EventComparisonView: React.FC = () => {
                 const diff = Math.abs(p - mousePercent);
                 if (diff < minDiff) { bestRank = r; minDiff = diff; bestPercent = p; }
             }
-            if (minDiff < 5) { setHoveredRank(bestRank); setCursorPercent(bestPercent); }
-            else { setHoveredRank(null); setCursorPercent(null); }
+            if (minDiff < 5) { 
+                setHoveredRank(bestRank); 
+                setCursorPercent(bestPercent);
+                
+                // Show Portal Tooltip
+                const plotRect = plotAreaRef.current.getBoundingClientRect();
+                const cursorX = plotRect.left + (plotRect.width * bestPercent / 100);
+                
+                const tooltipValues = {
+                    s1: comparisonData.event1?.data.find(d => d.rank === bestRank)?.score,
+                    s2: comparisonData.event2?.data.find(d => d.rank === bestRank)?.score
+                };
+
+                tooltipRef.current?.show(cursorX, plotRect.top, (
+                    <div className="text-xs whitespace-nowrap">
+                        <div className="font-bold text-center border-b border-slate-600 pb-1 mb-1 text-slate-300">Rank {bestRank}</div>
+                        <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">
+                            <div className="flex items-center gap-1.5 max-w-[120px]"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: comparisonData.event1?.color || '#06b6d4' }}></div><span className="text-slate-300 truncate text-[10px]">{comparisonData.event1?.name}</span></div>
+                            <span className="font-mono font-bold text-right">{tooltipValues.s1 ? formatScoreForChart(tooltipValues.s1) : '—'}</span>
+                            <div className="flex items-center gap-1.5 max-w-[120px]"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: comparisonData.event2?.color || '#ec4899' }}></div><span className="text-slate-300 truncate text-[10px]">{comparisonData.event2?.name}</span></div>
+                            <span className="font-mono font-bold text-right">{tooltipValues.s2 ? formatScoreForChart(tooltipValues.s2) : '—'}</span>
+                        </div>
+                    </div>
+                ));
+            }
+            else { 
+                setHoveredRank(null); 
+                setCursorPercent(null); 
+                tooltipRef.current?.hide();
+            }
         }
-    };
+    }, [comparisonData]);
 
     const ChartDisplay = useMemo(() => {
         if (!comparisonData.event1 || !comparisonData.event2) return null;
@@ -362,12 +392,13 @@ const EventComparisonView: React.FC = () => {
             }).filter(res => res !== null);
         };
         return { color1, color2, path1: result1.path, path2: result2.path, points1: result1.points, points2: result2.points, xTicks, yTicks, splitLineX: getXPercent(SPLIT_RANK), tooltipValues: getTooltipData(), trendStats: getTrendAnalysis(), handleMouseMove: (e: React.MouseEvent<HTMLDivElement>) => handleMouseMove(e, getXPercent, maxRank, uniqueRanks), formatY: formatScoreForChart };
-    }, [comparisonData, displayMode, hoveredRank, isMobile, getEventColor]);
+    }, [comparisonData, displayMode, hoveredRank, isMobile, getEventColor, handleMouseMove]);
 
     if (listError) return <ErrorMessage message={listError} />;
 
     return (
         <div className="w-full animate-fadeIn py-2">
+            <PortalTooltip ref={tooltipRef} />
             <div className="mb-8">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.eventComparison.title}</h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">{UI_TEXT.eventComparison.description}</p>
@@ -529,7 +560,7 @@ const EventComparisonView: React.FC = () => {
                             ))}
                         </div>
                         <div className="flex-1 relative h-full flex flex-col mx-4">
-                            <div ref={plotAreaRef} className="relative flex-1 border border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900/20 overflow-visible cursor-crosshair mb-10" onMouseMove={ChartDisplay.handleMouseMove} onMouseLeave={() => { setHoveredRank(null); setCursorPercent(null); }}>
+                            <div ref={plotAreaRef} className="relative flex-1 border border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-900/20 overflow-visible cursor-crosshair mb-10" onMouseMove={ChartDisplay.handleMouseMove} onMouseLeave={() => { setHoveredRank(null); setCursorPercent(null); tooltipRef.current?.hide(); }}>
                                 <div className="absolute top-0 bottom-0 border-l border-slate-300 dark:border-slate-600 border-dashed" style={{ left: `${ChartDisplay.splitLineX}%` }}><div className="absolute top-1 left-1 text-[9px] text-slate-400 font-mono whitespace-nowrap bg-slate-100/80 dark:bg-slate-800/80 px-1 rounded pointer-events-none">Scale Change</div></div>
                                 {ChartDisplay.yTicks.map((tick, i) => ( <div key={`yg-${i}`} className="absolute w-full border-b border-slate-200 dark:border-slate-700/50" style={{ bottom: `${tick.yPercent}%` }} /> ))}
                                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
@@ -544,18 +575,7 @@ const EventComparisonView: React.FC = () => {
                                 {ChartDisplay.xTicks.map((tick, i) => ( <div key={`x-${i}`} className="absolute transform -translate-x-1/2 text-[10px] md:text-xs font-bold text-slate-500 font-mono text-center top-3" style={{ left: `${tick.xPercent}%` }}>#{tick.label}</div> ))}
                             </div>
                             {hoveredRank !== null && cursorPercent !== null && ChartDisplay.tooltipValues && (
-                                <div className="absolute z-30 pointer-events-none" style={{ left: `${Math.min(Math.max(cursorPercent, 10), 90)}%`, top: '10%', transform: 'translateX(-50%)' }}>
-                                    <div className="bg-slate-900/95 text-white text-xs rounded-lg p-3 shadow-xl border border-slate-600 whitespace-nowrap backdrop-blur-md">
-                                        <div className="font-bold text-center border-b border-slate-600 pb-1 mb-1 text-slate-300">Rank {hoveredRank}</div>
-                                        <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 items-center">
-                                            <div className="flex items-center gap-1.5 max-w-[120px]"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ChartDisplay.color1 }}></div><span className="text-slate-300 truncate text-[10px]">{comparisonData.event1?.name}</span></div>
-                                            <span className="font-mono font-bold text-right">{ChartDisplay.tooltipValues.s1 ? ChartDisplay.formatY(ChartDisplay.tooltipValues.s1) : '—'}</span>
-                                            <div className="flex items-center gap-1.5 max-w-[120px]"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ChartDisplay.color2 }}></div><span className="text-slate-300 truncate text-[10px]">{comparisonData.event2?.name}</span></div>
-                                            <span className="font-mono font-bold text-right">{ChartDisplay.tooltipValues.s2 ? ChartDisplay.formatY(ChartDisplay.tooltipValues.s2) : '—'}</span>
-                                        </div>
-                                    </div>
-                                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900/95"></div>
-                                </div>
+                                <div className="absolute top-0 bottom-0 border-l border-slate-500 border-dashed pointer-events-none" style={{ left: `${cursorPercent}%` }} />
                             )}
                         </div>
                     </div>

@@ -34,8 +34,13 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
     const { cards } = useCardData();
     
     const [activeChapter, setActiveChapter] = useState<string>('all');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm] = useState('');
     const [sortOption, setSortOption] = useState<SortOption>('score');
+
+    const handleSortChange = (newSort: SortOption) => {
+        setSortOption(newSort);
+        if (currentPage !== 'highlights') setCurrentPage(1);
+    };
     const [isRankingsOpen, setIsRankingsOpen] = useState(true);
     const [isChartsOpen, setIsChartsOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
@@ -44,9 +49,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
     useEffect(() => {
         fetchPastRankings(event.id);
         setEventName(event.name);
-        setCurrentPage(1);
-        setActiveChapter('all');
-    }, [event, fetchPastRankings, setEventName]);
+    }, [event.id, event.name, fetchPastRankings, setEventName]);
 
     // Handle World Link chapter changes or cache updates
     useEffect(() => {
@@ -60,10 +63,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
         }
     }, [activeChapter, worldLinkChapters, cachedPastRankings, setRankings, currentPage]);
 
-    // Reset page on search/sort change
-    useEffect(() => { 
-        if (currentPage !== 'highlights') setCurrentPage(1); 
-    }, [searchTerm, sortOption]);
+
 
     const handlePageChange = (page: number | 'highlights') => {
         setCurrentPage(page);
@@ -97,7 +97,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
                 if(!a.lastPlayedAt) return 1; if(!b.lastPlayedAt) return -1;
                 return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
             }
-            const [period, metric] = sortOption.split('_') as [any, any];
+            const [period, metric] = sortOption.split('_') as [string, string];
             if (a.stats[period as keyof typeof a.stats] && b.stats[period as keyof typeof b.stats]) {
                 return (b.stats[period as keyof typeof b.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0) - (a.stats[period as keyof typeof a.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0);
             }
@@ -194,7 +194,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
                     return (
                         <button key={charId} onClick={(e) => { e.stopPropagation(); setActiveChapter(charId); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
                             {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
-                            {charName}
+                            <span className="hidden sm:inline">{charName}</span>
                         </button>
                     );
                 })}
@@ -253,12 +253,12 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
                     <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={event.id} />
+                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={event.id} cards={cards || undefined} />
                     </CollapsibleSection>
                     <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                             <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
-                            <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
+                            <SortSelector activeSort={sortOption} onSortChange={handleSortChange} limitToScore={shouldHideStats} />
                         </div>
                         <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} eventDuration={currentEventDuration} cardsMap={cards || undefined} />
                     </CollapsibleSection>

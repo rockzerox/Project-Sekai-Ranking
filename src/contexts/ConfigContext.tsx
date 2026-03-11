@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback, useMemo } from 'react';
 import { EventDetail, WorldLinkInfo } from '../types';
 import { UNIT_MASTER } from '../config/constants';
 import { getChar } from '../utils/gameUtils';
@@ -22,17 +22,23 @@ interface ConfigContextType {
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const eventDetails: Record<number, EventDetail> = {};
-    for (const key in eventData) {
-        eventDetails[Number(key)] = eventData[key];
-    }
+    const eventDetails = useMemo(() => {
+        const details: Record<number, EventDetail> = {};
+        for (const key in eventData) {
+            details[Number(key)] = eventData[key];
+        }
+        return details;
+    }, []);
 
-    const wlDetails: Record<number, WorldLinkInfo> = {};
-    for (const key in wlData) {
-        wlDetails[Number(key)] = wlData[key];
-    }
+    const wlDetails = useMemo(() => {
+        const details: Record<number, WorldLinkInfo> = {};
+        for (const key in wlData) {
+            details[Number(key)] = wlData[key];
+        }
+        return details;
+    }, []);
 
-    const getEventColor = (eventId: number): string | undefined => {
+    const getEventColor = useCallback((eventId: number): string | undefined => {
         const details = eventDetails[eventId];
         if (!details) return undefined;
         const char = getChar(details.banner);
@@ -41,25 +47,35 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (unit) return unit.color;
         if (details.type === 'world_link') return '#33CCBB'; 
         return undefined;
-    };
+    }, [eventDetails]);
 
-    const isWorldLink = (eventId: number): boolean => {
+    const isWorldLink = useCallback((eventId: number): boolean => {
         return !!wlDetails[eventId] || eventDetails[eventId]?.type === 'world_link';
-    };
+    }, [eventDetails, wlDetails]);
 
-    const getWlDetail = (eventId: number): WorldLinkInfo | undefined => {
+    const getWlDetail = useCallback((eventId: number): WorldLinkInfo | undefined => {
         return wlDetails[eventId];
-    };
+    }, [wlDetails]);
 
-    const getWlIdsByRound = (round: number): number[] => {
+    const getWlIdsByRound = useCallback((round: number): number[] => {
         return (Object.entries(wlDetails) as [string, WorldLinkInfo][])
             .filter(([, info]) => info.round === round)
             .map(([id]) => Number(id))
             .sort((a, b) => a - b);
-    };
+    }, [wlDetails]);
+
+    const value = useMemo(() => ({
+        eventDetails,
+        wlDetails,
+        getEventColor,
+        isWorldLink,
+        getWlDetail,
+        getWlIdsByRound,
+        isLoading: false
+    }), [eventDetails, wlDetails, getEventColor, isWorldLink, getWlDetail, getWlIdsByRound]);
 
     return (
-        <ConfigContext.Provider value={{ eventDetails, wlDetails, getEventColor, isWorldLink, getWlDetail, getWlIdsByRound, isLoading: false }}>
+        <ConfigContext.Provider value={value}>
             {children}
         </ConfigContext.Provider>
     );

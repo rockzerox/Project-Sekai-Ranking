@@ -120,7 +120,7 @@ const PlayerStructureView: React.FC = () => {
     const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
     const [selectedEntries, setSelectedEntries] = useState<{ type: 'global' | 'unit' | 'char', id: string }[]>([{ type: 'global', id: '' }]);
     const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('banner');
-    const [eventDataCache, setEventDataCache] = useState<Record<number, RankingEntry[]>>({});
+    const eventDataCacheRef = useRef<Record<number, RankingEntry[]>>({});
     const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -134,7 +134,7 @@ const PlayerStructureView: React.FC = () => {
 
     useEffect(() => {
         fetchJsonWithBigInt(`${API_BASE_URL}/event/list`)
-            .then(data => { if (data) setAllEvents(data); })
+            .then(data => { if (data) setAllEvents(data as EventSummary[]); })
             .catch(() => setError('無法獲取活動清單'));
     }, []);
 
@@ -163,31 +163,30 @@ const PlayerStructureView: React.FC = () => {
                         }
                         return false;
                     }).map(e => e.id);
-                    targetEvents.forEach(id => { if (!eventDataCache[id]) neededEventIds.add(id); });
+                    targetEvents.forEach(id => { if (!eventDataCacheRef.current[id]) neededEventIds.add(id); });
                     return { entry, targetEvents };
                 });
                 const missingIds = Array.from(neededEventIds);
-                const newCache = { ...eventDataCache };
                 const BATCH_SIZE = 5;
                 for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
                     if (controller.signal.aborted) return;
                     const batch = missingIds.slice(i, i + BATCH_SIZE);
                     const results = await Promise.all(batch.map(async (id) => {
                         try {
-                            const res: PastEventApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${id}/top100`, controller.signal);
-                            return { id, rankings: res.rankings || [] };
+                            const res = await fetchJsonWithBigInt<PastEventApiResponse>(`${API_BASE_URL}/event/${id}/top100`, controller.signal);
+                            return { id, rankings: res?.rankings || [] };
                         } catch { return null; }
                     }));
-                    results.forEach(res => { if (res) newCache[res.id] = res.rankings; });
+                    results.forEach(res => { if (res) eventDataCacheRef.current[res.id] = res.rankings; });
                     setProgress(Math.round(((i + batch.length) / (missingIds.length || 1)) * 100));
                 }
-                setEventDataCache(newCache);
+                
                 entryMap.forEach(({ entry, targetEvents }) => {
                     if (targetEvents.length === 0) return;
                     const N = targetEvents.length;
                     const rankSets: Set<string>[] = Array.from({ length: 100 }, () => new Set());
                     targetEvents.forEach(id => {
-                        const rankings = newCache[id] || [];
+                        const rankings = eventDataCacheRef.current[id] || [];
                         rankings.forEach((entry: RankingEntry) => {
                             const r = entry.rank;
                             if (r >= 1 && r <= 100) { for (let k = r; k <= 100; k++) rankSets[k - 1].add(String(entry.userId)); }
@@ -208,8 +207,7 @@ const PlayerStructureView: React.FC = () => {
             } catch (err) { if (err instanceof Error && err.name !== 'AbortError') setError(err.message); } finally { setIsAnalyzing(false); }
         };
         runAnalysis();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedEntries, analysisMode, allEvents, eventDetails]);
+    }, [selectedEntries, analysisMode, allEvents, eventDetails, isWorldLink]);
 
     const toggleEntry = (type: 'global' | 'unit' | 'char', id: string) => {
         setSelectedEntries(prev => {

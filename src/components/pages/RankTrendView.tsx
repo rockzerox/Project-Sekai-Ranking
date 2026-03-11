@@ -55,7 +55,9 @@ const RankTrendView: React.FC = () => {
                     setAllEvents(sortedEvents);
                     const years = Array.from(new Set(sortedEvents.map(e => new Date(e.start_at).getFullYear()))).sort((a, b) => b - a); 
                     setAvailableYears(years);
-                    if (years.length > 0 && !years.includes(selectedYear)) setSelectedYear(years[0]);
+                    if (years.length > 0) {
+                        setSelectedYear(prev => years.includes(prev) ? prev : years[0]);
+                    }
                     const now = new Date();
                     const pastEvents = sortedEvents.filter(e => new Date(e.closed_at) < now);
                     if (pastEvents.length > 0) {
@@ -71,7 +73,6 @@ const RankTrendView: React.FC = () => {
             }
         };
         fetchList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

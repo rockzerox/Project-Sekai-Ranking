@@ -92,21 +92,23 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as MySekaiMiningView
+    participant Logic as 計算邏輯 (getBasePt / TreeSim)
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
+    User->>View: 輸入隊伍綜合力與加成
+    View->>Logic: 執行 getBasePt
+    Logic-->>View: 回傳 Tier 與基礎分 (Base Pt)
+    
+    alt 正向計算 (收益預估)
+        User->>View: 輸入採集物數量或操作樹木模擬器
+        View->>Logic: 執行模擬器狀態機 (含 Leave-2 規則)
+        Logic-->>View: 回傳總 Pt 與體力消耗
+    else 反向計算 (目標規劃)
+        User->>View: 輸入目標 Pt 並選擇策略 (如電鋸速刷)
+        View->>Logic: 執行策略演算法
+        Logic-->>View: 回傳所需資源與道具建議
     end
+    
+    View->>User: 渲染計算結果與視覺化報告
 ```
 

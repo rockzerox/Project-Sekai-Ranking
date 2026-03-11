@@ -43,6 +43,9 @@
 
 ### 2.2 圖表繪製與統計 (Chart & Stats)
 *   **數據映射**: 將 API 回傳的 `TrendDataPoint` 轉換為 `LineChart` 需要的格式。
+*   **效能優化 (Performance)**:
+    *   使用 `useMemo` 緩存 `chartData` 與統計結果（平均值、中位數），僅在活動列表或篩選條件變動時重新計算。
+    *   使用 `useCallback` 封裝過濾邏輯，減少子組件不必要的重繪。
 *   **客戶端過濾**: 
     *   API 抓取的是「該範圍內所有活動」的數據。
     *   使用者切換 Filter (如 Unit) 時，**不需要重新 Fetch**，而是直接過濾 `chartData` 中的 `isHighlighted` 屬性。
@@ -74,7 +77,7 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `src/components/pages/RankTrendView.tsx` (核心視圖)
+*   `src/components/pages/RankTrendView.tsx` (核心視圖，使用 `useMemo` 與 `useCallback` 優化)
 *   `src/components/charts/LineChart.tsx` (折線圖繪製)
 *   `src/components/ui/EventFilterGroup.tsx`
 *   `src/components/ui/Select.tsx`
@@ -87,21 +90,19 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as RankTrendView
+    participant Chart as LineChart Component
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
+    User->>View: 選擇年份/範圍與排名基準 (如 T100)
+    View->>API: 請求 /event/list (若尚未載入)
+    View->>View: 根據範圍過濾目標活動
+    loop 批次請求 (Batch Size = 5)
+        View->>API: 請求 /event/{id}/top100 或 /border
+        API-->>View: 回傳特定名次分數
     end
+    View->>View: 計算平均值 (Mean) 與中位數 (Median)
+    View->>Chart: 傳遞趨勢數據與統計線
+    Chart-->>User: 渲染折線圖與統計徽章
 ```
 

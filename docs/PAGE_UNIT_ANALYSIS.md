@@ -70,21 +70,18 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as UnitAnalysisView
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
+    User->>View: 選擇目標團體 (如 VBS)
+    View->>View: 篩選該團體的所有活動 ID
+    loop 批次請求 (Batch Size = 5)
+        View->>API: 請求活動榜單 (/top100 或 /border)
+        API-->>View: 回傳玩家名單
+        View->>View: 使用 Set 收集不重複玩家 ID
     end
+    View->>View: 計算獨特性比例 (Uniqueness Ratio)
+    View->>View: 找出該團體歷史 Top 5 高分期數
+    View->>User: 渲染團體報告、統計數據與名人堂
 ```
 

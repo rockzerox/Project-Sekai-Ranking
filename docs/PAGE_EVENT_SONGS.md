@@ -84,21 +84,18 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as EventSongsView
+    participant Carousel as SongCarousel
+    participant API as Hi Sekai API / 本地 JSON
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
-    end
+    User->>View: 進入頁面
+    View->>API: 請求活動列表與歌曲資料 (song.json)
+    API-->>View: 回傳歌曲與活動關聯數據
+    View->>View: 根據篩選器 (Unit/Char) 過濾歌曲
+    View->>Carousel: 傳遞過濾後的歌曲清單
+    Carousel-->>User: 渲染 3D 輪播介面
+    
+    User->>Carousel: 滑動或點擊切換歌曲
+    Carousel->>User: 更新當前歌曲詳情與 MV 連結
 ```
 

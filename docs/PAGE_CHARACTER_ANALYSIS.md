@@ -79,21 +79,21 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as CharacterAnalysisView
+    participant Config as ConfigContext (eventDetails)
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
+    User->>View: 選擇目標角色 (activeCharId)
+    View->>Config: 篩選 banner === activeCharId 的活動
+    View->>View: 根據篩選結果計算統計指標 (Max, Mean, etc.)
+    
+    alt 篩選模式為 World Link
+        View->>API: 請求所有 WL 活動數據
+        API-->>View: 回傳 WL 榜單
+        View->>View: 執行 Chapter Extraction 找到該角色章節
+        View->>View: 計算全伺服器角色排名 (Relative Rank)
     end
+    
+    View->>User: 渲染角色履歷、統計卡片與活動列表
 ```
 

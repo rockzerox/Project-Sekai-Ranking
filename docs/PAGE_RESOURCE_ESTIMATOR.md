@@ -99,21 +99,18 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as ResourceEstimatorView
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
-    end
+    User->>View: 選擇「基準活動」與名次 (Step 1)
+    View->>API: 請求基準活動分數 (/top100 或 /border)
+    API-->>View: 回傳結算分數與天數
+    
+    User->>View: 選擇「目標活動」(Step 2)
+    View->>View: 自動計算時長校正比例 (Duration Ratio)
+    
+    User->>View: 輸入「個人參數」(單場 PT、體力策略) (Step 3)
+    View->>View: 執行資源估算演算法 (扣除自然回體)
+    View->>User: 渲染所需的「大罐/小罐」數量與總場數報告
 ```
 

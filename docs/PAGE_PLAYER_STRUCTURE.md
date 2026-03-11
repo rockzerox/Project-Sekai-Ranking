@@ -39,6 +39,7 @@
 ### 2.1 客戶端運算 (Client-side Calculation)
 位於 `src/components/pages/PlayerStructureView.tsx`。
 
+*   **資料快取 (Caching)**: 使用 `useRef` 建立 `eventDataCacheRef` 儲存已抓取的榜單資料。這能確保在分析過程中，快取更新不會觸發組件的無窮重繪，同時在切換篩選條件時能立即使用已有的資料。
 *   **排除機制**: 自動排除 `World Link` 活動，因為其榜單結構不同，會汙染 `U(K)` 計算。
 *   **集合運算**:
     *   建立 100 個 `Set<string>`，分別對應 Rank 1 到 Rank 100。
@@ -75,8 +76,8 @@
 
 ## 4. 模組依賴 (Module Dependencies)
 
-*   `src/components/pages/PlayerStructureView.tsx` (全邏輯內聚)
-*   `contexts/ConfigContext.ts`
+*   `src/components/pages/PlayerStructureView.tsx` (全邏輯內聚，使用 `useRef` 優化快取)
+*   `contexts/ConfigContext.ts` (使用 `useMemo` 與 `useCallback` 優化)
 *   `src/hooks/useRankings.ts`
 *   `src/utils/mathUtils.ts`
 
@@ -85,21 +86,20 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as PlayerStructureView
+    participant Cache as eventDataCacheRef (useRef)
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
+    User->>View: 選擇團體/角色並啟動分析
+    View->>View: 根據篩選條件過濾目標活動清單
+    View->>Cache: 檢查哪些活動 ID 尚未緩存
+    loop 批次請求 (Batch Size = 5)
+        View->>API: 請求 /event/{id}/top100
+        API-->>View: 回傳榜單資料
+        View->>Cache: 更新緩存 (不觸發重繪)
     end
+    View->>View: 執行 U(K) 集合運算 (Set Intersection/Union)
+    View->>View: 計算各區間斜率趨勢
+    View->>User: 渲染 U(K) 曲線圖與趨勢報告
 ```
 

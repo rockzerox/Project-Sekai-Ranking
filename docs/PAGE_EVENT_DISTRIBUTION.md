@@ -96,21 +96,22 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as EventDistributionView
+    participant Logic as 網格化邏輯 (monthlySegments)
+    participant API as Hi Sekai API / 本地資料
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
-    end
+    User->>View: 進入頁面
+    View->>API: 請求活動列表 (GET /event/list)
+    API-->>View: 回傳基本清單
+    View->>Logic: 執行網格化處理 (跨月切割、座標計算)
+    Logic-->>View: 回傳 MonthSegments 陣列
+    
+    User->>View: 選擇特定角色 (如「星乃一歌」)
+    View->>View: 篩選 banner === 'ichika' 的活動
+    View->>View: 執行間隔分析 (Interval Analysis)
+    View->>User: 渲染甘特圖、空窗期統計與高亮活動條
+    
+    User->>View: 懸停於活動條
+    View->>User: 透過 PortalTooltip 顯示活動詳情 (Logo, 屬性)
 ```
 

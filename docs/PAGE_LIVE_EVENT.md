@@ -158,21 +158,24 @@ const giveUpThreshold = targetScore - maxGain;
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as LiveEventView
+    participant Hook as useRankings (Hook)
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
-    end
+    User->>View: 進入頁面 (預設 Top 100 模式)
+    View->>Hook: 請求當前活動榜單 (fetch /top100)
+    Hook->>API: GET /event/live/top100
+    API-->>Hook: 回傳玩家名單與分數
+    Hook-->>View: 更新 rankings 狀態
+    View->>View: 計算安全線 (Safe Line) 與死心線 (Give-up Line)
+    View->>View: 計算競爭數據 (CV, Ratio, Diff)
+    View->>User: 渲染即時榜單、儀表板與預測圖表
+    
+    User->>View: 切換至「精彩片段 (Highlights)」
+    View->>Hook: 請求邊線資料 (fetch /border)
+    Hook->>API: GET /event/live/border
+    API-->>Hook: 回傳關鍵名次分數
+    Hook-->>View: 更新 borderRankings 狀態
+    View->>User: 渲染 T200, T500, T1000... 等關鍵名次
 ```
 

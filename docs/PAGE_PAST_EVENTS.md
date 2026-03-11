@@ -113,21 +113,21 @@
 ```mermaid
 sequenceDiagram
     participant User as 使用者
-    participant View as 視圖組件 (View)
-    participant Hook as 自訂 Hook / 狀態管理
-    participant API as 後端 API / 本地資料
+    participant View as PastEventsView (List)
+    participant Detail as PastEventDetailView (Detail)
+    participant API as Hi Sekai API
 
-    User->>View: 進入頁面 / 操作 UI (篩選、排序等)
-    View->>Hook: 觸發資料請求或狀態更新
-    Hook->>API: 發送非同步請求 (若需要)
-    alt 請求成功 / 處理完成
-        API-->>Hook: 回傳資料
-        Hook-->>View: 更新 State
-        View->>User: 重新渲染畫面與圖表
-    else 請求失敗
-        API-->>Hook: 回傳錯誤
-        Hook-->>View: 設置錯誤狀態
-        View->>User: 顯示錯誤提示介面
-    end
+    User->>View: 進入歷代活動頁面
+    View->>API: 請求活動列表 (GET /event/list)
+    API-->>View: 回傳基本清單
+    User->>View: 操作篩選器 (年份、團體、Banner)
+    View->>View: 執行客戶端即時過濾 (Client-side Filtering)
+    
+    User->>View: 點擊特定活動卡片
+    View->>Detail: 切換至詳情視圖 (selectedEvent)
+    Detail->>API: 請求該期榜單 (GET /event/{id}/top100)
+    API-->>Detail: 回傳結算數據
+    Detail->>Detail: 處理 World Link 章節切換 (若適用)
+    Detail-->>User: 渲染活動回顧榜單與分析圖表
 ```
 

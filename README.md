@@ -76,6 +76,26 @@
 *   `/src/hooks`: 封裝 API 請求與複雜邏輯。
 *   `/src/utils`: 時間、數學及遊戲邏輯工具函式。
 
+```text
+.
+├── docs/                   # 專案規格書與技術文件 (Mermaid 序列圖)
+├── src/
+│   ├── components/
+│   │   ├── charts/         # 自定義 SVG 圖表組件
+│   │   ├── layout/         # 全域佈局 (Sidebar, Navbar)
+│   │   ├── pages/          # 核心功能視圖 (Live, Trend, Analysis, etc.)
+│   │   └── ui/             # 原子級 UI 組件 (Card, Button, Tooltip)
+│   ├── config/             # 遊戲常數與 UI 文字設定
+│   ├── contexts/           # ConfigContext (全域狀態與顏色映射)
+│   ├── hooks/              # 業務邏輯與 API 請求封裝 (useRankings, useEventList)
+│   ├── services/           # 外部 API 整合邏輯
+│   ├── utils/              # 核心演算法 (U(K), WL 校正, 時間處理)
+│   ├── App.tsx             # 視圖切換與根邏輯
+│   └── index.tsx           # 應用程式進入點
+├── package.json            # 依賴管理
+└── tailwind.config.js      # 樣式系統配置
+```
+
 ---
 
 ## ⚠️ 免責聲明 (Disclaimer)

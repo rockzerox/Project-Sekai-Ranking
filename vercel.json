@@ -1,11 +1,4 @@
 {
-  "functions": {
-    "api/event/**/*.ts": { "memory": 256 },
-    "api/user/**/*.ts": { "memory": 256 },
-    "api/stats/**/*.ts": { "memory": 256 },
-    "api/song/**/*.ts": { "memory": 256 },
-    "api/cron/**/*.ts": { "memory": 256 }
-  },
   "crons": [
     {
       "path": "/api/cron/update-stats",

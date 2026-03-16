@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動榜線排名 (Rank Analysis)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-16
+**版本號**: 2.0.0
 
 **文件代號**: `PAGE_RANK_ANALYSIS`
 **對應視圖**: `currentView === 'analysis'` (src/App.tsx)
@@ -36,6 +36,9 @@
 ### 2.1 資料處理策略 (Data Fetching Strategy)
 位於 `src/components/pages/RankAnalysisView.tsx` 的 `useEffect`。
 
+*   **混合資料來源**:
+    *   **歷史戰績**: 優先從 **Supabase** (`event_border_stats`) 查詢已歸檔的活動數據，大幅減少對 Hi Sekai API 的依賴。
+    *   **即時/新活動**: 若 Supabase 無資料，則發起對 Hi Sekai API 的請求。
 *   **批次請求 (Batch Processing)**:
     *   為避免觸發 API Rate Limit 或造成瀏覽器卡頓，系統將所有歷史活動以 `BATCH_SIZE = 5` 為一組進行分批處理。
     *   使用 `Promise.all` 並行處理每一批次的 5 個活動。
@@ -46,7 +49,7 @@
 
 ### 2.2 核心邏輯
 *   **分數正規化**:
-    *   總分模式: 直接使用 API 回傳的 `score`。
+    *   總分模式: 直接使用 API 或 Supabase 回傳的 `score`。
     *   日均模式: `Math.ceil(score / Math.max(0.1, duration))`。
     *   **例外處理**: 若活動時長異常（小於 0.1 天），設為最小值以防除以零。
 *   **現時活動整合**: 
@@ -83,6 +86,7 @@
 *   `src/components/ui/EventFilterGroup.tsx`
 *   `src/components/ui/Select.tsx`
 *   `src/hooks/useRankings.ts` (fetchJsonWithBigInt)
+*   `src/lib/supabase.ts` (Supabase 客戶端)
 *   `src/utils/mathUtils.ts` (計算日期與分數格式化)
 *   `contexts/ConfigContext.ts`
 
@@ -93,15 +97,17 @@ sequenceDiagram
     participant User as 使用者
     participant View as RankAnalysisView
     participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 進入頁面啟動全期數掃描
+    View->>DB: 查詢歷史戰績 (event_border_stats)
+    DB-->>View: 回傳已歸檔數據
     View->>API: 請求當前活動資料 (/live/top100)
     loop 批次掃描 (Batch Size = 5)
-        View->>API: 請求歷史活動分數 (/top100 或 /border)
+        View->>API: 請求剩餘活動分數
         API-->>View: 回傳結算數據
         View->>View: 執行分數正規化 (總分/日均分)
         View->>View: 即時更新四大榜單排序
     end
     View->>User: 渲染名人堂儀表板與進度條
 ```
-

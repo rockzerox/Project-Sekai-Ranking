@@ -25,6 +25,7 @@ import ScrollToTop from './components/layout/ScrollToTop';
 import { API_BASE_URL } from './config/constants';
 import { fetchJsonWithBigInt } from './hooks/useRankings';
 import { ConfigProvider } from './contexts/ConfigContext';
+import { FeatureFlagProvider } from './contexts/FeatureFlagContext';
 
 const MainContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('home');
@@ -106,7 +107,9 @@ const MainContent: React.FC = () => {
 
 const App: React.FC = () => (
     <ConfigProvider>
-        <MainContent />
+        <FeatureFlagProvider>
+            <MainContent />
+        </FeatureFlagProvider>
     </ConfigProvider>
 );
 

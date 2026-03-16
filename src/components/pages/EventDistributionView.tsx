@@ -8,6 +8,8 @@ import ErrorMessage from '../../components/ui/ErrorMessage';
 import { useConfig } from '../../contexts/ConfigContext';
 import { UI_TEXT } from '../../config/uiText';
 
+import { fetchJsonWithBigInt } from '../../hooks/useRankings';
+
 // --- Types ---
 
 type FilterType = 'all' | 'character' | 'unit';
@@ -68,9 +70,8 @@ const EventDistributionView: React.FC = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/event/list`);
-                if (!res.ok) throw new Error('Failed');
-                const rawEvents: EventSummary[] = await res.json();
+                const rawEvents: EventSummary[] | null = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
+                if (!rawEvents) throw new Error('Failed');
                 const now = new Date();
                 
                 const processed = rawEvents

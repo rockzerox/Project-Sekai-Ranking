@@ -11,6 +11,7 @@ import { fetchJsonWithBigInt } from '../../hooks/useRankings';
 import { useEventList } from '../../hooks/useEventList';
 import { useConfig } from '../../contexts/ConfigContext';
 import { UI_TEXT } from '../../config/uiText';
+import { supabase } from '../../lib/supabase';
 
 const difficultyStyles: Record<string, string> = {
   easy: 'text-lime-600 dark:text-lime-400',    
@@ -64,7 +65,6 @@ const PlayerProfileView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [isScanning, setIsScanning] = useState(false);
-    const [scanProgress, setScanProgress] = useState(0);
     const [honorRecords, setHonorRecords] = useState<HonorRecord[]>([]);
     const [hasScanned, setHasScanned] = useState(false);
     const [honorPage, setHonorPage] = useState(1);
@@ -89,8 +89,25 @@ const PlayerProfileView: React.FC = () => {
         setHasScanned(false); setHonorRecords([]); setHonorPage(1); 
 
         try {
-            const data: UserProfileResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/user/${input}/profile`);
-            if (data) setProfileData(data);
+            // 並行請求：Hisekai API (profile) 與 Supabase API (rankings)
+            // 使用 Promise.allSettled 確保 Supabase 失敗時不會影響 profile 獲取
+            const [profileResult, rankingsResult] = await Promise.allSettled([
+                fetchJsonWithBigInt(`${API_BASE_URL}/user/${input}/profile`),
+                fetchJsonWithBigInt(`${API_BASE_URL}/user/${input}/rankings`)
+            ]);
+            
+            if (profileResult.status === 'fulfilled' && profileResult.value) {
+                setProfileData(profileResult.value);
+            } else {
+                throw new Error(UI_TEXT.playerProfile.errorFetch);
+            }
+
+            if (rankingsResult.status === 'fulfilled') {
+                console.log('Rankings data:', rankingsResult.value);
+                // 這裡可以處理 rankingsData，例如存入 state
+            } else {
+                console.warn('Rankings fetch failed, ignoring:', rankingsResult.reason);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : UI_TEXT.playerProfile.errorFetch);
         } finally {
@@ -100,27 +117,36 @@ const PlayerProfileView: React.FC = () => {
 
     const startHonorScan = async () => {
         if (!profileData || !allEvents.length) return;
-        setIsScanning(true); setScanProgress(0); setHonorRecords([]);
+        setIsScanning(true); setHonorRecords([]);
         const targetUserId = profileData.user.userId;
-        const pastEvents = allEvents.filter(e => new Date(e.closed_at) < new Date());
-        const batchSize = 5;
-        const results: HonorRecord[] = [];
+        
+        try {
+            const { data, error } = await supabase
+                .from('event_rankings')
+                .select('event_id, rank, score')
+                .eq('user_id', targetUserId)
+                .eq('chapter_char_id', -1);
 
-        for (let i = 0; i < pastEvents.length; i += batchSize) {
-            const batch = pastEvents.slice(i, i + batchSize);
-            await Promise.all(batch.map(async (event) => {
-                try {
-                    const data: PastEventApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${event.id}/top100`);
-                    if (data?.rankings) {
-                        const entry = data.rankings.find(r => String(r.userId) === targetUserId);
-                        if (entry) results.push({ eventId: event.id, eventName: event.name, rank: entry.rank, score: entry.score });
-                    }
-                } catch { /* ignore */ }
-            }));
-            setScanProgress(Math.round(((i + batch.length) / pastEvents.length) * 100));
+            if (error) throw error;
+
+            if (data) {
+                const results: HonorRecord[] = data.map(row => {
+                    const eventInfo = allEvents.find(e => e.id === row.event_id);
+                    return {
+                        eventId: row.event_id,
+                        eventName: eventInfo ? eventInfo.name : `Event ${row.event_id}`,
+                        rank: row.rank,
+                        score: row.score
+                    };
+                });
+                setHonorRecords(results);
+            }
+        } catch (err) {
+            console.error("Failed to fetch honor records from Supabase", err);
+        } finally {
+            setIsScanning(false); 
+            setHasScanned(true);
         }
-        setHonorRecords(results);
-        setIsScanning(false); setHasScanned(true);
     };
 
     // 處理排序後的紀錄
@@ -232,7 +258,7 @@ const PlayerProfileView: React.FC = () => {
                         ) : isScanning ? (
                             <div className="py-4 flex flex-col items-center">
                                 <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <p className="text-cyan-600 dark:text-cyan-400 font-black text-sm">{scanProgress}%</p>
+                                <p className="text-cyan-600 dark:text-cyan-400 font-black text-sm">{UI_TEXT.playerProfile.processing}</p>
                             </div>
                         ) : honorRecords.length === 0 ? (
                             <div className="py-4 text-center text-slate-400 font-bold text-xs italic">{UI_TEXT.playerProfile.noRecord}</div>

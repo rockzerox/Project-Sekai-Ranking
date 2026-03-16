@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 玩家狀態查詢 (Player Profile)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-16
+**版本號**: 2.0.0
 
 **文件代號**: `PAGE_PLAYER_PROFILE`
 **對應視圖**: `currentView === 'playerProfile'` (src/App.tsx)
@@ -17,7 +17,7 @@
 *   **ID 查詢**: 輸入遊戲 ID，獲取即時的個人檔案。
 *   **綜合力分析**: 拆解 Total Power 的來源（卡片基礎、區域道具、角色等級、稱號加成等）。
 *   **榮耀里程碑 (Glory Milestone)**: 
-    *   **全期數掃描**: 按下掃描鈕後，系統會搜尋所有歷史活動榜單，找出該玩家曾經進入 Top 100 的所有紀錄。
+    *   **全期數掃描**: 按下掃描鈕後，系統會從 Supabase 資料庫中快速查詢該玩家曾經進入 Top 100 的所有紀錄。
     *   **排序與分頁**: 支援依「期數」或「分數」排序掃描結果。
 *   **角色等級檢視**: 顯示玩家持有的各角色等級 (Character Rank)。
 *   **歌曲進度**: 顯示各難度 (Easy ~ Append) 的 Clear / FC / AP 數量。
@@ -28,10 +28,10 @@
 
 ### 2.1 資料來源
 *   **個人檔案**: `/user/{userId}/profile` (Hi Sekai API)。
-*   **歷史戰績**: 無直接 API。
-    *   **實作方式**: 前端發起「暴力掃描」，批次請求所有 `events` 的 `/top100` API。
-    *   **過濾**: 在每個榜單中尋找 `entry.userId === targetId`。
-    *   **狀態**: 使用 `isScanning` 與 `scanProgress` 呈現掃描進度。
+*   **歷史戰績**: `event_rankings` (Supabase)。
+    *   **實作方式**: 前端發起單次 Supabase 查詢，直接篩選 `user_id` 符合目標玩家的紀錄。
+    *   **過濾**: 透過 `.is('chapter_char_id', null)` 確保只抓取活動總榜分數。
+    *   **狀態**: 使用 `isScanning` 呈現掃描進度（由於改用 Supabase，掃描過程通常在毫秒級完成）。
 
 ### 2.2 視覺化呈現
 *   **Clamp Font Size**: 針對玩家名稱過長的情況，使用 CSS `clamp()` 動態縮小字體，確保不跑版。
@@ -66,6 +66,7 @@
 *   `src/components/ui/Button.tsx`
 *   `src/hooks/useEventList.ts` (用於取得掃描目標列表)
 *   `src/hooks/useRankings.ts` (fetchJsonWithBigInt)
+*   `src/lib/supabase.ts` (Supabase 客戶端)
 
 ## 5. 序列圖 (Sequence Diagram)
 
@@ -74,6 +75,7 @@ sequenceDiagram
     participant User as 使用者
     participant View as PlayerProfileView
     participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 輸入玩家 ID 並點擊搜尋
     View->>API: 請求個人檔案 (GET /user/{id}/profile)
@@ -81,12 +83,8 @@ sequenceDiagram
     View->>User: 渲染玩家概況卡片
     
     User->>View: 點擊「掃描全期數」
-    loop 暴力掃描 (Batch Size = 5)
-        View->>API: 請求歷史活動 Top 100 (/top100)
-        API-->>View: 回傳百名玩家名單
-        View->>View: 檢查 entry.userId === targetId
-        View->>View: 紀錄匹配的戰績 (名次、分數)
-    end
+    View->>DB: 查詢歷史戰績 (SELECT * FROM event_rankings WHERE user_id = targetId)
+    DB-->>View: 回傳匹配的戰績紀錄
     View->>User: 渲染榮耀里程碑 (Glory Milestone) 表格
 ```
 

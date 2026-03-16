@@ -6,6 +6,12 @@
 **文件代號**: `PAGE_PAST_EVENTS`
 **對應視圖**: `currentView === 'past'` (src/components/pages/PastEventsView.tsx & src/components/pages/PastEventDetailView.tsx)
 **主要用途**: 提供完整的歷史活動資料庫，支援多維度搜尋、篩選與回顧詳細榜單。
+**API 依賴**: 
+*   `/api/events/list`
+*   `/api/events/:id`
+*   `/api/rankings/past`
+*   `/api/rankings/border`
+*(詳細規格請參照 `/docs/API_ARCHITECTURE.md`)*
 
 ---
 

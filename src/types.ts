@@ -127,12 +127,13 @@ export interface PastEventApiResponse {
   name: string;
   start_at: string;
   aggregate_at: string;
-  rankings: RankingEntry[];
+  top_100_player_rankings: RankingEntry[];
+  rankings?: RankingEntry[];
   userWorldBloomChapterRankings?: WorldBloomChapter[];
 }
 
 export interface PastEventBorderApiResponse {
-  borderRankings: RankingEntry[];
+  border_player_rankings: RankingEntry[];
   userWorldBloomChapterRankingBorders?: WorldBloomChapterBorder[];
 }
 
@@ -231,4 +232,10 @@ export interface CardData {
 
 export interface CardsMap {
   [key: string]: CardData;
+}
+
+export interface FeatureFlag {
+  key: string;
+  enabled: boolean;
+  note: string | null;
 }

@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { RankEntry, RankingEntry, HisekaiApiResponse, HisekaiBorderApiResponse, PastEventApiResponse, PastEventBorderApiResponse } from '../types';
 import { API_BASE_URL } from '../config/constants';
 import { transformUserCardToPlayerInfo } from '../utils/transform';
+import { supabase } from '../lib/supabase';
 
 const API_URL = `${API_BASE_URL}/event/live/top100`;
 const BORDER_API_URL = `${API_BASE_URL}/event/live/border`;
@@ -20,8 +21,19 @@ export const fetchJsonWithBigInt = async <T = any>(url: string, signal?: AbortSi
     if (!text || text.trim() === "") return null;
     const sanitized = text.replace(BIGINT_REGEX, '"$1": "$2"');
     try {
-        return JSON.parse(sanitized);
-    } catch {
+        const parsed = JSON.parse(sanitized);
+        
+        // 檢查是否為 API Routes 的統一包裝格式 { source, data }
+        if (parsed && typeof parsed === 'object' && 'source' in parsed && 'data' in parsed) {
+            return parsed.data as T;
+        }
+        
+        // 舊格式直接回傳
+        return parsed as T;
+    } catch (e) {
+        console.error("JSON parse error on URL:", url);
+        console.error("Response text preview:", text.substring(0, 200));
+        console.error("Sanitized text preview:", sanitized.substring(0, 200));
         throw new Error("解析 JSON 失敗，數據格式不正確。");
     }
 };
@@ -135,33 +147,45 @@ export const useRankings = (): UseRankingsReturn => {
     const fetchPastRankings = useCallback(async (eventId: number) => {
         setIsLoading(true); setError(null); setRankings([]); setWorldLinkChapters({});
         try {
-            const responseData: PastEventApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/top100`);
-            if (responseData && Array.isArray(responseData.rankings)) {
-                const transformed = transformRankings(responseData.rankings);
-                setRankings(transformed); setCachedPastRankings(transformed);
-                if (responseData.userWorldBloomChapterRankings) {
-                    const chapterMap: Record<string, RankEntry[]> = {};
+            const url = `${API_BASE_URL}/event/${eventId}/top100`;
+            const responseData: PastEventApiResponse = await fetchJsonWithBigInt(url);
+            
+            // 支援新 API 格式 (rankings) 與舊 API 格式 (top_100_player_rankings)
+            const rawRankings = responseData.rankings || responseData.top_100_player_rankings;
+
+            if (rawRankings && Array.isArray(rawRankings)) {
+                const transformedMain = transformRankings(rawRankings);
+                setRankings(transformedMain); 
+                setCachedPastRankings(transformedMain);
+
+                if (responseData.userWorldBloomChapterRankings && responseData.userWorldBloomChapterRankings.length > 0) {
+                    const finalChapterMap: Record<string, RankEntry[]> = {};
                     responseData.userWorldBloomChapterRankings.forEach(chapter => {
-                        chapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.rankings);
+                        finalChapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.rankings);
                     });
-                    setWorldLinkChapters(chapterMap);
+                    setWorldLinkChapters(finalChapterMap);
                 }
-            } else throw new Error('無法讀取過往活動數據。');
+            } else {
+                throw new Error('無法讀取過往活動數據。');
+            }
         } catch (e) { setError(e instanceof Error ? e.message : '讀取過往活動失敗'); } finally { setIsLoading(false); }
     }, []);
 
     const fetchPastBorderRankings = useCallback(async (eventId: number) => {
         setIsLoading(true); setError(null); setWorldLinkChapters({});
         try {
-            const responseData: PastEventBorderApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/border`);
-            if (responseData && Array.isArray(responseData.borderRankings)) {
-                setRankings(transformRankings(responseData.borderRankings));
-                if (responseData.userWorldBloomChapterRankingBorders) {
-                    const chapterMap: Record<string, RankEntry[]> = {};
+            const url = `${API_BASE_URL}/event/${eventId}/border`;
+            const responseData: PastEventBorderApiResponse = await fetchJsonWithBigInt(url);
+
+            if (responseData && Array.isArray(responseData.border_player_rankings)) {
+                setRankings(transformRankings(responseData.border_player_rankings));
+
+                if (responseData.userWorldBloomChapterRankingBorders && responseData.userWorldBloomChapterRankingBorders.length > 0) {
+                    const finalChapterMap: Record<string, RankEntry[]> = {};
                     responseData.userWorldBloomChapterRankingBorders.forEach(chapter => {
-                        chapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.borderRankings);
+                        finalChapterMap[String(chapter.gameCharacterId)] = transformRankings(chapter.borderRankings);
                     });
-                    setWorldLinkChapters(chapterMap);
+                    setWorldLinkChapters(finalChapterMap);
                 }
             }
         } catch (e) { setError(e instanceof Error ? e.message : '取得精彩片段失敗'); } finally { setIsLoading(false); }

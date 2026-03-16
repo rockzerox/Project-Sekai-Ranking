@@ -172,11 +172,16 @@ const CharacterAnalysisView: React.FC = () => {
                         
                         let targetScore = 0;
                         if (jsonScore) {
-                            const rankings = (isT100 ? jsonScore.rankings : jsonScore.borderRankings) || [];
+                            const rankings = (isT100 
+                                ? (jsonScore.rankings || jsonScore.top_100_player_rankings) 
+                                : (jsonScore.borderRankings || jsonScore.border_player_rankings)) || [];
                             targetScore = rankings.find((r: RankingEntry) => r.rank === rankTarget)?.score || 0;
                         }
-                        if (jsonTop100 && jsonTop100.rankings) {
-                            jsonTop100.rankings.forEach((r: RankingEntry) => playerIds.add(String(r.userId)));
+                        if (jsonTop100) {
+                            const top100Rankings = jsonTop100.rankings || jsonTop100.top_100_player_rankings;
+                            if (top100Rankings) {
+                                top100Rankings.forEach((r: RankingEntry) => playerIds.add(String(r.userId)));
+                            }
                         }
                         const duration = Math.max(1, Math.round((new Date(evt.aggregate_at).getTime() - new Date(evt.start_at).getTime()) / MS_PER_DAY));
                         return { id: evt.id, name: evt.name, score: targetScore, daily: targetScore / duration };

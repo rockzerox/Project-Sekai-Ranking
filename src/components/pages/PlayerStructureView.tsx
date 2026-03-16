@@ -148,14 +148,20 @@ const PlayerStructureView: React.FC = () => {
             try {
                 const now = new Date();
                 const newResults: AnalysisResult[] = [];
+                
+                // 1. 確定所有需要查詢的 event_id
                 const neededEventIds = new Set<number>();
                 const entryMap = selectedEntries.map(entry => {
                     const targetEvents = allEvents.filter(e => {
                         const detail = eventDetails[e.id];
                         if (!detail || isWorldLink(e.id) || new Date(e.closed_at) > now) return false;
                         if (analysisMode === 'banner' && detail.storyType !== 'unit_event') return false;
+                        
                         if (entry.type === 'global') return true;
-                        if (entry.type === 'unit') return detail.unit === UNIT_ORDER.find(id => UNIT_MASTER[id].name === entry.id);
+                        if (entry.type === 'unit') {
+                            const unitId = Object.keys(UNIT_MASTER).find(key => UNIT_MASTER[key].name === entry.id);
+                            return detail.unit === unitId;
+                        }
                         if (entry.type === 'char') {
                             if (analysisMode === 'banner') return detail.banner === entry.id;
                             const starCards = detail["4starcard"]?.split(',') || [];
@@ -163,10 +169,16 @@ const PlayerStructureView: React.FC = () => {
                         }
                         return false;
                     }).map(e => e.id);
-                    targetEvents.forEach(id => { if (!eventDataCacheRef.current[id]) neededEventIds.add(id); });
+                    
+                    targetEvents.forEach(id => { 
+                        if (!eventDataCacheRef.current[id]) neededEventIds.add(id); 
+                    });
                     return { entry, targetEvents };
                 });
+
                 const missingIds = Array.from(neededEventIds);
+                
+                // 2. 批次請求 Top 100
                 const BATCH_SIZE = 5;
                 for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
                     if (controller.signal.aborted) return;
@@ -174,37 +186,58 @@ const PlayerStructureView: React.FC = () => {
                     const results = await Promise.all(batch.map(async (id) => {
                         try {
                             const res = await fetchJsonWithBigInt<PastEventApiResponse>(`${API_BASE_URL}/event/${id}/top100`, controller.signal);
-                            return { id, rankings: res?.rankings || [] };
+                            return { id, rankings: res?.top_100_player_rankings || [] };
                         } catch { return null; }
                     }));
                     results.forEach(res => { if (res) eventDataCacheRef.current[res.id] = res.rankings; });
                     setProgress(Math.round(((i + batch.length) / (missingIds.length || 1)) * 100));
                 }
                 
+                // 3. 執行 U(K) 集合運算
                 entryMap.forEach(({ entry, targetEvents }) => {
                     if (targetEvents.length === 0) return;
                     const N = targetEvents.length;
                     const rankSets: Set<string>[] = Array.from({ length: 100 }, () => new Set());
+                    
                     targetEvents.forEach(id => {
                         const rankings = eventDataCacheRef.current[id] || [];
-                        rankings.forEach((entry: RankingEntry) => {
-                            const r = entry.rank;
-                            if (r >= 1 && r <= 100) { for (let k = r; k <= 100; k++) rankSets[k - 1].add(String(entry.userId)); }
+                        rankings.forEach((rankEntry: RankingEntry) => {
+                            const r = rankEntry.rank;
+                            if (r >= 1 && r <= 100) { 
+                                for (let k = r; k <= 100; k++) {
+                                    rankSets[k - 1].add(String(rankEntry.userId)); 
+                                }
+                            }
                         });
                     });
+                    
                     const uCurve = rankSets.map((s, idx) => parseFloat(((s.size / (N * (idx + 1))) * 100).toFixed(2)));
-                    const name = entry.type === 'global' ? '整體遊戲' : (entry.type === 'unit' ? entry.id : CHARACTER_MASTER[entry.id]?.name);
-                    const color = entry.type === 'global' ? '#64748b' : (entry.type === 'unit' ? UNIT_MASTER[UNIT_ORDER.find(id => UNIT_MASTER[id].name === entry.id)!]?.color : CHARACTER_MASTER[entry.id]?.color) || '#06b6d4';
+                    const name = entry.type === 'global' ? '整體遊戲' : (entry.type === 'unit' ? entry.id : CHARACTER_MASTER[Number(entry.id)]?.name);
+                    
+                    let color = '#06b6d4';
+                    if (entry.type === 'global') color = '#64748b';
+                    else if (entry.type === 'unit') {
+                        const unitId = Object.keys(UNIT_MASTER).find(key => UNIT_MASTER[Number(key)].name === entry.id);
+                        color = unitId ? UNIT_MASTER[Number(unitId)].color : '#06b6d4';
+                    } else if (entry.type === 'char') {
+                        color = CHARACTER_MASTER[Number(entry.id)]?.color || '#06b6d4';
+                    }
                     
                     let rawId = entry.id;
                     if (entry.type === 'unit') {
-                        rawId = UNIT_ORDER.find(uid => UNIT_MASTER[uid].name === entry.id) || '';
+                        const unitId = Object.keys(UNIT_MASTER).find(key => UNIT_MASTER[Number(key)].name === entry.id);
+                        rawId = unitId || '';
                     }
 
                     newResults.push({ id: `${entry.type}-${entry.id}`, type: entry.type, rawId, name, color, eventCount: N, data: uCurve });
                 });
+                
                 setAnalysisResults(newResults);
-            } catch (err) { if (err instanceof Error && err.name !== 'AbortError') setError(err.message); } finally { setIsAnalyzing(false); }
+            } catch (err) { 
+                if (err instanceof Error && err.name !== 'AbortError') setError(err.message); 
+            } finally { 
+                setIsAnalyzing(false); 
+            }
         };
         runAnalysis();
     }, [selectedEntries, analysisMode, allEvents, eventDetails, isWorldLink]);

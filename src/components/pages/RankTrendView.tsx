@@ -13,6 +13,7 @@ import { formatScoreForChart } from '../../utils/mathUtils';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
 import { UI_TEXT } from '../../config/uiText';
+import { supabase } from '../../lib/supabase';
 
 interface TrendDataPoint {
     eventId: number;
@@ -32,7 +33,6 @@ const RankTrendView: React.FC = () => {
     const [isLoadingList, setIsLoadingList] = useState(true);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
     const [selectedRank, setSelectedRank] = useState<number>(100);
@@ -103,38 +103,47 @@ const RankTrendView: React.FC = () => {
             if (targetEvents.length === 0) { setTrendData([]); return; }
             setIsAnalyzing(true); setLoadingProgress(0); setTrendData([]); 
 
-            const total = targetEvents.length; const BATCH_SIZE = 5;
-            for (let i = 0; i < total; i += BATCH_SIZE) {
-                if (!alive) break;
-                if (isPaused) { await new Promise(r => setTimeout(r, 500)); i -= BATCH_SIZE; continue; }
-                const batch = targetEvents.slice(i, i + BATCH_SIZE);
-                const batchResults = await Promise.all(batch.map(async (event) => {
-                    try {
-                        let score = 0;
-                        const isTop100 = selectedRank <= 100;
-                        const url = isTop100 ? `${API_BASE_URL}/event/${event.id}/top100` : `${API_BASE_URL}/event/${event.id}/border`;
-                        const json = await fetchJsonWithBigInt(url, controller.signal);
-                        if (json) {
-                            if (isTop100) {
-                                if (selectedRank === 1) score = json.rankings?.[0]?.score || 0;
-                                else if (selectedRank === 10) score = json.rankings?.[9]?.score || 0;
-                                else if (selectedRank === 100) score = json.rankings?.[99]?.score || 0;
-                                else score = json.rankings?.find((r: { rank: number, score: number }) => r.rank === selectedRank)?.score || 0;
-                            } else {
-                                score = json.borderRankings?.find((r: { rank: number, score: number }) => r.rank === selectedRank)?.score || 0;
-                            }
-                        }
-                        return { eventId: event.id, eventName: event.name, duration: calculatePreciseDuration(event.start_at, event.aggregate_at), score, year: new Date(event.start_at).getFullYear() };
-                    } catch { return null; }
-                }));
-                const validPoints = batchResults.filter((r): r is TrendDataPoint => r !== null && r.score > 0);
-                if (alive) { setTrendData(prev => [...prev, ...validPoints].sort((a, b) => a.eventId - b.eventId)); setLoadingProgress(Math.round(((i + batch.length) / total) * 100)); }
+            try {
+                const targetEventIds = targetEvents.map(e => e.id);
+                
+                const { data, error } = await supabase
+                    .from('event_rankings')
+                    .select('event_id, score')
+                    .eq('rank', selectedRank)
+                    .eq('chapter_char_id', -1)
+                    .in('event_id', targetEventIds);
+
+                if (error) throw error;
+
+                if (data) {
+                    const scoreMap = new Map(data.map(d => [d.event_id, d.score]));
+                    
+                    const validPoints: TrendDataPoint[] = targetEvents.map(event => {
+                        const score = scoreMap.get(event.id) || 0;
+                        return {
+                            eventId: event.id,
+                            eventName: event.name,
+                            duration: calculatePreciseDuration(event.start_at, event.aggregate_at),
+                            score,
+                            year: new Date(event.start_at).getFullYear()
+                        };
+                    }).filter(p => p.score > 0);
+
+                    if (alive) {
+                        setTrendData(validPoints.sort((a, b) => a.eventId - b.eventId));
+                        setLoadingProgress(100);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch trend data from Supabase:", err);
+                if (alive) setFetchError(UI_TEXT.rankTrend.fetchError);
+            } finally {
+                if (alive) setIsAnalyzing(false);
             }
-            if (alive) setIsAnalyzing(false);
         };
         const timeoutId = setTimeout(fetchTrendData, 300);
         return () => { alive = false; controller.abort(); clearTimeout(timeoutId); };
-    }, [allEvents, isLoadingList, rangeMode, selectedYear, idRange, selectedRank, isPaused]);
+    }, [allEvents, isLoadingList, rangeMode, selectedYear, idRange, selectedRank]);
 
     const { chartData, meanValue, medianValue, hasMatchingData } = useMemo(() => {
         const hasActiveFilters = filters.unit !== 'all' || filters.type !== 'all' || filters.banner !== 'all' || filters.storyType !== 'all' || filters.cardType !== 'all' || filters.fourStar !== 'all';
@@ -185,7 +194,7 @@ const RankTrendView: React.FC = () => {
                  {hasMatchingData && (<div className="flex gap-3 w-full xl:w-auto border-t xl:border-t-0 border-slate-100 dark:border-slate-700/50 pt-2 xl:pt-0 items-center justify-end"><label className="flex items-center gap-1.5 cursor-pointer select-none group"><input type="checkbox" checked={showStatLines} onChange={(e) => setShowStatLines(e.target.checked)} className="w-4 h-4 text-cyan-500 rounded border-slate-300 dark:border-slate-600 focus:ring-cyan-500 dark:bg-slate-700" /><span className="text-xs text-slate-500 dark:text-slate-400 font-bold group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">{UI_TEXT.rankTrend.showAuxLine}</span></label><div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800/50"><span className="text-[10px] font-bold uppercase tracking-wider">{UI_TEXT.rankTrend.stats.avg}</span><span className="text-sm font-mono font-bold">{meanValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div><div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-800/50"><span className="text-[10px] font-bold uppercase tracking-wider">{UI_TEXT.rankTrend.stats.median}</span><span className="text-sm font-mono font-bold">{medianValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div></div>)}
             </div>
             <div className="relative">
-                {isAnalyzing && (<div className="absolute inset-x-0 top-0 z-10 mx-4 mt-4 animate-fadeIn"><div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-between"><div className="flex items-center gap-3 w-full"><span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse whitespace-nowrap">{UI_TEXT.rankTrend.loading} ({loadingProgress}%)</span><div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden"><div className="bg-cyan-500 h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${loadingProgress}%` }}></div></div></div><Button size="sm" variant="secondary" onClick={() => setIsPaused(!isPaused)} className="ml-3 h-7 text-xs font-bold">{isPaused ? "▶ 繼續" : "⏸ 暫停"}</Button></div></div>)}
+                {isAnalyzing && (<div className="absolute inset-x-0 top-0 z-10 mx-4 mt-4 animate-fadeIn"><div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-between"><div className="flex items-center gap-3 w-full"><span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse whitespace-nowrap">{UI_TEXT.rankTrend.loading}</span><div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden"><div className="bg-cyan-500 h-full rounded-full transition-all duration-300 ease-out" style={{ width: `100%` }}></div></div></div></div></div>)}
                 <div className={`bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-lg transition-opacity duration-300 ${isAnalyzing && trendData.length === 0 ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
                     {trendData.length > 0 ? (hasMatchingData ? (<LineChart data={chartData} variant="trend" lineColor="teal" xAxisLabel="Event ID" yAxisLabel={displayMode === 'total' ? "Score" : "Daily Avg"} valueFormatter={formatScoreForChart} yAxisFormatter={formatScoreForChart} meanValue={showStatLines ? meanValue : undefined} medianValue={showStatLines ? medianValue : undefined} />) 
                     : (<div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-900/20 rounded-lg border border-dashed border-slate-300 dark:border-slate-700"><p className="font-bold mb-1">{UI_TEXT.rankTrend.noData.title}</p><p className="text-sm">{UI_TEXT.rankTrend.noData.desc}</p></div>)) 

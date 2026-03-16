@@ -55,52 +55,16 @@
 
 本專案採用現代化的前端技術棧開發，注重效能與擴充性。
 
-### 🛠️ 技術棧 (Tech Stack)
-*   **框架**: React 18 (Functional Components, Hooks)
-*   **語言**: TypeScript (嚴格型別定義)
-*   **建置工具**: Vite (高速開發與打包)
-*   **樣式**: Tailwind CSS (Utility-first CSS)
-*   **動畫**: Framer Motion (流暢的介面轉場)
-*   **圖表**: 自定義 SVG 渲染引擎 (優化大數據展示效能)
-
 ### 🏗️ 系統架構與設計模式
-*   **Context API 驅動**: 使用 `ConfigContext` 統一管理全域活動設定、顏色映射及 World Link 邏輯。
-*   **高效能數據處理**: 
-    *   針對大數據分析（如 U(K) 曲線）採用 `useRef` 快取策略與 `useMemo` 計算優化。
-    *   封裝 `fetchJsonWithBigInt` 解決 JavaScript 原生 JSON 無法精確處理 64 位元整數 ID 的問題。
-*   **響應式設計**: 採用 Mobile-first 策略，針對手機版提供橫向觀看提醒與觸控優化。
+本專案採用 **三層式架構 (Three-Tier Architecture)** 與 **容錯設計 (Fault-Tolerant Design)**：
+*   **展示層 (Presentation Layer)**: 基於 React 的 SPA 應用。
+*   **服務層 (Service Layer)**: 位於 `src/services/`，負責封裝外部 API 請求與資料處理。
+*   **資料層 (Data Layer)**: 整合 Supabase 與 Hi Sekai API。
 
-### 📂 專案結構
-*   `/src/components/pages`: 各功能模組的主要視圖。
-*   `/src/contexts`: 全域狀態管理。
-*   `/src/hooks`: 封裝 API 請求與複雜邏輯。
-*   `/src/utils`: 時間、數學及遊戲邏輯工具函式。
-
-```text
-.
-├── docs/                   # 專案規格書與技術文件 (Mermaid 序列圖)
-├── src/
-│   ├── components/
-│   │   ├── charts/         # 自定義 SVG 圖表組件
-│   │   ├── layout/         # 全域佈局 (Sidebar, Navbar)
-│   │   ├── pages/          # 核心功能視圖 (Live, Trend, Analysis, etc.)
-│   │   └── ui/             # 原子級 UI 組件 (Card, Button, Tooltip)
-│   ├── config/             # 遊戲常數與 UI 文字設定
-│   ├── contexts/           # ConfigContext (全域狀態與顏色映射)
-│   ├── hooks/              # 業務邏輯與 API 請求封裝 (useRankings, useEventList)
-│   ├── services/           # 外部 API 整合邏輯
-│   ├── utils/              # 核心演算法 (U(K), WL 校正, 時間處理)
-│   ├── App.tsx             # 視圖切換與根邏輯
-│   └── index.tsx           # 應用程式進入點
-├── package.json            # 依賴管理
-└── tailwind.config.js      # 樣式系統配置
-```
-
----
-
-## ⚠️ 免責聲明 (Disclaimer)
+### ⚠️ 免責聲明 (Disclaimer)
 
 本站為非官方粉絲製作之數據分析工具，與 **SEGA**、**Colorful Palette**、**Crypton Future Media** 或官方營運團隊無任何關聯。
 *   **版權聲明**：所有遊戲相關資產（圖標、角色形象、活動名稱等）之版權均歸原官方所有。
 *   **數據準確性**：本站數據來源於第三方 API，不保證 100% 之準確性，所有計算結果僅供衝榜策略參考，請以遊戲內實際結算為準。
 *   **隱私說明**：本站僅讀取公開之排名數據，不會收集玩家的帳號密碼等敏感資訊。
+*   **訪客分析**：本站使用 [Vercel Analytics](/docs/ANALYTICS.md) 收集匿名訪客數據以優化使用者體驗。

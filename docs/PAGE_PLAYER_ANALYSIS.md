@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活躍玩家分析 (Active Player Analysis)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-13
+**版本號**: 1.2.0
 
 **文件代號**: `PAGE_PLAYER_ANALYSIS`
 **對應視圖**: `currentView === 'playerAnalysis'` (src/App.tsx)
@@ -14,7 +14,7 @@
 本頁面回答「誰是台服最強的玩家？」或「誰最常拿到 Top 10？」等問題，揭示伺服器的高端玩家生態。
 
 ### 1.1 核心功能
-*   **全期數大數據掃描**: 系統自動抓取自開服以來所有活動的 Top 100 數據。
+*   **全期數大數據掃描**: 系統自動從 Supabase 資料庫抓取自開服以來所有活動的 Top 100 數據。
 *   **Top 100 常客排行**: 統計每位玩家進入前百名的總次數。
     *   **前百霸榜率**: 顯示玩家上榜次數佔總期數的百分比。
 *   **特定名次常客**:
@@ -23,8 +23,7 @@
 *   **團體偏好標籤**: 在玩家名稱旁顯示該玩家曾上榜過的團體標籤 (Unit Tags)，分析其「主推」傾向。
 
 ### 1.2 互動機制
-*   **批次進度回饋**: 由於數據量龐大，介面提供即時進度條與「暫停/繼續」控制鈕。
-*   **即時重排**: 當掃描進度更新時，排行榜會即時重新計算並排序。
+*   **即時重排**: 由於改用 Supabase 單次查詢，資料載入極快，載入完成後排行榜會立即計算並顯示。
 
 ---
 
@@ -33,20 +32,20 @@
 ### 2.1 資料聚合邏輯 (Aggregation Logic)
 位於 `src/components/pages/PlayerAnalysisView.tsx`。
 
-1.  **隊列初始化**: 取得所有 `closed_at < now` 的活動列表，建立 `eventsQueue`。
-2.  **批次請求**: 
-    *   每次處理 `BATCH_SIZE = 5` 個活動。
-    *   使用 `AbortController` 確保組件卸載時中斷請求。
+1.  **目標確立**: 取得所有 `closed_at < now` 的活動列表，建立 `eventIds` 陣列。
+2.  **單次查詢**: 
+    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank <= 100 AND chapter_char_id IS NULL`。
 3.  **統計表更新**:
     *   維護一個巨大的 `playerStats: Record<string, PlayerStat>` 物件。
     *   Key 為 `userId` (確保唯一性)。
-    *   遍歷榜單時：
+    *   遍歷查詢結果時：
         *   `top100Count++`
         *   若 `rank <= 15`，更新 `specificRankCounts`。
         *   更新 `unitCounts` (依據該期活動的 Unit 屬性)。
         *   更新 `latestName` (以最新的活動名稱為準)。
 
 ### 2.2 效能優化
+*   **資料庫查詢優化**: 將原本需要發送數十次 API 請求的邏輯，改為單次 Supabase 查詢，大幅減少網路延遲與伺服器負載。
 *   **記憶體管理**: 僅儲存必要的統計數據，而非保留原始榜單陣列。
 *   **Memoization**: 使用 `useMemo` 處理排序與過濾（`topFrequent100`, `topFrequentSpecific`），避免 React Render Cycle 造成卡頓。
 
@@ -57,9 +56,7 @@
 ### 3.1 狀態與控制區
 *   **標題**: 顯示總掃描期數。
 *   **進度面板**: 
-    *   顯示百分比、已處理期數。
-    *   動態進度條 (Cyan color)。
-    *   暫停/繼續按鈕。
+    *   顯示載入中狀態 (Processing)。
 
 ### 3.2 雙榜單佈局 (Split View)
 *   **左側 (Top 100 常客)**:
@@ -79,6 +76,7 @@
 *   `src/components/ui/Select.tsx`
 *   `contexts/ConfigContext.ts` (用於判斷活動團體屬性)
 *   `src/hooks/useRankings.ts`
+*   `src/lib/supabase.ts` (Supabase 客戶端)
 
 ## 5. 序列圖 (Sequence Diagram)
 
@@ -86,15 +84,13 @@
 sequenceDiagram
     participant User as 使用者
     participant View as PlayerAnalysisView
-    participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 進入頁面啟動大數據掃描
-    loop 批次掃描 (Batch Size = 5)
-        View->>API: 請求歷史活動 Top 100 (/top100)
-        API-->>View: 回傳百名玩家名單
-        View->>View: 聚合玩家數據 (次數、名次、團體偏好)
-        View->>View: 即時重新計算常客排行榜
-    end
+    View->>DB: 單次查詢所有歷史活動 Top 100 (SELECT ... WHERE event_id IN (...) AND rank <= 100)
+    DB-->>View: 回傳所有符合條件的榜單紀錄
+    View->>View: 聚合玩家數據 (次數、名次、團體偏好)
+    View->>View: 計算常客排行榜
     View->>User: 渲染活躍玩家排行與團體標籤
 ```
 

@@ -1,7 +1,7 @@
 
 import { CharInfo, UnitInfo } from '../types';
 
-export const API_BASE_URL = "https://api.hisekai.org/tw";
+export const API_BASE_URL = "/api";
 export const MS_PER_DAY = 86400000;
 
 export const UNITS: Record<string, UnitInfo> = {

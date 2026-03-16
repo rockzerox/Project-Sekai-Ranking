@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動比較分析 (Event Comparison)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-16
+**版本號**: 2.0.0
 
 **文件代號**: `PAGE_EVENT_COMPARISON`
 **對應視圖**: `currentView === 'comparison'` (src/App.tsx)
@@ -42,10 +42,11 @@
 位於 `src/components/pages/EventComparisonView.tsx` 的 `handleCompare` 函式。
 
 *   **一般模式 (General)**:
-    *   並行請求 4 個 API：Event A 的 `/top100` 與 `/border`，以及 Event B 的 `/top100` 與 `/border`。
+    *   **歷史戰績**: 優先從 **Supabase** (`event_border_stats`) 查詢已歸檔的活動排名資料。
+    *   **API 補強**: 若 Supabase 無資料，則發起對 Hi Sekai API 的請求。
 *   **World Link 模式 (World Link)**:
-    *   同樣並行請求 4 個 API：Event A 的 `/top100` 與 `/border`，以及 Event B 的 `/top100` 與 `/border`。
-    *   **資料萃取**: 從回傳的 `userWorldBloomChapterRankings` 與 `userWorldBloomChapterRankingBorders` 中，精準提取出使用者所選「角色 ID」對應的榜單陣列。
+    *   **歷史戰績**: 優先從 **Supabase** (`userWorldBloomChapterRankings`) 查詢已歸檔的 WL 章節排名資料。
+    *   **API 補強**: 若 Supabase 無資料，則發起對 Hi Sekai API 的請求。
 *   **數據合併**: 將 Top 100 詳細名單與 Border 概略名單合併、去重、排序，產生完整的 `SimpleRankData[]`。
 
 ### 2.2 圖表繪製邏輯 (Chart Logic)
@@ -88,6 +89,7 @@
 ## 4. 模組依賴 (Module Dependencies)
 
 *   `src/components/pages/EventComparisonView.tsx` (獨立組件，內含圖表邏輯)
+*   `src/lib/supabase.ts` (Supabase 客戶端)
 *   `src/components/ui/Select.tsx`
 *   `src/components/ui/EventFilterGroup.tsx` (提供獨立的篩選狀態)
 *   `src/hooks/useRankings.ts` (複用 `fetchJsonWithBigInt`)
@@ -102,17 +104,18 @@ sequenceDiagram
     participant View as EventComparisonView
     participant Logic as 分析演算法 (getTrendAnalysis)
     participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 選擇活動 A 與活動 B 並點擊比較
     par 請求活動 A 資料
-        View->>API: 請求 A 的 /top100 與 /border
+        View->>DB: 查詢 A 的歷史戰績
+        DB-->>View: 回傳已歸檔數據 (若無則請求 API)
     and 請求活動 B 資料
-        View->>API: 請求 B 的 /top100 與 /border
+        View->>DB: 查詢 B 的歷史戰績
+        DB-->>View: 回傳已歸檔數據 (若無則請求 API)
     end
-    API-->>View: 回傳雙方榜單數據
     View->>View: 數據正規化 (可選日均分校正)
     View->>Logic: 執行區間陡峭度與離散度分析
     Logic-->>View: 回傳勝出判定與評語
     View->>User: 渲染疊加曲線圖與對比報告卡片
 ```
-

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { EventSummary, HisekaiApiResponse, HisekaiBorderApiResponse } from '../../types';
 import { API_BASE_URL, MS_PER_DAY } from '../../config/constants';
 import { calculatePreciseDuration } from '../../utils/timeUtils';
@@ -29,15 +29,7 @@ const BORDER_OPTIONS = [200, 300, 400, 500, 1000, 2000, 5000, 10000];
 const RankAnalysisView: React.FC = () => {
     const { eventDetails, getEventColor, isWorldLink } = useConfig();
     const [processedStats, setProcessedStats] = useState<EventStat[]>([]);
-    const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
-    const [isPaused, setIsPaused] = useState(false);
-    const isPausedRef = useRef(isPaused);
-
-    useEffect(() => {
-        isPausedRef.current = isPaused;
-    }, [isPaused]);
-    const [totalEvents, setTotalEvents] = useState(0);
     const [selectedBorderRank, setSelectedBorderRank] = useState<number>(1000);
     const [displayMode, setDisplayMode] = useState<'total' | 'daily'>('total');
     
@@ -49,12 +41,16 @@ const RankAnalysisView: React.FC = () => {
         let alive = true;
         const runAnalysis = async () => {
             try {
+                setIsAnalyzing(true);
                 const listData: EventSummary[] = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
                 if (!alive || !listData) return;
+                
                 const now = new Date();
                 const closedEvents = listData.filter(e => new Date(e.closed_at) < now && !isWorldLink(e.id)).sort((a, b) => b.id - a.id);
-                setTotalEvents(closedEvents.length + 1);
 
+                const statsMap = new Map<number, EventStat>();
+
+                // 1. 獲取正在進行中的活動即時數據
                 try {
                     const [topData, borderData]: [HisekaiApiResponse, HisekaiBorderApiResponse] = await Promise.all([
                         fetchJsonWithBigInt(`${API_BASE_URL}/event/live/top100`),
@@ -77,52 +73,53 @@ const RankAnalysisView: React.FC = () => {
                             eventId: topData.id, 
                             eventName: topData.name, 
                             duration: durationDays, 
-                            startYear: start.getFullYear(), // Get Year
+                            startYear: start.getFullYear(),
                             remainingDays: remainingMs / MS_PER_DAY, 
                             isLive: isStillActive, 
                             top1, top10, top50, top100, 
                             borders: borderScores 
                         };
-                        setProcessedStats(prev => [liveStat, ...prev.filter(p => p.eventId !== liveStat.eventId)]);
+                        statsMap.set(liveStat.eventId, liveStat);
                     }
                 } catch (liveErr) { console.warn("RankAnalysis: Failed to fetch live event", liveErr); }
 
-                const chunkSize = 5;
-                for (let i = 0; i < closedEvents.length; i += chunkSize) {
-                    if (!alive) return;
-                    while (isPausedRef.current && alive) await new Promise(r => setTimeout(r, 500));
-                    const chunk = closedEvents.slice(i, i + chunkSize);
-                    const chunkResults = await Promise.all(chunk.map(async (event) => {
-                        try {
-                            const [dataTop, dataBorder] = await Promise.all([
-                                fetchJsonWithBigInt(`${API_BASE_URL}/event/${event.id}/top100`),
-                                fetchJsonWithBigInt(`${API_BASE_URL}/event/${event.id}/border`)
-                            ]);
-                            const top1 = dataTop?.rankings?.[0]?.score || 0;
-                            const top10 = dataTop?.rankings?.[9]?.score || 0;
-                            const top50 = dataTop?.rankings?.[49]?.score || 0;
-                            const top100 = dataTop?.rankings?.[99]?.score || 0;
-                            const borderScores: Record<number, number> = {};
-                            dataBorder?.borderRankings?.forEach((item: { rank: number, score: number }) => { borderScores[item.rank] = item.score; });
-                            return { 
-                                eventId: event.id, 
-                                eventName: event.name, 
-                                duration: calculatePreciseDuration(event.start_at, event.aggregate_at), 
-                                startYear: new Date(event.start_at).getFullYear(), // Get Year
-                                top1, top10, top50, top100, 
-                                borders: borderScores 
-                            } as EventStat;
-                        } catch { return null; }
-                    }));
-                    if (!alive) return;
-                    const validStats = chunkResults.filter((r): r is EventStat => r !== null);
-                    setProcessedStats(prev => {
-                        const existingIds = new Set(prev.map(p => p.eventId));
-                        return [...prev, ...validStats.filter(s => !existingIds.has(s.eventId))];
-                    });
-                    setLoadingProgress(Math.round(((i + chunk.length) / closedEvents.length) * 100));
+                // 2. 一次性獲取所有過往活動的統計數據 (極速)
+                try {
+                    const borderStatsResponse = await fetch(`/api/stats/border-stats`);
+                    if (!borderStatsResponse.ok) throw new Error(`API Error: ${borderStatsResponse.status}`);
+                    const borderStatsData = await borderStatsResponse.json();
+                    const statsArray = borderStatsData?.stats || borderStatsData?.data?.stats || borderStatsData; // 相容解包
+                    
+                    if (statsArray && Array.isArray(statsArray)) {
+                        statsArray.forEach((stat: any) => {
+                            // 避免覆蓋正在進行中的活動
+                            if (statsMap.has(stat.eventId)) return;
+                            
+                            const eventInfo = listData.find(e => e.id === stat.eventId);
+                            if (eventInfo && !isWorldLink(eventInfo.id)) {
+                                const duration = calculatePreciseDuration(eventInfo.start_at, eventInfo.aggregate_at);
+                                const startYear = new Date(eventInfo.start_at).getFullYear();
+                                statsMap.set(stat.eventId, {
+                                    eventId: stat.eventId,
+                                    eventName: eventInfo.name,
+                                    duration,
+                                    startYear,
+                                    isLive: false,
+                                    top1: stat.top1,
+                                    top10: stat.top10,
+                                    top50: stat.top50,
+                                    top100: stat.top100,
+                                    borders: stat.borders || {}
+                                });
+                            }
+                        });
+                    }
+                } catch (statsErr) { console.error("RankAnalysis: Failed to fetch historical border stats", statsErr); }
+
+                if (alive) {
+                    setProcessedStats(Array.from(statsMap.values()));
+                    setIsAnalyzing(false);
                 }
-                if (alive) setIsAnalyzing(false);
             } catch (e) { console.error("Analysis failed", e); if (alive) setIsAnalyzing(false); }
         };
         runAnalysis();
@@ -233,8 +230,12 @@ const RankAnalysisView: React.FC = () => {
             <div className="mb-6"><div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4"><div><h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.rankAnalysis.title}</h2><p className="text-slate-500 dark:text-slate-400">{UI_TEXT.rankAnalysis.description}</p></div>
             <div className="flex flex-wrap items-center gap-3"><EventFilterGroup filters={filters} onFilterChange={setFilters} mode="multi" containerClassName="flex flex-wrap gap-2 items-center" itemClassName="w-full sm:w-auto" />
             <div className="bg-white dark:bg-slate-800 p-1 rounded-lg flex border border-slate-300 dark:border-slate-700 shadow-sm"><button onClick={() => setDisplayMode('total')} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${displayMode === 'total' ? 'bg-cyan-500 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{UI_TEXT.rankAnalysis.modes.total}</button><button onClick={() => setDisplayMode('daily')} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${displayMode === 'daily' ? 'bg-pink-500 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}>{UI_TEXT.rankAnalysis.modes.daily}</button></div></div></div>
-            {isAnalyzing && (<div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mb-6 relative overflow-hidden shadow-sm"><div className="flex justify-between items-center mb-2 relative z-10"><span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">正在同步分析數據... ({loadingProgress}%)</span><span className="text-slate-500 dark:text-slate-400 text-xs">已處理: {processedStats.length} / {totalEvents}</span></div>
-            <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden relative z-10"><div className="bg-cyan-500 h-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${loadingProgress}%` }}></div></div><button onClick={() => setIsPaused(!isPaused)} className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white px-2 py-1 rounded border border-slate-300 dark:border-transparent">{isPaused ? "繼續" : "暫停"}</button></div>)}</div>
+            {isAnalyzing && (
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mb-6 flex justify-center items-center shadow-sm">
+                    <span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">正在載入歷史數據...</span>
+                </div>
+            )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
                 <DashboardTable 
                     title={`Top 1 ${modeLabel}`} 

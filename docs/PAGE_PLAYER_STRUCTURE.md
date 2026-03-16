@@ -39,7 +39,8 @@
 ### 2.1 客戶端運算 (Client-side Calculation)
 位於 `src/components/pages/PlayerStructureView.tsx`。
 
-*   **資料快取 (Caching)**: 使用 `useRef` 建立 `eventDataCacheRef` 儲存已抓取的榜單資料。這能確保在分析過程中，快取更新不會觸發組件的無窮重繪，同時在切換篩選條件時能立即使用已有的資料。
+*   **單次查詢**: 
+    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank <= 100 AND chapter_char_id IS NULL`。
 *   **排除機制**: 自動排除 `World Link` 活動，因為其榜單結構不同，會汙染 `U(K)` 計算。
 *   **集合運算**:
     *   建立 100 個 `Set<string>`，分別對應 Rank 1 到 Rank 100。
@@ -87,17 +88,12 @@
 sequenceDiagram
     participant User as 使用者
     participant View as PlayerStructureView
-    participant Cache as eventDataCacheRef (useRef)
-    participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 選擇團體/角色並啟動分析
     View->>View: 根據篩選條件過濾目標活動清單
-    View->>Cache: 檢查哪些活動 ID 尚未緩存
-    loop 批次請求 (Batch Size = 5)
-        View->>API: 請求 /event/{id}/top100
-        API-->>View: 回傳榜單資料
-        View->>Cache: 更新緩存 (不觸發重繪)
-    end
+    View->>DB: 單次查詢目標活動 Top 100 (SELECT ... WHERE event_id IN (...) AND rank <= 100)
+    DB-->>View: 回傳榜單資料
     View->>View: 執行 U(K) 集合運算 (Set Intersection/Union)
     View->>View: 計算各區間斜率趨勢
     View->>User: 渲染 U(K) 曲線圖與趨勢報告

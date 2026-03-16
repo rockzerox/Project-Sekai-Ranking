@@ -81,10 +81,10 @@ const ResourceEstimatorView: React.FC = () => {
                     let score = 0;
                     if (isTop100) {
                         const data = json as PastEventApiResponse;
-                        score = data.rankings.find(r => r.rank === selectedRank)?.score || 0;
+                        score = data.top_100_player_rankings.find(r => r.rank === selectedRank)?.score || 0;
                     } else {
                         const data = json as PastEventBorderApiResponse;
-                        score = data.borderRankings.find(r => r.rank === selectedRank)?.score || 0;
+                        score = data.border_player_rankings.find(r => r.rank === selectedRank)?.score || 0;
                     }
                     setPastEventScore(score);
                     const evt = events.find(e => e.id === selectedPastId);

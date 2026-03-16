@@ -209,6 +209,7 @@ export const UI_TEXT = {
     sectionGlory: "前百榮耀里程碑",
     gloryPlaceholder: "Top 100 歷史戰果",
     btnScan: "掃描全期數",
+    processing: "資料讀取中...",
     noRecord: "尚無紀錄",
     tableHeaders: {
         event: "期數",

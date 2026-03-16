@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 推角分析 (Character Analysis)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-16
+**版本號**: 2.0.0
 
 **文件代號**: `PAGE_CHARACTER_ANALYSIS`
 **對應視圖**: `currentView === 'characterAnalysis'` (src/App.tsx)
@@ -38,7 +38,7 @@
 *   **一般模式**: 篩選 `eventDetails[id].banner === activeCharId`。
 *   **WL 模式**: 
     *   讀取所有 WL 活動數據。
-    *   從 `userWorldBloomChapterRankings` 中找到對應 `gameCharacterId` 的數據。
+    *   **資料來源**: 優先從 **Supabase** (`userWorldBloomChapterRankings`) 查詢該角色在 WL 活動中的章節排名數據。
     *   計算該角色在所有角色中的相對排名 (Total Rank / Daily Rank)。
 
 ### 2.2 輪播互動 (Carousel Logic)
@@ -70,6 +70,7 @@
 ## 4. 模組依賴 (Module Dependencies)
 
 *   `src/components/pages/CharacterAnalysisView.tsx`
+*   `src/lib/supabase.ts` (Supabase 客戶端)
 *   `contexts/ConfigContext.ts`
 *   `src/components/ui/Select.tsx`
 *   `src/utils/mathUtils.ts`
@@ -82,18 +83,18 @@ sequenceDiagram
     participant View as CharacterAnalysisView
     participant Config as ConfigContext (eventDetails)
     participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 選擇目標角色 (activeCharId)
     View->>Config: 篩選 banner === activeCharId 的活動
     View->>View: 根據篩選結果計算統計指標 (Max, Mean, etc.)
     
     alt 篩選模式為 World Link
-        View->>API: 請求所有 WL 活動數據
-        API-->>View: 回傳 WL 榜單
+        View->>DB: 查詢 WL 章節排名 (userWorldBloomChapterRankings)
+        DB-->>View: 回傳 WL 榜單
         View->>View: 執行 Chapter Extraction 找到該角色章節
         View->>View: 計算全伺服器角色排名 (Relative Rank)
     end
     
     View->>User: 渲染角色履歷、統計卡片與活動列表
 ```
-

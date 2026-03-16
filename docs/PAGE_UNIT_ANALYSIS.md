@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 團推分析 (Unit Analysis)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-16
+**版本號**: 2.0.0
 
 **文件代號**: `PAGE_UNIT_ANALYSIS`
 **對應視圖**: `currentView === 'unitAnalysis'` (src/App.tsx)
@@ -30,7 +30,9 @@
 位於 `src/components/pages/UnitAnalysisView.tsx`。
 
 1.  **篩選 (Filtering)**: 遍歷 `allEvents`，比對 `eventDetails` 中的 `unit` 與 `storyType` 欄位。
-2.  **批次獲取 (Batch Fetching)**: 針對篩選出的活動 ID，批次請求 `/top100` 或 `/border` 數據。
+2.  **資料獲取 (Data Fetching)**: 
+    *   **歷史戰績**: 優先從 **Supabase** (`event_border_stats`) 查詢已歸檔的活動排名資料。
+    *   **API 補強**: 若 Supabase 無資料，則發起對 Hi Sekai API 的請求。
 3.  **玩家集合計算**:
     *   使用 `Set<string>` 收集所有曾經進入 Top 100 的 `userId`。
     *   `Unique Players` = `Set.size`。
@@ -61,6 +63,7 @@
 ## 4. 模組依賴 (Module Dependencies)
 
 *   `src/components/pages/UnitAnalysisView.tsx`
+*   `src/lib/supabase.ts` (Supabase 客戶端)
 *   `contexts/ConfigContext.ts`
 *   `src/utils/mathUtils.ts` (統計運算)
 *   `src/config/config/constants.ts` (團體定義與顏色)
@@ -72,16 +75,18 @@ sequenceDiagram
     participant User as 使用者
     participant View as UnitAnalysisView
     participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 選擇目標團體 (如 VBS)
     View->>View: 篩選該團體的所有活動 ID
-    loop 批次請求 (Batch Size = 5)
+    View->>DB: 查詢歷史戰績 (event_border_stats)
+    DB-->>View: 回傳已歸檔數據
+    loop 批次請求 (若 Supabase 無資料)
         View->>API: 請求活動榜單 (/top100 或 /border)
         API-->>View: 回傳玩家名單
-        View->>View: 使用 Set 收集不重複玩家 ID
     end
+    View->>View: 使用 Set 收集不重複玩家 ID
     View->>View: 計算獨特性比例 (Uniqueness Ratio)
     View->>View: 找出該團體歷史 Top 5 高分期數
     View->>User: 渲染團體報告、統計數據與名人堂
 ```
-

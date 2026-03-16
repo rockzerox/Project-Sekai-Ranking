@@ -12,7 +12,7 @@ export const useEventList = () => {
         let isMounted = true;
         const fetchEvents = async () => {
             try {
-                // 修正：路徑為 /event/list，不帶 /tw
+                // 修正：路徑為 /api/event/list
                 const data: EventSummary[] = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
                 if (isMounted && data) {
                     const sortedData = data.sort((a, b) => b.id - a.id);

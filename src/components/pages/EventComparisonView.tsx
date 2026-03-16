@@ -216,8 +216,8 @@ const EventComparisonView: React.FC = () => {
 
                 const processRankings = (topData: PastEventApiResponse = {} as PastEventApiResponse, borderData: PastEventBorderApiResponse = {} as PastEventBorderApiResponse): SimpleRankData[] => {
                     const combined = [
-                        ...(topData.rankings || []).map((r) => ({ rank: r.rank, score: r.score })),
-                        ...(borderData.borderRankings || []).map((r) => ({ rank: r.rank, score: r.score }))
+                        ...(topData.top_100_player_rankings || []).map((r) => ({ rank: r.rank, score: r.score })),
+                        ...(borderData.border_player_rankings || []).map((r) => ({ rank: r.rank, score: r.score }))
                     ];
                     const uniqueMap = new Map<number, SimpleRankData>();
                     combined.forEach(item => uniqueMap.set(item.rank, item));

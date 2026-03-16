@@ -6,6 +6,12 @@
 **文件代號**: `PAGE_LIVE_EVENT`
 **對應視圖**: `currentView === 'live'` (src/components/pages/LiveEventView.tsx)
 **主要用途**: 提供正在進行中的活動即時排名資訊、競爭數據分析與預測。
+**API 依賴**: 
+*   `/api/events/list`
+*   `/api/events/:id`
+*   `/api/rankings/live`
+*   `/api/rankings/border`
+*(詳細規格請參照 `/docs/API_ARCHITECTURE.md`)*
 
 ---
 
@@ -160,22 +166,24 @@ sequenceDiagram
     participant User as 使用者
     participant View as LiveEventView
     participant Hook as useRankings (Hook)
-    participant API as Hi Sekai API
+    participant API as Vercel API Route (/api/...)
+    participant Supabase as Supabase (Primary)
+    participant Hisekai as Hisekai API (Fallback)
 
-    User->>View: 進入頁面 (預設 Top 100 模式)
-    View->>Hook: 請求當前活動榜單 (fetch /top100)
-    Hook->>API: GET /event/live/top100
-    API-->>Hook: 回傳玩家名單與分數
+    User->>View: 進入頁面
+    View->>Hook: 請求當前活動榜單
+    Hook->>API: GET /api/event/live/top100
+    API->>Supabase: 1. 嘗試讀取資料
+    alt 資料庫有資料
+        Supabase-->>API: 回傳資料
+    else 資料庫無資料或失敗
+        Supabase-->>API: 失敗/空資料
+        API->>Hisekai: 2. 轉向原始 API 抓取
+        Hisekai-->>API: 回傳資料
+    end
+    API-->>Hook: 回傳 { source, data }
+    Hook->>Hook: 解包 data
     Hook-->>View: 更新 rankings 狀態
-    View->>View: 計算安全線 (Safe Line) 與死心線 (Give-up Line)
-    View->>View: 計算競爭數據 (CV, Ratio, Diff)
-    View->>User: 渲染即時榜單、儀表板與預測圖表
-    
-    User->>View: 切換至「精彩片段 (Highlights)」
-    View->>Hook: 請求邊線資料 (fetch /border)
-    Hook->>API: GET /event/live/border
-    API-->>Hook: 回傳關鍵名次分數
-    Hook-->>View: 更新 borderRankings 狀態
-    View->>User: 渲染 T200, T500, T1000... 等關鍵名次
+    View->>User: 渲染即時榜單
 ```
 

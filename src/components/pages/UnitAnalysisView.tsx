@@ -119,12 +119,17 @@ const UnitAnalysisView: React.FC = () => {
 
                         let targetScore = 0;
                         if (jsonScore) {
-                            const rankings = isT100 ? jsonScore.rankings : jsonScore.borderRankings;
+                            const rankings = isT100 
+                                ? (jsonScore.rankings || jsonScore.top_100_player_rankings) 
+                                : (jsonScore.borderRankings || jsonScore.border_player_rankings);
                             targetScore = rankings?.find((r: { rank: number, score: number }) => r.rank === rankTarget)?.score || 0;
                         }
 
-                        if (jsonTop100 && jsonTop100.rankings) {
-                            jsonTop100.rankings.forEach((r: { userId: string | number }) => playerIds.add(String(r.userId)));
+                        if (jsonTop100) {
+                            const top100Rankings = jsonTop100.rankings || jsonTop100.top_100_player_rankings;
+                            if (top100Rankings) {
+                                top100Rankings.forEach((r: { userId: string | number }) => playerIds.add(String(r.userId)));
+                            }
                         }
 
                         return { id: evt.id, name: evt.name, score: targetScore };

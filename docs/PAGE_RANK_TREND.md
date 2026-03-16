@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動榜線趨勢 (Rank Trend)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-16
+**版本號**: 2.0.0
 
 **文件代號**: `PAGE_RANK_TREND`
 **對應視圖**: `currentView === 'trend'` (src/App.tsx)
@@ -35,10 +35,8 @@
 
 1.  **取得列表**: 初始化時先取得全活動列表 `allEvents`。
 2.  **範圍過濾**: 根據使用者選擇的模式 (All/Year/ID)，篩選出 `targetEvents`。
-3.  **批次請求**: 
-    *   同樣採用 `BATCH_SIZE = 5` 的批次機制。
-    *   針對每個目標活動，依據 `selectedRank` 決定呼叫 `/top100` 或 `/border` API。
-    *   從回應中提取特定名次的分數。
+3.  **單次查詢**: 
+    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank = selectedRank AND chapter_char_id IS NULL`。
 4.  **錯誤處理**: 若某期活動無該名次數據（例如早期的 T10000），則該點數值為 0 或被過濾。
 
 ### 2.2 圖表繪製與統計 (Chart & Stats)
@@ -92,15 +90,11 @@ sequenceDiagram
     participant User as 使用者
     participant View as RankTrendView
     participant Chart as LineChart Component
-    participant API as Hi Sekai API
+    participant DB as Supabase
 
     User->>View: 選擇年份/範圍與排名基準 (如 T100)
-    View->>API: 請求 /event/list (若尚未載入)
-    View->>View: 根據範圍過濾目標活動
-    loop 批次請求 (Batch Size = 5)
-        View->>API: 請求 /event/{id}/top100 或 /border
-        API-->>View: 回傳特定名次分數
-    end
+    View->>DB: 單次查詢目標活動與名次 (SELECT ... WHERE event_id IN (...) AND rank = ...)
+    DB-->>View: 回傳特定名次分數
     View->>View: 計算平均值 (Mean) 與中位數 (Median)
     View->>Chart: 傳遞趨勢數據與統計線
     Chart-->>User: 渲染折線圖與統計徽章

@@ -51,7 +51,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     let items: BorderItem[] = [];
                     if (eventId) {
                         const data = json as PastEventBorderApiResponse;
-                        if (data.borderRankings) items = data.borderRankings.map(r => ({ rank: r.rank, score: r.score, name: r.name }));
+                        if (data.border_player_rankings) items = data.border_player_rankings.map(r => ({ rank: r.rank, score: r.score, name: r.name }));
                     } else {
                         const data = json as HisekaiBorderApiResponse;
                         if (data.border_player_rankings) items = data.border_player_rankings.map(r => ({ rank: r.rank, score: r.score, name: r.name }));

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../../lib/supabase';
-import { withFallback } from '../../lib/withFallback';
+import { supabase } from '../_lib/supabase';
+import { withFallback } from '../_lib/withFallback';
 
 const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
 

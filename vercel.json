@@ -2,9 +2,6 @@
   "functions": {
     "api/**/*.ts": {
       "memory": 256
-    },
-    "server.ts": {
-      "ignore": true
     }
   },
   "crons": [

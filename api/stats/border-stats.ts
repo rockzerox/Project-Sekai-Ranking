@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../_lib/supabase';
-import { withFallback } from '../_lib/withFallback';
+import { supabaseAdmin } from '../_utils/supabase';
+import { withFallback } from '../_utils/withFallback';
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   await withFallback(

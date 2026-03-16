@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../_lib/supabase';
-import { withFallback } from '../_lib/withFallback';
+import { supabase } from '../_utils/supabase';
+import { withFallback } from '../_utils/withFallback';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { unit_id = 0, limit = 50 } = req.query;

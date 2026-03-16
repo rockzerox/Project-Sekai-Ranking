@@ -7,18 +7,23 @@
 
 ### 2.1. 三層式架構
 為了實現職責分離 (Separation of Concerns)，專案分為以下三層：
-1.  **邏輯層 (`src/services/`)**：
+1.  **邏輯層 (`api/_lib/`)**：
     *   核心業務邏輯所在地。
     *   負責 Supabase 查詢、Hisekai API 請求、資料格式轉換與容錯邏輯。
-    *   **純粹性規範**：不包含任何 HTTP 傳輸層邏輯 (如 Express 的 `req/res`)，僅回傳純資料。
+    *   **自給自足規範**：`api/` 下的所有檔案必須獨立運行，不應引入 `src/` 目錄下的任何模組。
+    *   **核心模組**：
+        *   `withFallback.ts`: 核心容錯包裝器。
+        *   `supabase.ts`: 統一的 Supabase Admin Client。
+        *   `hisekaiClient.ts`: Hisekai API Fetch 封裝。
+        *   `eventsService.ts`, `rankingsService.ts`, `statsService.ts`, `dataService.ts`: 業務邏輯服務。
 2.  **本地預覽層 (`server.ts`)**：
     *   基於 Express。
     *   僅用於 Gemini AI Studio 的本地預覽。
-    *   作為 `src/services/` 的 Wrapper，將 Service 的結果透過 Express 路由回傳。
+    *   作為 `api/_lib/` 的 Wrapper，將 Service 的結果透過 Express 路由回傳。
 3.  **正式部署層 (`api/` 目錄)**：
     *   基於 Vercel API Routes (Serverless Functions)。
     *   用於正式部署到 Vercel。
-    *   同樣作為 `src/services/` 的 Wrapper，符合 Vercel 的函式規範。
+    *   同樣作為 `api/_lib/` 的 Wrapper，符合 Vercel 的函式規範。
 
 ### 2.2. 容錯架構 (Fault-Tolerance Architecture)
 為了確保高可用性，正式部署層 (`api/`) 導入了 `withFallback` 機制：

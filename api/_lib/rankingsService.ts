@@ -1,17 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './supabase';
 
 const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
-
-// 初始化 Supabase 客戶端 (後端專用)
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-// 嚴格檢查：伺服器端必須使用 SERVICE_ROLE_KEY，不應 fallback 到 anon key
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase configuration in rankingsService');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey || '');
 
 export const getLiveRankings = async () => {
   try {

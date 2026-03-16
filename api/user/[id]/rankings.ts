@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../../../api/_lib/supabase';
+import { supabase } from '../../_lib/supabase';
+import { withFallback } from '../../_lib/withFallback';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { id } = req.query;
@@ -8,23 +9,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Invalid user ID" });
   }
 
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('event_rankings')
-      .select(`
-        event_id, rank, score, last_played_at, raw_user_card, chapter_char_id,
-        players!inner ( user_id, user_name )
-      `)
-      .eq('players.user_id', id)
-      .order('last_played_at', { ascending: false });
+  return withFallback(
+    res,
+    `user-rankings-${id}`,
+    // ① 主要來源：Supabase
+    async () => {
+      const { data, error } = await supabase
+        .from('event_rankings')
+        .select(`
+          event_id, rank, score, last_played_at, raw_user_card, chapter_char_id,
+          players!inner ( user_id, user_name )
+        `)
+        .eq('players.user_id', id)
+        .order('last_played_at', { ascending: false });
 
-    if (error) throw error;
-
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json(data);
-  } catch (error) {
-    console.error(`Error in Vercel API /api/user/${id}/rankings:`, error);
-    // Return empty array instead of 500 to gracefully handle failure as requested
-    return res.status(200).json([]);
-  }
+      if (error) throw error;
+      return data;
+    },
+    // ② 備援來源：無 (目前 Hisekai API 沒有提供單一玩家所有活動排名的端點)
+    async () => []
+  );
 }

@@ -1,13 +1,27 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getEventsList } from '../../src/services/eventsService';
+import { supabase } from '../_lib/supabase';
+import { withFallback } from '../_lib/withFallback';
+
+const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    const events = await getEventsList();
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).send(events);
-  } catch (error) {
-    console.error("Error in Vercel API /api/event/list:", error);
-    return res.status(500).json({ error: "Failed to fetch events list" });
-  }
+  return withFallback(
+    res,
+    'event-list',
+    // ① 主要來源：Supabase
+    async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('id', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    // ② 備援來源：Hisekai API
+    async () => {
+      const response = await fetch(`${HISEKAI_API_BASE}/event/list`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    }
+  );
 }

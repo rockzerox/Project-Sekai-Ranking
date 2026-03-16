@@ -3,11 +3,9 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from '@supabase/supabase-js';
-import { getEventsList, getEventById } from "./src/services/eventsService";
-import { getLiveRankings, getPastRankings, getBorderRankings } from "./src/services/rankingsService";
-import { getPlayerProfile, getSongsData } from "./src/services/dataService";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { getEventsList, getEventById } from "./api/_lib/eventsService";
+import { getLiveRankings, getPastRankings, getBorderRankings } from "./api/_lib/rankingsService";
+import { getPlayerProfile, getSongsData } from "./api/_lib/dataService";
 
 // 初始化 Supabase 客戶端 (後端專用)
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -29,8 +27,7 @@ async function startServer() {
     try {
       const events = await getEventsList();
       res.type('json').send(events);
-    } catch (error) {
-      console.error("Error in /api/event/list:", error);
+    } catch {
       res.status(500).json({ error: "Failed to fetch events list" });
     }
   });
@@ -38,17 +35,17 @@ async function startServer() {
     try {
       const event = await getEventById(Number(req.params.id));
       res.type('json').send(event);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: `Failed to fetch event ${req.params.id}` });
     }
   });
 
   // Rankings API
-  app.get("/api/event/live/top100", async (req, res) => {
+  app.get("/api/event/live/top100", async (_req, res) => {
     try {
       const rankings = await getLiveRankings();
       res.type('json').send(rankings);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch live rankings" });
     }
   });
@@ -56,15 +53,15 @@ async function startServer() {
     try {
       const rankings = await getPastRankings(req.params.id);
       res.type('json').send(rankings);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: `Failed to fetch past rankings for event ${req.params.id}` });
     }
   });
-  app.get("/api/event/live/border", async (req, res) => {
+  app.get("/api/event/live/border", async (_req, res) => {
     try {
       const rankings = await getBorderRankings("live", true);
       res.type('json').send(rankings);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch live border rankings" });
     }
   });
@@ -72,7 +69,7 @@ async function startServer() {
     try {
       const rankings = await getBorderRankings(req.params.id, false);
       res.type('json').send(rankings);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: `Failed to fetch border rankings for event ${req.params.id}` });
     }
   });
@@ -82,16 +79,16 @@ async function startServer() {
     try {
       const profile = await getPlayerProfile(req.params.id);
       res.type('json').send(profile);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: `Failed to fetch player profile for ${req.params.id}` });
     }
   });
   app.get("/api/user/:id/stats", async (req, res) => {
     try {
-      const { getPlayerStats } = await import('./src/services/statsService');
+      const { getPlayerStats } = await import('./api/_lib/statsService');
       const stats = await getPlayerStats(req.params.id);
       res.type('json').send(stats);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: `Failed to fetch player stats for ${req.params.id}` });
     }
   });
@@ -116,13 +113,13 @@ async function startServer() {
 
       if (error) throw error;
       res.type('json').send(data);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch top players stats" });
     }
   });
   app.get("/api/stats/border-stats", async (req, res) => {
     try {
-      const { getBorderStats } = await import('./src/services/statsService');
+      const { getBorderStats } = await import('./api/_lib/statsService');
       const stats = await getBorderStats();
       res.type('json').send(stats);
     } catch (error) {
@@ -130,11 +127,11 @@ async function startServer() {
       res.status(500).json({ error: "Failed to fetch border stats" });
     }
   });
-  app.get("/api/song/list", async (req, res) => {
+  app.get("/api/song/list", async (_req, res) => {
     try {
       const songs = await getSongsData();
       res.type('json').send(songs);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch songs data" });
     }
   });

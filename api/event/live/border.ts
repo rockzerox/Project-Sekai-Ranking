@@ -1,13 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getBorderRankings } from '../../../src/services/rankingsService';
+import { withFallback } from '../../_lib/withFallback';
+
+const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    const rankings = await getBorderRankings("live", true);
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).send(rankings);
-  } catch (error) {
-    console.error("Error in Vercel API /api/event/live/border:", error);
-    return res.status(500).json({ error: "Failed to fetch live border rankings" });
-  }
+  return withFallback(
+    res,
+    'live-border',
+    // ① 主要來源：Supabase (Live 資料通常不在 DB)
+    async () => null,
+    // ② 備援來源：Hisekai API
+    async () => {
+      const response = await fetch(`${HISEKAI_API_BASE}/event/live/border`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    }
+  );
 }

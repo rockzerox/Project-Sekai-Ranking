@@ -1,13 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSongsData } from '../../src/services/dataService';
+import { withFallback } from '../_lib/withFallback';
+
+const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    const songs = await getSongsData();
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).send(songs);
-  } catch (error) {
-    console.error("Error in Vercel API /api/song/list:", error);
-    return res.status(500).json({ error: "Failed to fetch songs data" });
-  }
+  return withFallback(
+    res,
+    'song-list',
+    // ① 主要來源：Supabase (如果有的話，目前暫設為 null)
+    async () => null,
+    // ② 備援來源：Hisekai API
+    async () => {
+      const response = await fetch(`${HISEKAI_API_BASE}/song/list`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    }
+  );
 }

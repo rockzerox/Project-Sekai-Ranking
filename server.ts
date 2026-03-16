@@ -36,7 +36,7 @@ async function startServer() {
   });
   app.get("/api/event/:id", async (req, res) => {
     try {
-      const event = await getEventById(req.params.id);
+      const event = await getEventById(Number(req.params.id));
       res.type('json').send(event);
     } catch (error) {
       res.status(500).json({ error: `Failed to fetch event ${req.params.id}` });

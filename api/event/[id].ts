@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const event = await getEventById(id);
+    const event = await getEventById(Number(id));
     res.setHeader('Content-Type', 'application/json');
     return res.status(200).send(event);
   } catch (error) {

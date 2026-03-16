@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 256
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/update-stats",

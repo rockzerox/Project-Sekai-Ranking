@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../../_utils/supabase';
-import { fetchHisekai } from '../../_utils/hisekaiClient';
-import { withFallback } from '../../_utils/withFallback';
+import { supabaseAdmin } from '../../../lib/supabase';
+import { fetchHisekai } from '../../../lib/hisekaiClient';
+import { withFallback } from '../../../lib/withFallback';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const eventId = Number(req.query.id);

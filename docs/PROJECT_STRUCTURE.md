@@ -10,9 +10,9 @@
 ```text
 root/
 ├── api/                    # Vercel API Routes (Serverless Functions)
-│   ├── _utils/             # 後端共享邏輯與服務層 (Service Layer)
-│   └── ...                 # 各 API 端點
+│   └── ...                 # 各 API 端點 (不含共享邏輯)
 ├── docs/                   # 專案規格書與技術文件 (Mermaid 序列圖)
+├── lib/                    # 後端共享邏輯與服務層 (Service Layer)
 ├── public/                 # 放置靜態資源 (images)
 ├── src/                    # 原始碼目錄
 │   ├── components/         # React 組件
@@ -35,7 +35,7 @@ root/
 
 ## 2. 目錄職責說明
 
-*   **`api/_utils/`**: **後端服務層**。封裝所有與外部 API (Hi Sekai API, Supabase) 的互動邏輯，隔離資料獲取細節，供 API Routes 使用。
+*   **`lib/`**: **後端服務層**。封裝所有與外部 API (Hi Sekai API, Supabase) 的互動邏輯，隔離資料獲取細節，供 API Routes 使用。放在根目錄以避免被 Vercel 計入 Function 數量。
 *   **`docs/`**: 存放所有功能頁面規格書、資料庫結構文件 (`DATABASE_SCHEMA.md`) 與技術文件。
 *   **`src/components/`**: 遵循原子設計原則，將 UI 拆分為獨立、可複用的組件。
 *   **`src/services/`**: **前端服務層**。處理僅限前端使用的邏輯（如卡片資料快取、功能旗標）。

@@ -2,9 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { createClient } from '@supabase/supabase-js';
-import { getEventsList, getEventById } from "./api/_utils/eventsService";
-import { getLiveRankings, getPastRankings, getBorderRankings } from "./api/_utils/rankingsService";
-import { getPlayerProfile, getSongsData } from "./api/_utils/dataService";
+import { getEventsList, getEventById } from "./lib/eventsService";
+import { getLiveRankings, getPastRankings, getBorderRankings } from "./lib/rankingsService";
+import { getPlayerProfile, getSongsData } from "./lib/dataService";
 
 // 初始化 Supabase 客戶端 (後端專用)
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -84,7 +84,7 @@ async function startServer() {
   });
   app.get("/api/user/:id/stats", async (req, res) => {
     try {
-      const { getPlayerStats } = await import('./api/_utils/statsService');
+      const { getPlayerStats } = await import('./lib/statsService');
       const stats = await getPlayerStats(req.params.id);
       res.type('json').send(stats);
     } catch {
@@ -118,7 +118,7 @@ async function startServer() {
   });
   app.get("/api/stats/border-stats", async (req, res) => {
     try {
-      const { getBorderStats } = await import('./api/_utils/statsService');
+      const { getBorderStats } = await import('./lib/statsService');
       const stats = await getBorderStats();
       res.type('json').send(stats);
     } catch (error) {

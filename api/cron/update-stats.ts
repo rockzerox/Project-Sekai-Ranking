@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { recomputeAllPlayerStats } from '../_utils/statsService';
-import { syncEvents } from '../_utils/eventsService';
+import { recomputeAllPlayerStats } from '../../lib/statsService';
+import { syncEvents } from '../../lib/eventsService';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 嚴格安全檢查：必須帶有正確的 CRON_SECRET

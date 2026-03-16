@@ -1,4 +1,12 @@
 {
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 256
+    },
+    "server.ts": {
+      "ignore": true
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/update-stats",

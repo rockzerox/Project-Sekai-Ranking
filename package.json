@@ -2,7 +2,6 @@
   "name": "hi-sekai-tw",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "Hi Sekai TW - Project Sekai Ranking Analyzer",
   "scripts": {
     "dev": "tsx server.ts",

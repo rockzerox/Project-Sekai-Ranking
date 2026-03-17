@@ -47,9 +47,10 @@ export const syncEvents = async () => {
       start_at: apiEvent.start_at ?? existingEvent?.start_at ?? null,
       aggregate_at: apiEvent.aggregate_at ?? existingEvent?.aggregate_at ?? null,
       closed_at: apiEvent.closed_at ?? existingEvent?.closed_at ?? null,
-      // 靜態欄位保留舊值
+      // 靜態欄位保留舊值，修正為正確的資料庫欄位名稱
       unit_id: existingEvent?.unit_id ?? null,
-      banner_id: existingEvent?.banner_id ?? null,
+      banner: existingEvent?.banner ?? null, // 修正：從 banner_id 改為 banner
+      event_type: existingEvent?.event_type ?? null, // 修正：確保 event_type 正確同步
       story_type: existingEvent?.story_type ?? null
     };
   });

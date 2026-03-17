@@ -2,9 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { createClient } from '@supabase/supabase-js';
-import { getEventsList, getEventById } from "./api/_lib/eventsService";
-import { getLiveRankings, getPastRankings, getBorderRankings } from "./api/_lib/rankingsService";
-import { getPlayerProfile, getSongsData } from "./api/_lib/dataService";
+import { getEventsList, getEventById } from "./api/_lib/eventsService.ts";
+import { getLiveRankings, getPastRankings, getBorderRankings } from "./api/_lib/rankingsService.ts";
+import { getPlayerProfile, getSongsData } from "./api/_lib/dataService.ts";
 
 // 初始化 Supabase 客戶端 (後端專用)
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -84,7 +84,7 @@ async function startServer() {
   });
   app.get("/api/user/:id/stats", async (req, res) => {
     try {
-      const { getPlayerStats } = await import('./api/_lib/statsService');
+      const { getPlayerStats } = await import('./api/_lib/statsService.ts');
       const stats = await getPlayerStats(req.params.id);
       res.type('json').send(stats);
     } catch {
@@ -118,7 +118,7 @@ async function startServer() {
   });
   app.get("/api/stats/border-stats", async (req, res) => {
     try {
-      const { getBorderStats } = await import('./api/_lib/statsService');
+      const { getBorderStats } = await import('./api/_lib/statsService.ts');
       const stats = await getBorderStats();
       res.type('json').send(stats);
     } catch (error) {
@@ -147,13 +147,13 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    app.use((req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, "127.0.0.1", () => {
+    console.log(`Server running on http://127.0.0.1:${PORT}`);
   });
 }
 

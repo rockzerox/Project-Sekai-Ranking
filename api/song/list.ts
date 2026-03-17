@@ -4,6 +4,9 @@ import { withFallback } from '../_lib/withFallback';
 const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // 歌曲列表少變，CDN 快取 2 小時
+  res.setHeader('Cache-Control', 'public, s-maxage=7200, stale-while-revalidate=600');
+
   return withFallback(
     res,
     'song-list',

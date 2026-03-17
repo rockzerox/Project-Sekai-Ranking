@@ -4,6 +4,9 @@ import { withFallback } from '../../_lib/withFallback';
 const HISEKAI_API_BASE = process.env.HISEKAI_API_BASE || 'https://api.hisekai.org/tw';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // 即時資料，只快取 60 秒防止重複請求刷爆 Hisekai API
+  res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+
   return withFallback(
     res,
     'live-top100',

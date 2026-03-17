@@ -3,6 +3,9 @@ import { supabaseAdmin } from '../_lib/supabase';
 import { withFallback } from '../_lib/withFallback';
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
+  // 聚合統計資料每隔一段時間才更新，CDN 快取 30 分鐘
+  res.setHeader('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=600');
+
   await withFallback(
     res,
     'border-stats',

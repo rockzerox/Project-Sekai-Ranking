@@ -5,6 +5,9 @@ import { withFallback } from '../_lib/withFallback';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { unit_id = 0, limit = 50 } = req.query;
 
+  // 活躍玩家統計每次活動結束後才會更新，CDN 快取 10 分鐘
+  res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=120');
+
   return withFallback(
     res,
     `top-players-${unit_id}-${limit}`,

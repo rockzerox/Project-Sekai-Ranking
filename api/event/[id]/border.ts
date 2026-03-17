@@ -7,6 +7,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const eventId = Number(req.query.id);
   if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid eventId' });
 
+  // 歷史榜線資料變動極小，CDN 快取 24 小時
+  res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=3600');
+
   await withFallback(
     res,
     `border-${eventId}`,

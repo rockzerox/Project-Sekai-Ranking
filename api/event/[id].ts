@@ -11,6 +11,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Invalid event ID" });
   }
 
+  // 活動基本資訊幾乎不變，CDN 快取 1 小時
+  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
+
   return withFallback(
     res,
     `event-${id}`,

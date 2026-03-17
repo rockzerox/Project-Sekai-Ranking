@@ -10,9 +10,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     'event-list',
     // ① 主要來源：Supabase
     async () => {
+      // 設定快取：瀏覽器快取 5 分鐘，CDN 快取 1 小時 (s-maxage)
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=600');
+
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        .not('name', 'is', null)
+        .not('name', 'eq', '')
         .order('id', { ascending: true });
       if (error) throw error;
       return data;

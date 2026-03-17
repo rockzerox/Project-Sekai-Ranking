@@ -375,5 +375,10 @@ export const UI_TEXT = {
     description: "彙整所有 World Link 期數，比較各角色分數排行",
     chartTitle: "圖表分析",
     modes: { activity: "活躍度", global: "全域顯示" }
+  },
+  maintenance: {
+    title: "功能重新設計中",
+    description: "我們正在為此功能開發全新的數據指標與更視覺化的呈現方式，以提供更精準、更有價值的「推し分析」體驗。請期待我們之後的更新！",
+    comingSoon: "COMING SOON",
   }
 } as const;

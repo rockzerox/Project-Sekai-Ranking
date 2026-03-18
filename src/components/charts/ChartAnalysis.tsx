@@ -13,6 +13,7 @@ interface ChartAnalysisProps {
   isHighlights?: boolean;
   eventId?: number; 
   cards?: CardsMap;
+  isLiveEvent?: boolean;
 }
 
 interface BorderItem {
@@ -21,7 +22,7 @@ interface BorderItem {
     name: string;
 }
 
-const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp }) => {
+const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp, isLiveEvent = false }) => {
   const { cards: cardsFromHook } = useCardData();
   const cards = cardsProp || cardsFromHook;
   const [borderData, setBorderData] = useState<BorderItem[]>([]);
@@ -39,17 +40,17 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         }
 
         try {
-            const shouldFetchBorder = isHighlights || (!eventId && isScoreRelated);
+            const shouldFetchBorder = isHighlights || ((!eventId || isLiveEvent) && isScoreRelated);
             if (shouldFetchBorder) {
-                // 修正：路徑移除 /tw
-                const url = eventId 
+                // 現時活動或無 eventId 時使用 live 端點，歷史活動使用 eventId 端點
+                const url = (eventId && !isLiveEvent)
                     ? `${API_BASE_URL}/event/${eventId}/border`
                     : `${API_BASE_URL}/event/live/border`;
 
                 const json = await fetchJsonWithBigInt(url);
                 if (json) {
                     let items: BorderItem[] = [];
-                    if (eventId) {
+                    if (eventId && !isLiveEvent) {
                         const data = json as PastEventBorderApiResponse;
                         if (data.border_player_rankings) items = data.border_player_rankings.map(r => ({ rank: r.rank, score: r.score, name: r.name }));
                     } else {
@@ -60,7 +61,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                 }
             }
 
-            if (!eventId) {
+            if (!eventId || isLiveEvent) {
                 // 修正：路徑改為 /event/live/top100
                 const topData: HisekaiApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/live/top100`);
                 if (topData) {
@@ -127,7 +128,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         }
     };
 
-    if (!eventId && liveAggregateAt && t100Score > 0) {
+    if ((!eventId || isLiveEvent) && liveAggregateAt && t100Score > 0) {
         const end = new Date(liveAggregateAt).getTime();
         const sec = (end - now) / 1000;
         if (sec > 0) {
@@ -157,8 +158,18 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             axisFormatter = formatScoreForChart;
             if (isHighlights) {
                 variant = 'highlights';
-                data = borderData.filter(b => b.rank <= 10000 && b.score > 0).map(b => ({ label: `#${b.rank} ${b.name || 'Player'}`, value: b.score, rank: b.rank, eventId })).sort((a, b) => (a.rank || 0) - (b.rank || 0));
-                if (!eventId && liveAggregateAt) {
+                data = sourceData
+                    .filter(r => r.rank <= 10000 && r.score > 0)
+                    .map(r => {
+                        let captainCharacterId: number | undefined;
+                        if (cards && r.last_player_info?.card?.id) {
+                            const card = cards[r.last_player_info.card.id.toString()];
+                            if (card) captainCharacterId = card.characterId;
+                        }
+                        return { label: `#${r.rank} ${r.user.display_name}`, value: r.score, rank: r.rank, captainCharacterId, eventId };
+                    })
+                    .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+                if ((!eventId || isLiveEvent) && liveAggregateAt) {
                     const end = new Date(liveAggregateAt).getTime();
                     const remainingSeconds = (end - now) / 1000;
                     if (remainingSeconds > 0) {
@@ -182,7 +193,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     }
                     return { label: `#${r.rank} ${r.user.display_name}`, value: r.score, rank: r.rank, captainCharacterId, eventId };
                 });
-                if (!eventId && liveAggregateAt && data.length > 0) {
+                if ((!eventId || isLiveEvent) && liveAggregateAt && data.length > 0) {
                     const end = new Date(liveAggregateAt).getTime();
                     const remainingSeconds = (end - now) / 1000;
                     if (remainingSeconds > 0) {
@@ -232,7 +243,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         }
     }
     return { chartData: data, title: chartTitle, valueFormatter: formatter, yAxisFormatter: axisFormatter, color: chartColor, yLabel: axisY, safeThreshold: calculatedSafeThreshold, giveUpThreshold: calculatedGiveUpThreshold, safeRankCutoff: calculatedSafeRankCutoff, giveUpRankCutoff: calculatedGiveUpRankCutoff, chartVariant: variant, remainingSafeSlots: calculatedRemainingSlots, t100ExtendedStats: calculatedT100Extended };
-  }, [rankings, sortOption, borderData, isHighlights, eventId, liveAggregateAt, selectedHighlightRank, t100Score, now, cards]);
+  }, [rankings, sortOption, borderData, isHighlights, eventId, isLiveEvent, liveAggregateAt, selectedHighlightRank, t100Score, now, cards]);
 
   const dashboardStats = useMemo(() => {
     if (!isHighlights || safeRankCutoff === undefined || giveUpRankCutoff === undefined) return null;
@@ -247,14 +258,14 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 w-full lg:w-auto">
                 <h3 className="text-md font-semibold text-slate-200 whitespace-nowrap">{title}</h3>
-                {!isHighlights && !eventId && (sortOption === 'score' || sortOption === 'dailyAvg') && remainingSafeSlots !== undefined && (
+                {!isHighlights && (!eventId || isLiveEvent) && (sortOption === 'score' || sortOption === 'dailyAvg') && remainingSafeSlots !== undefined && (
                      <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-emerald-900/20 border-emerald-500/30 text-emerald-400" title={`目前有 ${100 - remainingSafeSlots} 人分數已超越安全線，剩餘 ${remainingSafeSlots} 個名額可供爭奪`}><CrownIcon className="w-3.5 h-3.5" /><span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">T100 剩餘:</span><span className="text-xs sm:text-sm font-mono font-black">{remainingSafeSlots} 名</span></div>
                         {t100ExtendedStats && (<div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-amber-900/20 border-amber-500/30 text-amber-400" title="推估理論上仍有機會追上 T100 的人數"><span className="text-[10px] sm:text-xs font-bold">[推估] ⚔️ 潛在追擊:</span><span className="text-xs sm:text-sm font-mono font-black">~{t100ExtendedStats.chasers} 人</span></div>)}
                         {t100ExtendedStats && (<div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border bg-rose-900/20 border-rose-500/30 text-rose-400" title="推估 T100 的死心排名"><span className="text-[10px] sm:text-xs font-bold">[推估] ⛔ T100 死心線:</span><span className="text-xs sm:text-sm font-mono font-black">Rank {t100ExtendedStats.giveUpRank}+</span></div>)}
                      </div>
                 )}
-                {dashboardStats && !eventId && (
+                {dashboardStats && (!eventId || isLiveEvent) && (
                     <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
                         {selectedHighlightRank === 100 ? (
                             <>
@@ -272,7 +283,7 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                     </div>
                 )}
             </div>
-            {isHighlights && !eventId && (sortOption === 'score' || sortOption === 'dailyAvg') && (
+            {isHighlights && (!eventId || isLiveEvent) && (sortOption === 'score' || sortOption === 'dailyAvg') && (
                 <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 self-start lg:self-auto">
                     {[100, 200, 300, 400, 500, 1000].map(r => (
                         <button key={r} onClick={() => setSelectedHighlightRank(r)} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${selectedHighlightRank === r ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}>T{r}</button>

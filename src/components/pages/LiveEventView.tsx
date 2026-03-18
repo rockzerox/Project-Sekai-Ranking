@@ -265,7 +265,7 @@ const LiveEventView: React.FC = () => {
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
                     <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={liveEventId || undefined} cards={cards || undefined} />
+                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={liveEventId || undefined} cards={cards || undefined} isLiveEvent={true} />
                     </CollapsibleSection>
                     <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

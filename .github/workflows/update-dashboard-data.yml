@@ -1,0 +1,32 @@
+name: Update Dashboard Data
+
+on:
+  schedule:
+    # 每天台灣時間 04:30 與 21:30 執行 (UTC 時間 20:30 與 13:30)
+    # 這是為了配合原本 Vercel Cron Job 的頻率
+    - cron: '30 20 * * *'
+    - cron: '30 13 * * *'
+  workflow_dispatch: # 允許在網頁上手動觸發
+
+jobs:
+  ingest-and-compute:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Cron Runner
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx tsx scripts/cron-runner.ts

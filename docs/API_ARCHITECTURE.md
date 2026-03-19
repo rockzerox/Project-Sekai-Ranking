@@ -66,10 +66,8 @@
 ### 3.2. 排名相關 (Rankings)
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |
 | :--- | :--- | :--- | :--- |
-| `/api/event/live/top100` | GET | `getLiveRankings` | 取得當前活動 Top 100 |
-| `/api/event/:id/top100` | GET | `getPastRankings` | 取得歷史活動 Top 100 |
-| `/api/event/live/border` | GET | `getBorderRankings` | 取得當前活動榜線 |
-| `/api/event/:id/border` | GET | `getBorderRankings` | 取得歷史活動榜線 |
+| `/api/event/live/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得當前活動 Top 100 與所有特定榜線之合併資料 |
+| `/api/event/:id/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得歷史活動 Top 100 與所有特定榜線之合併資料 |
 
 ### 3.3. 玩家與資料 (Data)
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |

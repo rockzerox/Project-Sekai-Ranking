@@ -59,12 +59,18 @@ const LineChart: React.FC<LineChartProps> = ({
   }, []);
 
   const sortedData = useMemo(() => {
-      if (variant === 'highlights') {
-          return [...data]
-              .filter(d => (d.rank || 0) <= 10000 && d.value > 0)
-              .sort((a, b) => (a.rank || 0) - (b.rank || 0));
-      }
-      return [...data].sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    if (variant === 'highlights') {
+      return [...data]
+        .filter(d => (d.rank || 0) >= 100 && (d.rank || 0) <= 10000 && d.value > 0)
+        .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    }
+    // Top 100 views (default or live)
+    if (variant === 'default' || variant === 'live') {
+      return [...data]
+        .filter(d => (d.rank || 0) <= 100 && (d.rank || 0) > 0 && d.value > 0)
+        .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    }
+    return [...data].sort((a, b) => (a.rank || 0) - (b.rank || 0));
   }, [data, variant]);
 
   const hasEnoughData = sortedData && sortedData.length >= 2;

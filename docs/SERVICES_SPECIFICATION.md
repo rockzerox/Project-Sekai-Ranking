@@ -20,17 +20,22 @@
 | **CardService** | `src/services/cardService.ts` | 處理卡片資料的獲取與轉換，包含卡片屬性、技能與數值解析。 |
 | **FeatureFlagService** | `src/services/featureFlagService.ts` | 管理頁面功能開關與實驗性功能。 |
 
-### 2.2. 後端服務層 (`lib/`)
-這些服務僅供 `api/` 下的 Serverless Functions 使用，確保後端邏輯自給自足，不引用 `src/` 目錄下的任何模組。
+### 2.2. 後端服務層 (`api/_lib/`)
+這些核心微服務模組處理大部分 Vercel API Routes 的底層邏輯。為維持職責分離與安全管理，這些模組具備了「完全分離的獨立架構規格書」，深入剖析其方法調用與資料流。請點選下方連結參閱細節：
 
-| 服務名稱 | 檔案路徑 | 職責說明 |
+| 服務模組配置 | 規格書引導 (Specification Docs) | 核心職責概述 |
 | :--- | :--- | :--- |
-| **SupabaseClient** | `lib/supabase.ts` | 統一的 Supabase Admin Client 配置。 |
-| **HisekaiClient** | `lib/hisekaiClient.ts` | Hisekai API 的 Fetch 封裝。 |
-| **DataService** | `lib/dataService.ts` | 處理基礎資料（如歌曲、玩家個人資料）的讀取。 |
-| **EventsService** | `lib/eventsService.ts` | 處理活動列表與活動詳情的獲取與同步。 |
-| **RankingsService** | `lib/rankingsService.ts` | 處理榜單數據（Top100/Border）的獲取與正規化。 |
-| **StatsService** | `lib/statsService.ts` | 處理統計運算與資料分析演算法。 |
+| **RankingsService** | [SERVICE_RANKINGS_SERVICE.md](./SERVICE_RANKINGS_SERVICE.md) | 「大一統 API」的核編層，合併 Top100 與邊界。 |
+| **StatsService** | [SERVICE_STATS_SERVICE.md](./SERVICE_STATS_SERVICE.md) | 背景批量聚合演算法、統計與降級聚合防護。 |
+| **EventsService** | [SERVICE_EVENTS_SERVICE.md](./SERVICE_EVENTS_SERVICE.md) | 活動目錄建立與外部資料的 Upsert 排程同步。 |
+| **DataService** | [SERVICE_DATA_SERVICE.md](./SERVICE_DATA_SERVICE.md) | 對外接口的純文字轉拋 Proxy（繞過跨域）。 |
+| **HisekaiClient** | [SERVICE_HISEKAI_CLIENT.md](./SERVICE_HISEKAI_CLIENT.md) | 外部連線的守門機制、解析防溢位與大數轉錄。 |
+| **SupabaseClient** | [SERVICE_SUPABASE_CLIENT.md](./SERVICE_SUPABASE_CLIENT.md) | 高層級寫入 (Service Role) 安全節點。 |
+
+## 3. 視圖鉤子層橋接 (React Hooks Layer)
+請注意，前端取得與消化 API Server 資源的最前線統一被封裝在自訂鉤子之中。
+由於本專案仰賴即時與巨量呈現，鉤子必須掌握本地快取的重任。
+*   👉 **請參閱**: [HOOKS_SPECIFICATION.md](./HOOKS_SPECIFICATION.md) 了解 `useRankings` 與 `useEventList` 這兩大統馭畫面的狀態引擎其結構與生命週期綁定方式。
 
 ## 3. 資料獲取策略 (Data Fetching Strategy)
 

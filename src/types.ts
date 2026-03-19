@@ -147,6 +147,17 @@ export interface WorldBloomChapterBorder {
   borderRankings: RankingEntry[];
 }
 
+export interface UnifiedRankingsResponse {
+  id: number;
+  name?: string;
+  aggregate_at?: string;
+  rankings: RankingEntry[];
+  borders?: RankingEntry[];
+  chapters?: WorldBloomChapter[];
+  userWorldBloomChapterRankings?: WorldBloomChapter[];
+  userWorldBloomChapterRankingBorders?: WorldBloomChapterBorder[];
+}
+
 export type ViewType = 'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile' | 'mySekaiMining' | 'eventSongs';
 export interface EventDetail {
     unit: string;

@@ -8,5 +8,11 @@
       "path": "/api/cron/update-stats",
       "schedule": "30 13 * * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/api/event/live/top100", "destination": "/api/event/live/rankings?type=top100" },
+    { "source": "/api/event/live/border", "destination": "/api/event/live/rankings?type=border" },
+    { "source": "/api/event/:id/top100", "destination": "/api/event/:id/rankings?type=top100" },
+    { "source": "/api/event/:id/border", "destination": "/api/event/:id/rankings?type=border" }
   ]
 }

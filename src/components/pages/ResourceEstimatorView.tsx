@@ -74,18 +74,11 @@ const ResourceEstimatorView: React.FC = () => {
         const fetchScore = async () => {
             setIsFetchingScore(true);
             try {
-                const isTop100 = selectedRank <= 100;
-                const url = isTop100 ? `${API_BASE_URL}/event/${selectedPastId}/top100` : `${API_BASE_URL}/event/${selectedPastId}/border`;
+                const url = `${API_BASE_URL}/event/${selectedPastId}/rankings`;
                 const json = await fetchJsonWithBigInt(url);
                 if (json) {
-                    let score = 0;
-                    if (isTop100) {
-                        const data = json as PastEventApiResponse;
-                        score = data.top_100_player_rankings.find(r => r.rank === selectedRank)?.score || 0;
-                    } else {
-                        const data = json as PastEventBorderApiResponse;
-                        score = data.border_player_rankings.find(r => r.rank === selectedRank)?.score || 0;
-                    }
+                    const rankings: any[] = json.rankings || [];
+                    const score = rankings.find(r => r.rank === selectedRank)?.score || 0;
                     setPastEventScore(score);
                     const evt = events.find(e => e.id === selectedPastId);
                     if (evt) setPastEventDuration(calculatePreciseDuration(evt.start_at, evt.aggregate_at));

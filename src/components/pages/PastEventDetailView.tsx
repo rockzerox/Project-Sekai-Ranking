@@ -27,7 +27,7 @@ interface PastEventDetailViewProps {
 const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack, allEvents }) => {
     const {
         rankings, setRankings, worldLinkChapters, isLoading, error,
-        cachedPastRankings, fetchPastRankings, fetchPastBorderRankings, setEventName
+        cachedPastRankings, fetchRankings, setEventName
     } = useRankings();
 
     const { eventDetails, getEventColor, isWorldLink, getWlDetail } = useConfig();
@@ -47,9 +47,9 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     // Initial fetch
     useEffect(() => {
-        fetchPastRankings(event.id);
+        fetchRankings(event.id);
         setEventName(event.name);
-    }, [event.id, event.name, fetchPastRankings, setEventName]);
+    }, [event.id, event.name, fetchRankings, setEventName]);
 
     // Handle World Link chapter changes or cache updates
     useEffect(() => {
@@ -59,18 +59,16 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
             if (worldLinkChapters[activeChapter]) setRankings(worldLinkChapters[activeChapter]);
             else setRankings([]);
         }
-    }, [activeChapter, worldLinkChapters, cachedPastRankings, setRankings, currentPage]);
+    }, [activeChapter, worldLinkChapters, cachedPastRankings, setRankings]);
 
 
 
     const handlePageChange = (page: number | 'highlights') => {
         setCurrentPage(page);
         setActiveChapter('all');
-        if (page === 'highlights') {
-            fetchPastBorderRankings(event.id);
-        } else {
-            if (cachedPastRankings.length === 0) fetchPastRankings(event.id);
-            else setRankings(cachedPastRankings);
+        // No fetch required here as everything is already loaded by fetchRankings
+        if (page !== 'highlights') {
+            if (cachedPastRankings.length > 0) setRankings(cachedPastRankings);
         }
     };
 
@@ -86,7 +84,13 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     const sortedAndFilteredRankings = useMemo(() => {
         const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));
-        const sorted = [...filtered].sort((a, b) => {
+        
+        // 精華片段模式僅顯示 100 名(含)以後的邊界
+        const viewList = currentPage === 'highlights' 
+            ? filtered.filter(entry => entry.rank >= 100)
+            : filtered;
+
+        const sorted = [...viewList].sort((a, b) => {
             if (sortOption === 'score') return b.score - a.score;
             if (sortOption === 'dailyAvg') {
                 return (b.score / currentEventDuration) - (a.score / currentEventDuration);
@@ -251,7 +255,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
                     <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={event.id} cards={cards || undefined} />
+                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={event.id} cards={cards || undefined} aggregateAt={evtInfo?.aggregate_at} />
                     </CollapsibleSection>
                     <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

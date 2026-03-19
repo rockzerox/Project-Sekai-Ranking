@@ -4,7 +4,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { createClient } from '@supabase/supabase-js';
 import { getEventsList, getEventById } from "./api/_lib/eventsService.ts";
-import { getLiveRankings, getPastRankings, getBorderRankings } from "./api/_lib/rankingsService.ts";
+import { getLiveRankings, getPastRankings, getBorderRankings, getUnifiedRankings } from "./api/_lib/rankingsService.ts";
 import { getPlayerProfile, getSongsData } from "./api/_lib/dataService.ts";
 
 // 初始化 Supabase 客戶端 (後端專用)
@@ -71,6 +71,24 @@ async function startServer() {
       res.type('json').send(rankings);
     } catch {
       res.status(500).json({ error: `Failed to fetch border rankings for event ${req.params.id}` });
+    }
+  });
+
+  app.get("/api/event/live/rankings", async (_req, res) => {
+    try {
+      const rankings = await getUnifiedRankings("live", true);
+      res.type('json').send(rankings);
+    } catch {
+      res.status(500).json({ error: "Failed to fetch unified live rankings" });
+    }
+  });
+
+  app.get("/api/event/:id/rankings", async (req, res) => {
+    try {
+      const rankings = await getUnifiedRankings(req.params.id, false);
+      res.type('json').send(rankings);
+    } catch {
+      res.status(500).json({ error: `Failed to fetch unified rankings for event ${req.params.id}` });
     }
   });
 

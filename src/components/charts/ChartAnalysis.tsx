@@ -14,6 +14,7 @@ interface ChartAnalysisProps {
   eventId?: number; 
   cards?: CardsMap;
   isLiveEvent?: boolean;
+  aggregateAt?: string | null;
 }
 
 interface BorderItem {
@@ -22,73 +23,33 @@ interface BorderItem {
     name: string;
 }
 
-const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp, isLiveEvent = false }) => {
+const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp, isLiveEvent = false, aggregateAt: aggregateAtProp }) => {
   const { cards: cardsFromHook } = useCardData();
   const cards = cardsProp || cardsFromHook;
-  const [borderData, setBorderData] = useState<BorderItem[]>([]);
-  const [liveAggregateAt, setLiveAggregateAt] = useState<string | null>(null);
-  const [t100Score, setT100Score] = useState<number>(0);
-  const [t100SafeCount, setT100SafeCount] = useState<number | null>(null);
+  const [now] = useState(() => Date.now());
   const [selectedHighlightRank, setSelectedHighlightRank] = useState<number>(200);
 
-  useEffect(() => {
-    const fetchData = async () => {
-        const isScoreRelated = sortOption === 'score' || sortOption === 'dailyAvg';
-        if (!isScoreRelated) {
-            setBorderData([]);
-            return;
+  const { borderData, t100Score, liveAggregateAt, t100SafeCount } = useMemo(() => {
+    const borders = rankings
+      .filter(r => r.rank > 100)
+      .map(r => ({ rank: r.rank, score: r.score, name: r.user.display_name }));
+    const t100 = rankings.find(r => r.rank === 100)?.score || 0;
+    
+    let safeCount: number | null = null;
+    if (aggregateAtProp && t100 > 0) {
+        const end = new Date(aggregateAtProp).getTime();
+        const rem = (end - now) / 1000;
+        if (rem > 0) {
+            const maxGain = (rem / 100) * 68000;
+            const threshold = t100 + maxGain;
+            safeCount = rankings.filter(r => r.rank <= 100 && r.score > threshold).length;
+        } else {
+            safeCount = 100;
         }
+    }
 
-        try {
-            const shouldFetchBorder = isHighlights || ((!eventId || isLiveEvent) && isScoreRelated);
-            if (shouldFetchBorder) {
-                // 現時活動或無 eventId 時使用 live 端點，歷史活動使用 eventId 端點
-                const url = (eventId && !isLiveEvent)
-                    ? `${API_BASE_URL}/event/${eventId}/border`
-                    : `${API_BASE_URL}/event/live/border`;
-
-                const json = await fetchJsonWithBigInt(url);
-                if (json) {
-                    let items: BorderItem[] = [];
-                    if (eventId && !isLiveEvent) {
-                        const data = json as PastEventBorderApiResponse;
-                        if (data.border_player_rankings) items = data.border_player_rankings.map(r => ({ rank: r.rank, score: r.score, name: r.name }));
-                    } else {
-                        const data = json as HisekaiBorderApiResponse;
-                        if (data.border_player_rankings) items = data.border_player_rankings.map(r => ({ rank: r.rank, score: r.score, name: r.name }));
-                    }
-                    setBorderData(items);
-                }
-            }
-
-            if (!eventId || isLiveEvent) {
-                // 修正：路徑改為 /event/live/top100
-                const topData: HisekaiApiResponse = await fetchJsonWithBigInt(`${API_BASE_URL}/event/live/top100`);
-                if (topData) {
-                    setLiveAggregateAt(topData.aggregate_at);
-                    const r100 = topData.top_100_player_rankings.find(r => r.rank === 100);
-                    if (r100) setT100Score(r100.score);
-
-                    const now = Date.now();
-                    const end = new Date(topData.aggregate_at).getTime();
-                    const remainingSeconds = (end - now) / 1000;
-                    if (remainingSeconds > 0) {
-                        const maxGain = (remainingSeconds / 100) * 68000;
-                        const safeThreshold = (r100?.score || 0) + maxGain;
-                        const safeCount = topData.top_100_player_rankings.filter(r => r.score > safeThreshold).length;
-                        setT100SafeCount(safeCount);
-                    } else {
-                        setT100SafeCount(100); 
-                    }
-                }
-            }
-        } catch (e) { console.error("Failed to fetch chart data", e); }
-    };
-    fetchData();
-  }, [sortOption, eventId, isHighlights]);
-
-
-  const [now] = useState(() => Date.now());
+    return { borderData: borders, t100Score: t100, liveAggregateAt: aggregateAtProp, t100SafeCount: safeCount };
+  }, [rankings, aggregateAtProp, now]);
 
   const { chartData, title, valueFormatter, yAxisFormatter, color, yLabel, safeThreshold, giveUpThreshold, safeRankCutoff, giveUpRankCutoff, chartVariant, remainingSafeSlots, t100ExtendedStats } = useMemo(() => {
     let data: { label: string, value: number, rank?: number }[] = [];

@@ -22,7 +22,7 @@ const ITEMS_PER_PAGE = 20;
 const LiveEventView: React.FC = () => {
     const {
         rankings, setRankings, worldLinkChapters, isLoading, error, eventName, liveEventId, liveEventTiming, lastUpdated,
-        cachedLiveRankings, fetchLiveRankings, fetchBorderRankings
+        cachedLiveRankings, fetchRankings
     } = useRankings();
 
     const { getEventColor, isWorldLink, getWlDetail } = useConfig();
@@ -38,21 +38,19 @@ const LiveEventView: React.FC = () => {
 
     // Initial fetch
     useEffect(() => {
-        fetchLiveRankings();
+        fetchRankings('live');
         setTimeout(() => setCurrentPage(1), 0);
-    }, [fetchLiveRankings]);
+    }, [fetchRankings]);
 
     // Handle World Link chapter changes or cache updates
     useEffect(() => {
-        if (currentPage === 'highlights') return;
-
         if (activeChapter === 'all') {
             if (cachedLiveRankings.length > 0) setRankings(cachedLiveRankings);
         } else {
             if (worldLinkChapters[activeChapter]) setRankings(worldLinkChapters[activeChapter]);
             else setRankings([]);
         }
-    }, [activeChapter, worldLinkChapters, cachedLiveRankings, setRankings, currentPage]);
+    }, [activeChapter, worldLinkChapters, cachedLiveRankings, setRankings]);
 
     // Reset page on search/sort change
     useEffect(() => { 
@@ -62,11 +60,9 @@ const LiveEventView: React.FC = () => {
     const handlePageChange = (page: number | 'highlights') => {
         setCurrentPage(page);
         setActiveChapter('all');
-        if (page === 'highlights') {
-            fetchBorderRankings();
-        } else {
-            if (cachedLiveRankings.length === 0) fetchLiveRankings();
-            else setRankings(cachedLiveRankings);
+        // No fetch required as all data is loaded in the initial fetchRankings('live')
+        if (page !== 'highlights') {
+            if (cachedLiveRankings.length > 0) setRankings(cachedLiveRankings);
         }
     };
 
@@ -81,7 +77,13 @@ const LiveEventView: React.FC = () => {
 
     const sortedAndFilteredRankings = useMemo(() => {
         const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));
-        const sorted = [...filtered].sort((a, b) => {
+        
+        // 精華片段模式僅顯示 100 名(含)以後的邊界
+        const viewList = currentPage === 'highlights' 
+            ? filtered.filter(entry => entry.rank >= 100)
+            : filtered;
+
+        const sorted = [...viewList].sort((a, b) => {
             if (sortOption === 'score') return b.score - a.score;
             if (sortOption === 'dailyAvg') {
                 return (b.score / currentEventDuration) - (a.score / currentEventDuration);
@@ -265,7 +267,7 @@ const LiveEventView: React.FC = () => {
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
                     <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={liveEventId || undefined} cards={cards || undefined} isLiveEvent={true} />
+                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={liveEventId || undefined} cards={cards || undefined} isLiveEvent={true} aggregateAt={liveEventTiming?.aggregateAt} />
                     </CollapsibleSection>
                     <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

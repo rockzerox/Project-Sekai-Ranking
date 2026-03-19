@@ -9,8 +9,7 @@
 **API 依賴**: 
 *   `/api/events/list`
 *   `/api/events/:id`
-*   `/api/rankings/live`
-*   `/api/rankings/border`
+*   `/api/event/live/rankings`
 *(詳細規格請參照 `/docs/API_ARCHITECTURE.md`)*
 
 ---
@@ -45,8 +44,7 @@
 
 | 資料類型 | API 端點 | 觸發時機 | 備註 |
 | :--- | :--- | :--- | :--- |
-| **Top 100 榜單** | `/event/live/top100` | 頁面載入時、切換分頁至一般模式時 | 回傳前 100 名完整資料 |
-| **邊線榜單 (Borders)** | `/event/live/border` | 切換至「精彩片段」模式時、繪製圖表時 | 回傳特定名次 (200, 300...) 資料 |
+| **大一統即時榜單** | `/event/live/rankings` | 頁面首次載入與手動刷新時 | 一次性回傳 Top 100 與所有邊線資料，消除非同步競態問題 |
 
 ### 2.2 核心邏輯 (Core Logic)
 
@@ -69,9 +67,10 @@ const giveUpThreshold = targetScore - maxGain;
 *   計算特定名次間的倍率 (Ratio) 與差值 (Diff)。
 *   利用 `src/utils/mathUtils.ts` 計算變異係數 (CV)，數值越低代表分數分佈越平均（競爭越膠著）。
 
-#### C. 狀態管理
-*   **`useRankings`**: 封裝了 `fetch` 邏輯、錯誤處理、快取 (Cache) 機制。
-*   **`currentPage`**: 控制顯示一般榜單 (number) 或是精彩片段 ('highlights')。
+#### C. 狀態管理與特殊邏輯
+*   **`useRankings`**: 封裝了單一 `fetch` 邏輯，並保證了資料同步防呆機制（特別是透過 `closed_at` 映射確保計時器能在空窗期時穩定掛載）。
+*   **最後更新時間 (Last Updated)**: 強制定義為「使用者發出請求並成功取得響應的**本機當下時間**」，確保真實反映前端資料快照時間，而非後端伺服器的聚合時間。
+*   **`currentPage`**: 控制顯示一般榜單 (number) 或是精彩片段 ('highlights')。進入精彩片段模式時，統一從 `sortedAndFilteredRankings` 中過濾掉第 1 至 99 名。
 
 ---
 
@@ -134,8 +133,7 @@ const giveUpThreshold = targetScore - maxGain;
 ## 4. 模組依賴 (Module Dependencies)
 
 ### 4.1 資料來源 (Data Fetching)
-*   **Top 100 榜單**: `/event/live/top100`
-*   **邊線榜單 (Borders)**: `/event/live/border`
+*   **大一統即時榜單**: `/event/live/rankings`
 *   **外部資源**:
     *   **卡片對照表**: `cards.json` (GitHub Raw)
     *   **角色圖片**: `Chibi/{characterId}.png` (GitHub Raw)
@@ -170,20 +168,20 @@ sequenceDiagram
     participant Supabase as Supabase (Primary)
     participant Hisekai as Hisekai API (Fallback)
 
-    User->>View: 進入頁面
+    User->>View: 進入頁面或手動刷新
     View->>Hook: 請求當前活動榜單
-    Hook->>API: GET /api/event/live/top100
-    API->>Supabase: 1. 嘗試讀取資料
-    alt 資料庫有資料
+    Hook->>API: GET /api/event/live/rankings
+    API->>Supabase: 1. 嘗試讀取歸檔資料
+    alt 資料庫有對應資料
         Supabase-->>API: 回傳資料
-    else 資料庫無資料或失敗
+    else 資料庫無即時資料
         Supabase-->>API: 失敗/空資料
-        API->>Hisekai: 2. 轉向原始 API 抓取
-        Hisekai-->>API: 回傳資料
+        API->>Hisekai: 2. 轉向原始 API 抓取 (合併 top100 與 border)
+        Hisekai-->>API: 回傳原始資料並重組
     end
-    API-->>Hook: 回傳 { source, data }
-    Hook->>Hook: 解包 data
-    Hook-->>View: 更新 rankings 狀態
-    View->>User: 渲染即時榜單
+    API-->>Hook: 回傳大一統格式 JSON (包含完整時程 Metadata)
+    Hook->>Hook: 記錄本地載入時間為「最後更新時間」
+    Hook-->>View: 一次性更新 rankings 與計時器狀態
+    View->>User: 渲染即時榜單與活動倒數計時器
 ```
 

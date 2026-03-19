@@ -153,24 +153,18 @@ const WorldLinkView: React.FC = () => {
             for (let i = 0; i < total; i++) {
                 const eventId = targetIds[i];
                 try {
-                    const [jsonTop, jsonBorder] = await Promise.all([
-                        fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/top100`),
-                        fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/border`)
-                    ]);
-                    const chaptersTop: WorldBloomChapter[] = jsonTop?.userWorldBloomChapterRankings || [];
-                    const chaptersBorder: WorldBloomChapterBorder[] = jsonBorder?.userWorldBloomChapterRankingBorders || [];
+                    const json = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/rankings`);
+                    const chapters: any[] = json?.chapters || [];
                     const wlDetail = getWlDetail(eventId);
                     const chapterIds = wlDetail?.chorder || [];
                     const duration = wlDetail?.chDavg || 3; 
 
                     chapterIds.forEach((charId, orderIdx) => {
                         const charInfo = CHARACTERS[charId];
-                        const topData = chaptersTop.find(c => String(c.gameCharacterId) === charId)?.rankings || [];
-                        const charBorderObj = chaptersBorder.find(c => String(c.gameCharacterId) === charId);
-                        const borderData = charBorderObj?.borderRankings || [];
+                        const charRankings = chapters.find(c => String(c.gameCharacterId) === charId)?.rankings || [];
                         const borderScores: Record<number, number> = {};
-                        borderData.forEach(b => { borderScores[b.rank] = b.score; });
-                        const getScore = (r: number) => topData.find(x => x.rank === r)?.score || 0;
+                        charRankings.filter((r: any) => r.rank > 100).forEach((b: any) => { borderScores[b.rank] = b.score; });
+                        const getScore = (r: number) => charRankings.find((x: any) => x.rank === r)?.score || 0;
                         if (charInfo) {
                             tempStats.push({ charName: charInfo.name, charId: charInfo.id, color: charInfo.color, eventId, top1: getScore(1), top10: getScore(10), top100: getScore(100), borders: borderScores, duration, chapterOrder: orderIdx + 1 });
                         }

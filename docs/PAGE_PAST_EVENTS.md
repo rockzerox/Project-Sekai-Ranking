@@ -9,8 +9,7 @@
 **API 依賴**: 
 *   `/api/events/list`
 *   `/api/events/:id`
-*   `/api/rankings/past`
-*   `/api/rankings/border`
+*   `/api/event/:id/rankings`
 *(詳細規格請參照 `/docs/API_ARCHITECTURE.md`)*
 
 ---
@@ -42,8 +41,7 @@
 | :--- | :--- | :--- | :--- |
 | **活動列表** | `/event/list` | 頁面載入時 | 回傳包含 ID、名稱、時間的基本清單 |
 | **詳細設定** | `eventDetail.json` | App 初始化時 (ConfigContext) | 補足 API 缺少的資訊 (Banner, Unit, CardType 等) |
-| **單一活動榜單** | `/event/{id}/top100` | 點擊特定活動卡片後 | 取得該期 Top 100 數據 |
-| **單一活動邊線** | `/event/{id}/border` | 在詳情頁切換至「精彩片段」時 | 取得該期分數線數據 |
+| **大一統歷史榜單** | `/event/{id}/rankings` | 點擊特定活動卡片進入詳情後 | 一次性取得該期 Top 100 與所有邊線結算數據，包含章節解析 |
 
 ### 2.2 核心邏輯 (Core Logic)
 
@@ -94,6 +92,7 @@
     *   右側顯示該期活動的競爭數據 (T1/T10 差距等)。
 *   **排行榜內容**:
     *   重複使用 `RankingList` 與 `ChartAnalysis` 組件。
+    *   支援支援「一般榜單」與「精彩片段」模式。在「精彩片段」模式下，統一自 `sortedAndFilteredRankings` 過濾名次 `>= 100` 的資料以精確呈現各標竿榜線。
     *   **角色頭像支援**: 透過資料轉換層 (`transformUserCardToPlayerInfo`)，將歷代活動的 `userCard` 格式轉換為標準格式，從而支援顯示隊長角色的 Q 版頭像。
     *   若為 World Link，標題列會額外出現 **章節切換 Tabs** (總榜 / 角色 A / 角色 B...)。在手機版 (小於 `sm` 斷點) 自動隱藏角色名稱，僅顯示頭像以優化觸控體驗。
 
@@ -131,8 +130,8 @@ sequenceDiagram
     
     User->>View: 點擊特定活動卡片
     View->>Detail: 切換至詳情視圖 (selectedEvent)
-    Detail->>API: 請求該期榜單 (GET /event/{id}/top100)
-    API-->>Detail: 回傳結算數據
+    Detail->>API: 請求大一統榜單 (GET /event/{id}/rankings)
+    API-->>Detail: 回傳統一格式結算數據 (合併 Top100 與 Border)
     Detail->>Detail: 處理 World Link 章節切換 (若適用)
     Detail-->>User: 渲染活動回顧榜單與分析圖表
 ```

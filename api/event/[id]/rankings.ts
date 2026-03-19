@@ -11,6 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 歷史資料快取 24 小時
   res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=3600');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   try {
     if (type === 'top100') {

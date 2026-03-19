@@ -5,6 +5,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { type = 'unified' } = req.query;
   
   res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
   try {
     if (type === 'top100') {

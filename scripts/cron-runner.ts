@@ -95,6 +95,17 @@ async function ingestEventRankings(ev: any) {
     }
   });
 
+  if (parsedBorder.userWorldBloomChapterRankingBorders) {
+    parsedBorder.userWorldBloomChapterRankingBorders.forEach((ch: any) => {
+      const entries = ch.borderRankings || [];
+      entries.forEach((r: any) => {
+        if (!allRankings.find(x => x.rank === r.rank && x.chapter_char_id === ch.gameCharacterId)) {
+          addRanking(r, ch.gameCharacterId);
+        }
+      });
+    });
+  }
+
   if (parsedT100.userWorldBloomChapterRankings) {
     parsedT100.userWorldBloomChapterRankings.forEach((ch: any) => {
       ch.rankings.forEach((r: any) => {

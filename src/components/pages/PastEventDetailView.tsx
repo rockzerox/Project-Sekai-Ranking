@@ -53,8 +53,6 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     // Handle World Link chapter changes or cache updates
     useEffect(() => {
-        if (currentPage === 'highlights') return;
-
         if (activeChapter === 'all') {
             if (cachedPastRankings.length > 0) setRankings(cachedPastRankings);
         } else {

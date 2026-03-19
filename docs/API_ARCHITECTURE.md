@@ -80,4 +80,4 @@
     *   前端僅使用 `VITE_` 開頭的變數。
     *   後端 Service 優先使用 `SUPABASE_SERVICE_ROLE_KEY` 等安全金鑰，不暴露於前端。
 *   **CORS 與權限**：Vercel 環境下透過 `vercel.json` 或 API Header 進行安全管控。
-*   **Cron 安全**：預計算 API 將加入 `CRON_SECRET` 驗證機制。
+*   **背景運算外移**：耗時長、運算量大的預計算邏輯 (如玩家統計)，皆由獨立的 GitHub Actions 定時執行，不再佔用 Vercel 額度。

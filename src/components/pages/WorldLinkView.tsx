@@ -155,7 +155,8 @@ const WorldLinkView: React.FC = () => {
                 // 一次性獲取所有 WL 章節統計 (極速)
                 const res = await fetch(`/api/stats/border-stats`);
                 if (!res.ok) throw new Error("Failed to fetch border stats");
-                const { wlStats } = await res.json();
+                const borderStatsData = await res.json();
+                const wlStats = borderStatsData.wlStats || borderStatsData.data?.wlStats || [];
 
                 const tempStats: AggregatedCharStat[] = [];
                 

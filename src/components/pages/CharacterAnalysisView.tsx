@@ -47,6 +47,7 @@ const CharacterAnalysisView: React.FC = () => {
     const [wlRankInfo, setWlRankInfo] = useState<{totalRank: number, dailyRank: number} | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [progress, setProgress] = useState(0);
+    const [wlBorders, setWlBorders] = useState<any[]>([]);
 
     const scrollIntervalRef = useRef<number | null>(null);
     const currentChar = CHARACTER_MASTER[activeCharId];
@@ -106,10 +107,12 @@ const CharacterAnalysisView: React.FC = () => {
 
             if (isWlMode) {
                 try {
-                    const borderStatsRes = await fetch(`/api/stats/border-stats`);
+                    const borderStatsRes = await fetch(`${API_BASE_URL}/stats/border-stats`);
                     if (!borderStatsRes.ok) throw new Error("Failed to fetch border stats");
-                    const { wlStats } = await borderStatsRes.json();
+                    const borderStatsData = await borderStatsRes.json();
+                    const wlStats = borderStatsData.wlStats || borderStatsData.data?.wlStats || [];
                     
+                    setWlBorders(wlStats);            
                     const wlInfo = wlDetails;
                     const allCharScores: {id: string, total: number, daily: number, wlId: number, wlName: string, chapterOrder: number}[] = [];
 

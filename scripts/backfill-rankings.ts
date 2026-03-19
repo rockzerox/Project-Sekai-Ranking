@@ -71,7 +71,7 @@ async function run() {
         .select('event_id');
     const doneIds = new Set(done?.map(d => d.event_id) ?? []);
 
-    const todo = (events ?? []).filter(e => [159, 160].includes(e.id));
+    const todo = (events ?? []).filter(e => !doneIds.has(e.id));
 
     // 取得命令列參數限制數量
     const limit = process.argv[2] ? parseInt(process.argv[2], 10) : todo.length;

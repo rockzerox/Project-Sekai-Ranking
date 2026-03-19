@@ -1,7 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// 讀取 World Link 詳細資訊以獲取各章節天數 (chDavg)
+const wlDetailPath = path.resolve(__dirname, '../src/data/WorldLinkDetail.json');
+const wlDetails = JSON.parse(fs.readFileSync(wlDetailPath, 'utf8'));
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ 缺少 SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY");
@@ -168,6 +174,54 @@ async function ingestEventRankings(ev: any) {
 
   const { error: bsErr } = await supabase.from('event_border_stats').insert(borderStats);
   if (bsErr) throw new Error(`[Supabase] 寫入 border_stats 失敗: ${bsErr.message}`);
+
+  // 處理 World Link 章節 Border Stats (如有)
+  const wlRankings = allRankings.filter(r => r.chapter_char_id !== -1);
+  if (wlRankings.length > 0) {
+    console.log(`💾 計算並寫入 wl_chapter_border_stats...`);
+    const chapterMap: Record<number, any[]> = {};
+    wlRankings.forEach(r => {
+      if (!chapterMap[r.chapter_char_id]) chapterMap[r.chapter_char_id] = [];
+      chapterMap[r.chapter_char_id].push(r);
+    });
+
+    const wlUpsertData: any[] = [];
+    for (const charIdStr in chapterMap) {
+      const charId = parseInt(charIdStr);
+      const list = chapterMap[charId];
+      const getWLScore = (r: number) => list.find(x => x.rank === r)?.score || 0;
+
+      const duration = wlDetails[eventId]?.chDavg || 3;
+
+      wlUpsertData.push({
+        event_id: eventId,
+        chapter_char_id: charId,
+        duration_days: duration,
+        top1: getWLScore(1),
+        top10: getWLScore(10),
+        top50: getWLScore(50),
+        top100: getWLScore(100),
+        border_200: getWLScore(200),
+        border_300: getWLScore(300),
+        border_400: getWLScore(400),
+        border_500: getWLScore(500),
+        border_1000: getWLScore(1000),
+        border_2000: getWLScore(2000),
+        border_5000: getWLScore(5000),
+        border_10000: getWLScore(10000),
+        computed_at: new Date().toISOString()
+      });
+    }
+
+    await supabase.from('wl_chapter_border_stats').delete().eq('event_id', eventId);
+    
+    if (wlUpsertData.length > 0) {
+      const { error: wlErr } = await supabase
+        .from('wl_chapter_border_stats')
+        .upsert(wlUpsertData, { onConflict: 'event_id, chapter_char_id' });
+      if (wlErr) throw new Error(`[Supabase] 寫入 wl_chapter_border_stats 失敗: ${wlErr.message}`);
+    }
+  }
 
   console.log(`✅ 活動 ${eventId} 資料歸檔完成。\n`);
 }

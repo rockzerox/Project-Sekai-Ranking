@@ -119,80 +119,109 @@ export const getPlayerStats = async (userId: string) => {
  * 取得所有活動的榜線統計資料
  */
 export const getBorderStats = async () => {
-  // ① 主要來源：預先計算好的 event_border_stats 表 (極速)
-  const { data, error } = await supabase
-    .from('event_border_stats')
-    .select('*')
-    .order('event_id', { ascending: false });
+  // ① 主要來源：預先計算好的統計表 (極速)
+  const [generalRes, wlRes] = await Promise.all([
+    supabase
+      .from('event_border_stats')
+      .select('*')
+      .order('event_id', { ascending: false }),
+    supabase
+      .from('wl_chapter_border_stats')
+      .select('*')
+      .order('event_id', { ascending: false })
+  ]);
 
-  if (error) {
-    console.error('Failed to fetch from event_border_stats:', error);
-    throw error;
+  if (generalRes.error) throw generalRes.error;
+  if (wlRes.error) throw wlRes.error;
+
+  // 格式化資料
+  const formattedStats = (generalRes.data || []).map((row) => ({
+    eventId: row.event_id,
+    top1: row.top1 || 0,
+    top10: row.top10 || 0,
+    top50: row.top50 || 0,
+    top100: row.top100 || 0,
+    borders: {
+      200: row.border_200 || 0,
+      300: row.border_300 || 0,
+      400: row.border_400 || 0,
+      500: row.border_500 || 0,
+      1000: row.border_1000 || 0,
+      2000: row.border_2000 || 0,
+      5000: row.border_5000 || 0,
+      10000: row.border_10000 || 0,
+    }
+  }));
+
+  const formattedWlStats = (wlRes.data || []).map((row) => ({
+    eventId: row.event_id,
+    chapterCharId: row.chapter_char_id,
+    durationDays: row.duration_days,
+    top1: row.top1 || 0,
+    top10: row.top10 || 0,
+    top50: row.top50 || 0,
+    top100: row.top100 || 0,
+    borders: {
+      200: row.border_200 || 0,
+      300: row.border_300 || 0,
+      400: row.border_400 || 0,
+      500: row.border_500 || 0,
+      1000: row.border_1000 || 0,
+      2000: row.border_2000 || 0,
+      5000: row.border_5000 || 0,
+      10000: row.border_10000 || 0,
+    }
+  }));
+
+  if (formattedStats.length > 0 || formattedWlStats.length > 0) {
+    return { 
+      stats: formattedStats,
+      wlStats: formattedWlStats
+    };
   }
 
-  if (data && data.length > 0) {
-    // 將資料庫格式轉換為前端預期的格式
-    const formattedStats = data.map((row) => ({
-      eventId: row.event_id,
-      top1: row.top1 || 0,
-      top10: row.top10 || 0,
-      top50: row.top50 || 0,
-      top100: row.top100 || 0,
-      borders: {
-        200: row.border_200 || 0,
-        300: row.border_300 || 0,
-        400: row.border_400 || 0,
-        500: row.border_500 || 0,
-        1000: row.border_1000 || 0,
-        2000: row.border_2000 || 0,
-        5000: row.border_5000 || 0,
-        10000: row.border_10000 || 0,
-      }
-    }));
-    return { stats: formattedStats };
-  }
-
-  // ② 降級來源：從 event_rankings 即時聚合 (較慢，但能保證有資料)
+  // ② 降級來源：從 event_rankings 即時聚合
   console.log('Fallback: Aggregating from event_rankings...');
   const targetRanks = [1, 10, 50, 100, 200, 300, 400, 500, 1000, 2000, 5000, 10000];
   
   const { data: fallbackData, error: fallbackError } = await supabase
     .from('event_rankings')
-    .select('event_id, rank, score')
-    .eq('chapter_char_id', -1)
+    .select('event_id, rank, score, chapter_char_id')
     .in('rank', targetRanks);
 
-  if (fallbackError) {
-    console.error('Fallback aggregation failed:', fallbackError);
-    throw fallbackError;
-  }
+  if (fallbackError) throw fallbackError;
+  if (!fallbackData || fallbackData.length === 0) return { stats: [], wlStats: [] };
 
-  if (!fallbackData || fallbackData.length === 0) {
-    return { stats: [] };
-  }
-
-  // 在記憶體中進行 Group By
   const statsMap: Record<number, any> = {};
+  const wlStatsMap: Record<string, any> = {};
   
   fallbackData.forEach((row) => {
-    const { event_id, rank, score } = row;
-    if (!statsMap[event_id]) {
-      statsMap[event_id] = {
-        eventId: event_id,
-        top1: 0, top10: 0, top50: 0, top100: 0,
-        borders: {}
-      };
+    const { event_id, rank, score, chapter_char_id } = row;
+    
+    if (chapter_char_id === -1) {
+      if (!statsMap[event_id]) {
+        statsMap[event_id] = { eventId: event_id, top1: 0, top10: 0, top50: 0, top100: 0, borders: {} };
+      }
+      if (rank === 1) statsMap[event_id].top1 = score;
+      else if (rank === 10) statsMap[event_id].top10 = score;
+      else if (rank === 50) statsMap[event_id].top50 = score;
+      else if (rank === 100) statsMap[event_id].top100 = score;
+      else statsMap[event_id].borders[rank] = score;
+    } else {
+      const key = `${event_id}-${chapter_char_id}`;
+      if (!wlStatsMap[key]) {
+        wlStatsMap[key] = { eventId: event_id, chapterCharId: chapter_char_id, top1: 0, top10: 0, top50: 0, top100: 0, borders: {} };
+      }
+      if (rank === 1) wlStatsMap[key].top1 = score;
+      else if (rank === 10) wlStatsMap[key].top10 = score;
+      else if (rank === 50) wlStatsMap[key].top50 = score;
+      else if (rank === 100) wlStatsMap[key].top100 = score;
+      else wlStatsMap[key].borders[rank] = score;
     }
-
-    if (rank === 1) statsMap[event_id].top1 = score;
-    else if (rank === 10) statsMap[event_id].top10 = score;
-    else if (rank === 50) statsMap[event_id].top50 = score;
-    else if (rank === 100) statsMap[event_id].top100 = score;
-    else statsMap[event_id].borders[rank] = score;
   });
 
-  // 轉換為陣列並排序 (由新到舊)
-  const formattedStats = Object.values(statsMap).sort((a, b) => b.eventId - a.eventId);
-
-  return { stats: formattedStats };
+  return { 
+    stats: Object.values(statsMap).sort((a: any, b: any) => b.eventId - a.eventId),
+    wlStats: Object.values(wlStatsMap).sort((a: any, b: any) => b.eventId - a.eventId)
+  };
 };

@@ -105,44 +105,50 @@ const CharacterAnalysisView: React.FC = () => {
             const now = new Date();
 
             if (isWlMode) {
-                const targetWlIds = Object.keys(wlDetails).map(Number).sort((a,b) => a - b);
-                const allCharScores: {id: string, total: number, daily: number, wlId: number, wlName: string, chapterOrder: number}[] = [];
-                
-                for (const wlId of targetWlIds) {
-                    try {
-                        const url = rankTarget <= 100 
-                            ? `${API_BASE_URL}/event/${wlId}/top100` 
-                            : `${API_BASE_URL}/event/${wlId}/border`;
-                        
-                        const json = await fetchJsonWithBigInt(url, abortController.signal);
-                        const chapters = rankTarget <= 100 ? json.userWorldBloomChapterRankings : json.userWorldBloomChapterRankingBorders;
-                        
-                        const wlInfo = wlDetails[wlId];
-                        const duration = wlInfo?.chDavg || 3; 
+                try {
+                    const borderStatsRes = await fetch(`/api/stats/border-stats`);
+                    if (!borderStatsRes.ok) throw new Error("Failed to fetch border stats");
+                    const { wlStats } = await borderStatsRes.json();
+                    
+                    const wlInfo = wlDetails;
+                    const allCharScores: {id: string, total: number, daily: number, wlId: number, wlName: string, chapterOrder: number}[] = [];
+
+                    (wlStats || []).forEach((stat: any) => {
+                        const wlId = stat.eventId;
+                        const cid = String(stat.chapterCharId);
                         const eventInfo = events.find(e => e.id === wlId);
+                        const detail = wlInfo[wlId];
+                        const duration = detail?.chDavg || 3;
+                        const order = detail?.chorder.indexOf(cid) + 1 || 0;
                         
-                        chapters?.forEach((chap: { gameCharacterId: number, rankings?: { rank: number, score: number }[], borderRankings?: { rank: number, score: number }[] }) => {
-                            const cid = String(chap.gameCharacterId);
-                            const rankings = chap.rankings || chap.borderRankings;
-                            const score = rankings?.find((r: { rank: number, score: number }) => r.rank === rankTarget)?.score || 0;
-                            const order = wlInfo?.chorder.indexOf(cid) + 1 || 0;
-                            
-                            if (score > 0) allCharScores.push({ id: cid, total: score, daily: score / duration, wlId: wlId, wlName: eventInfo?.name || "World Link", chapterOrder: order });
-                        });
-                    } catch { /* ignore */ }
-                }
-                
-                if (isMounted) {
-                    const myWlData = allCharScores.filter(s => s.id === activeCharId);
-                    const currentScore = myWlData[0];
-                    if (currentScore) {
-                        setWlRankInfo({ 
-                            totalRank: allCharScores.filter(s => s.total > currentScore.total).length + 1, 
-                            dailyRank: allCharScores.filter(s => s.daily > currentScore.daily).length + 1 
-                        });
-                        setAnalyzedData(myWlData.map(d => ({ id: d.wlId, name: d.wlName, score: d.total, daily: d.daily, isWl: true, chapterOrder: d.chapterOrder })));
-                    } else setAnalyzedData([]);
-                    setIsLoading(false);
+                        // 根據 rankTarget 選擇對應分數
+                        let score = 0;
+                        if (rankTarget === 1) score = stat.top1;
+                        else if (rankTarget === 10) score = stat.top10;
+                        else if (rankTarget === 50) score = stat.top50;
+                        else if (rankTarget === 100) score = stat.top100;
+                        else score = stat.borders[rankTarget] || 0;
+
+                        if (score > 0) {
+                            allCharScores.push({ id: cid, total: score, daily: score / duration, wlId, wlName: eventInfo?.name || "World Link", chapterOrder: order });
+                        }
+                    });
+
+                    if (isMounted) {
+                        const myWlData = allCharScores.filter(s => s.id === activeCharId);
+                        const currentScore = myWlData[0];
+                        if (currentScore) {
+                            setWlRankInfo({ 
+                                totalRank: allCharScores.filter(s => s.total > currentScore.total).length + 1, 
+                                dailyRank: allCharScores.filter(s => s.daily > currentScore.daily).length + 1 
+                            });
+                            setAnalyzedData(myWlData.map(d => ({ id: d.wlId, name: d.wlName, score: d.total, daily: d.daily, isWl: true, chapterOrder: d.chapterOrder })));
+                        } else setAnalyzedData([]);
+                        setIsLoading(false);
+                    }
+                } catch (err) {
+                    console.error("WL Analysis Error:", err);
+                    if (isMounted) setIsLoading(false);
                 }
                 return;
             }

@@ -144,35 +144,59 @@ const WorldLinkView: React.FC = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            setIsAnalyzing(true); setAggregatedData([]);
-            const tempStats: AggregatedCharStat[] = [];
-            const targetIds = getWlIdsByRound(currentRound);
-            const total = targetIds.length;
-            if (total === 0) { setIsAnalyzing(false); return; }
+            setIsAnalyzing(true);
+            setAggregatedData([]);
+            setLoadingProgress(0);
 
-            for (let i = 0; i < total; i++) {
-                const eventId = targetIds[i];
-                try {
-                    const json = await fetchJsonWithBigInt(`${API_BASE_URL}/event/${eventId}/rankings`);
-                    const chapters: any[] = json?.chapters || [];
+            const targetIds = getWlIdsByRound(currentRound);
+            if (targetIds.length === 0) { setIsAnalyzing(false); return; }
+
+            try {
+                // 一次性獲取所有 WL 章節統計 (極速)
+                const res = await fetch(`/api/stats/border-stats`);
+                if (!res.ok) throw new Error("Failed to fetch border stats");
+                const { wlStats } = await res.json();
+
+                const tempStats: AggregatedCharStat[] = [];
+                
+                // 只篩選目前輪次 (currentRound) 的活動
+                const currentRoundStats = (wlStats || []).filter((s: any) => targetIds.includes(s.eventId));
+
+                currentRoundStats.forEach((stat: any) => {
+                    const eventId = stat.eventId;
+                    const charId = String(stat.chapterCharId);
                     const wlDetail = getWlDetail(eventId);
                     const chapterIds = wlDetail?.chorder || [];
-                    const duration = wlDetail?.chDavg || 3; 
+                    const duration = wlDetail?.chDavg || 3;
+                    const orderIdx = chapterIds.indexOf(charId);
+                    const charInfo = CHARACTERS[charId];
 
-                    chapterIds.forEach((charId, orderIdx) => {
-                        const charInfo = CHARACTERS[charId];
-                        const charRankings = chapters.find(c => String(c.gameCharacterId) === charId)?.rankings || [];
-                        const borderScores: Record<number, number> = {};
-                        charRankings.filter((r: any) => r.rank > 100).forEach((b: any) => { borderScores[b.rank] = b.score; });
-                        const getScore = (r: number) => charRankings.find((x: any) => x.rank === r)?.score || 0;
-                        if (charInfo) {
-                            tempStats.push({ charName: charInfo.name, charId: charInfo.id, color: charInfo.color, eventId, top1: getScore(1), top10: getScore(10), top100: getScore(100), borders: borderScores, duration, chapterOrder: orderIdx + 1 });
-                        }
-                    });
-                } catch (e) { console.error(e); }
-                setLoadingProgress(Math.round(((i + 1) / total) * 100));
+                    if (charInfo && orderIdx !== -1) {
+                        tempStats.push({
+                            charName: charInfo.name,
+                            charId: charInfo.id,
+                            color: charInfo.color,
+                            eventId,
+                            top1: stat.top1,
+                            top10: stat.top10,
+                            top100: stat.top100,
+                            borders: stat.borders || {},
+                            duration,
+                            chapterOrder: orderIdx + 1
+                        });
+                    }
+                });
+
+                // 照 eventId 和 chapterOrder 排序
+                tempStats.sort((a, b) => a.eventId !== b.eventId ? a.eventId - b.eventId : a.chapterOrder - b.chapterOrder);
+                
+                setAggregatedData(tempStats);
+                setLoadingProgress(100);
+            } catch (e) {
+                console.error("WorldLink Analysis Error:", e);
+            } finally {
+                setIsAnalyzing(false);
             }
-            setAggregatedData(tempStats); setIsAnalyzing(false);
         };
         fetchData();
     }, [currentRound, getWlIdsByRound, getWlDetail]);

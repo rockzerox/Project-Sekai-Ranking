@@ -19,7 +19,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     async () => {
       const response = await fetch(`${HISEKAI_API_BASE}/user/${id}/profile`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      return await response.json();
+      
+      const text = await response.text();
+      // 使用與前端一致的 Regex 將大數字轉為引號字串，防止 Node.js 解析時精度丟失
+      const BIGINT_REGEX = /"([^"]+)"\s*:\s*(-?\d{15,})(?=[,}\s])/g;
+      const sanitized = text.replace(BIGINT_REGEX, '"$1": "$2"');
+      
+      return JSON.parse(sanitized);
     }
   );
 }

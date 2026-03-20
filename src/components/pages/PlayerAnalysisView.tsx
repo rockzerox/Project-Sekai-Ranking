@@ -24,6 +24,7 @@ const PlayerAnalysisView: React.FC = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [totalEventsCount, setTotalEventsCount] = useState(0);
     const [selectedSpecificRank, setSelectedSpecificRank] = useState<number>(1);
+    const [metadata, setMetadata] = useState<{ totalTop100: number; rankCounts: Record<number, number> } | null>(null);
 
     // 1. 初始化：取得統計數據
     useEffect(() => {
@@ -37,10 +38,10 @@ const PlayerAnalysisView: React.FC = () => {
                 setTotalEventsCount(pastEventsCount);
 
                 // 取得預計算的排行榜 (unit_id = 0 代表總計)
-                const data = await fetchJsonWithBigInt(`${API_BASE_URL}/stats/top-players?unit_id=0&limit=100`);
+                const res = await fetchJsonWithBigInt(`${API_BASE_URL}/stats/top-players?unit_id=0&limit=100`);
                 
-                if (data) {
-                    const formattedStats: PlayerStat[] = data.map((item: any) => ({
+                if (res && res.data) {
+                    const formattedStats: PlayerStat[] = res.data.map((item: any) => ({
                         userId: item.user_id,
                         latestName: item.players?.user_name || 'Unknown',
                         top100Count: item.top100_count,
@@ -48,6 +49,7 @@ const PlayerAnalysisView: React.FC = () => {
                         unitCounts: {} // 預計算表暫不提供詳細單位拆解，若需此功能可後續擴充
                     }));
                     setPlayerStats(formattedStats);
+                    setMetadata(res.metadata);
                 }
             } catch (e) {
                 console.error("PlayerAnalysis: Failed to fetch stats", e);
@@ -78,10 +80,10 @@ const PlayerAnalysisView: React.FC = () => {
         return {
             topFrequent100: sortedByTop100,
             topFrequentSpecific: sortedBySpecificRank,
-            uniquePlayersCount: playerStats.length,
-            uniqueSpecificRankCount: specificRankUsers.length
+            uniquePlayersCount: metadata?.totalTop100 || 0,
+            uniqueSpecificRankCount: metadata?.rankCounts[selectedSpecificRank] || 0
         };
-    }, [playerStats, selectedSpecificRank]);
+    }, [playerStats, selectedSpecificRank, metadata]);
 
     // 渲染表格列
     const renderRow = (stat: PlayerStat, idx: number, value: number, isTop100Table: boolean = false) => {

@@ -13,6 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `top-players-${unit_id}-${limit}`,
     // ① 主要來源：Supabase
     async () => {
+      // 1. 取得分頁後的排行榜數據 (用於顯示清單)
       const { data, error } = await supabase
         .from('player_activity_stats')
         .select(`
@@ -28,9 +29,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .limit(Number(limit));
 
       if (error) throw error;
-      return data;
+
+      // 2. 取得全域統計數據 (用於顯示 "共 XXX 人")
+      // 為了解決 Supabase 1000 筆限制問題，我們分頁抓取所有活躍玩家統計
+      let allStats: any[] = [];
+      let from = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data: statsChunk, error: countErr } = await supabase
+          .from('player_activity_stats')
+          .select('top100_count, specific_rank_counts')
+          .eq('unit_id', Number(unit_id))
+          .range(from, from + 999);
+        
+        if (countErr) throw countErr;
+        allStats = [...allStats, ...(statsChunk || [])];
+        if (!statsChunk || statsChunk.length < 1000) {
+          hasMore = false;
+        } else {
+          from += 1000;
+        }
+      }
+
+      const metadata = {
+        totalTop100: allStats.filter(s => s.top100_count > 0).length,
+        rankCounts: {} as Record<number, number>
+      };
+
+      // 統計 1-10 名的不重複玩家數 (直接從完整數據中計算)
+      for (let i = 1; i <= 10; i++) {
+        metadata.rankCounts[i] = allStats.filter(s => (s.specific_rank_counts?.[i] || 0) > 0).length;
+      }
+
+      return { data, metadata };
     },
     // ② 備援來源：無 (目前 Hisekai API 沒有提供此類聚合統計)
-    async () => []
+    async () => ({ data: [], metadata: { totalTop100: 0, rankCounts: {} } })
   );
 }

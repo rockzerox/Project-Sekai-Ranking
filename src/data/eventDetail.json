@@ -1461,7 +1461,7 @@
     "unit": "3",
     "type": "world_link",
     "banner": "-",
-    "4starcard": "9,10,11,12",
+    "4starcard": "12,11,9,10",
     "storyType": "world_link",
     "cardType": "special_limited",
     "tag": "-"
@@ -1497,7 +1497,7 @@
     "unit": "4",
     "type": "world_link",
     "banner": "-",
-    "4starcard": "13,14,15,16",
+    "4starcard": "16,13,15,14",
     "storyType": "world_link",
     "cardType": "special_limited",
     "tag": "-"
@@ -1524,7 +1524,7 @@
     "unit": "5",
     "type": "world_link",
     "banner": "-",
-    "4starcard": "17,18,19,20",
+    "4starcard": "17,19,20,18",
     "storyType": "world_link",
     "cardType": "special_limited",
     "tag": "-"
@@ -1533,7 +1533,7 @@
     "unit": "1",
     "type": "world_link",
     "banner": "-",
-    "4starcard": "1,2,3,4",
+    "4starcard": "4,2,3,1",
     "storyType": "world_link",
     "cardType": "special_limited",
     "tag": "-"

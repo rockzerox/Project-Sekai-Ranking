@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
+import 'dotenv/config';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -94,7 +95,7 @@ async function ingestEventRankings(ev: any) {
   const rawT100 = parsedT100.rankings || parsedT100.top_100_player_rankings || [];
   rawT100.forEach((r: any) => addRanking(r, -1));
 
-  const rawBorder = parsedBorder.border_player_rankings || [];
+  const rawBorder = parsedBorder.borderRankings || parsedBorder.border_player_rankings || [];
   rawBorder.forEach((r: any) => {
     if (!allRankings.find(x => x.rank === r.rank && x.chapter_char_id === -1)) {
       addRanking(r, -1);
@@ -150,8 +151,10 @@ async function ingestEventRankings(ev: any) {
   const getS = (rankList: any[], rank: number) => rankList.find((r: any) => r.rank === rank)?.score || 0;
   
   let duration_days = 0;
-  if (ev.start_at && ev.closed_at) {
-    duration_days = Math.round((new Date(ev.closed_at).getTime() - new Date(ev.start_at).getTime()) / (1000 * 60 * 60 * 24));
+  const endTimestamp = ev.aggregate_at || ev.closed_at;
+  if (ev.start_at && endTimestamp) {
+    const diffDays = (new Date(endTimestamp).getTime() - new Date(ev.start_at).getTime()) / (1000 * 60 * 60 * 24);
+    duration_days = parseFloat(diffDays.toFixed(2));
   }
 
   const borderStats = {
@@ -228,11 +231,27 @@ async function ingestEventRankings(ev: any) {
 
 async function recomputeStats() {
   console.log('⏳ 開始重新結算活躍玩家榜 (recomputeAllPlayerStats)...');
-  const { data: rankings, error } = await supabase
-    .from('event_rankings')
-    .select(`user_id, rank, events (unit_id)`)
-    .eq('chapter_char_id', -1);
-  if (error || !rankings) throw new Error(`[Supabase] 讀取 rankings 失敗`);
+  let rankings: any[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data: chunk, error } = await supabase
+      .from('event_rankings')
+      .select(`user_id, rank, events (unit_id)`)
+      .eq('chapter_char_id', -1)
+      .range(from, from + 999);
+    
+    if (error) throw new Error(`[Supabase] 讀取 rankings 失敗: ${error.message}`);
+    rankings = [...rankings, ...(chunk || [])];
+    if (!chunk || chunk.length < 1000) {
+      hasMore = false;
+    } else {
+      from += 1000;
+    }
+  }
+
+  console.log(`📊 成功讀取 ${rankings.length} 筆歷史排名數據，開始計算...`);
 
   const statsMap: Record<string, Record<number, { top100: number; ranks: Record<string, number> }>> = {};
 

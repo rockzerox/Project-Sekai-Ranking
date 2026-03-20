@@ -130,7 +130,37 @@ async function startServer() {
         .limit(Number(limit));
 
       if (error) throw error;
-      res.type('json').send(data);
+
+      // 取得全域統計數據 (為了解決 1000 筆限制，改採分頁抓取)
+      let allStats: any[] = [];
+      let from = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data: statsChunk, error: countErr } = await supabase
+          .from('player_activity_stats')
+          .select('top100_count, specific_rank_counts')
+          .eq('unit_id', Number(unit_id))
+          .range(from, from + 999);
+        
+        if (countErr) throw countErr;
+        allStats = [...allStats, ...(statsChunk || [])];
+        if (!statsChunk || statsChunk.length < 1000) {
+          hasMore = false;
+        } else {
+          from += 1000;
+        }
+      }
+
+      const metadata = {
+        totalTop100: allStats.filter(s => s.top100_count > 0).length,
+        rankCounts: {} as Record<number, number>
+      };
+
+      for (let i = 1; i <= 10; i++) {
+        metadata.rankCounts[i] = allStats.filter(s => (s.specific_rank_counts?.[i] || 0) > 0).length;
+      }
+
+      res.type('json').send({ data, metadata });
     } catch {
       res.status(500).json({ error: "Failed to fetch top players stats" });
     }

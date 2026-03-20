@@ -4,3 +4,5 @@ dist
 *.log
 .DS_Store
 .agent/
+docs/DOCUMENTATION_GUIDELINES.md
+docs/docs_change_log.md

@@ -75,7 +75,15 @@
 | `/api/user/:id/profile` | GET | `getPlayerProfile` | 取得玩家個人資料 |
 | `/api/song/list` | GET | `getSongsData` | 取得歌曲資料庫 |
 
-## 4. 安全性與環境變數
+### 3.4. 統計相關 (Stats)
+| 端點路徑 | 方法 | Service 函式 | 功能描述 |
+| :--- | :--- | :--- | :--- |
+| `/api/stats/top-players` | GET | (Inline) | 取得活躍玩家榜，回傳 `{ data, metadata }`，支援精準突破千筆大數據的分頁統計 (Paging) 以回傳真實全服總數。 |
+| `/api/stats/border-stats` | GET | `getBorderStats` | 取得活動榜線日均分與邊際數值 |
+
+## 4. 特殊策略與快取 (Caching & Strategy)
+*   **Live API 去快取**：為配合外部 Hisekai API 建議，`live` 相關端點 (如 `/api/event/live/rankings`) 已全面解除 Vercel 邊緣快取，以確保最即時的推播。
+*   **Metadata Enrichment**：部分 API (如 `top-players`) 為規避 1000 筆查詢上限，已改由後端直接使用分頁 (`range`) 將完整統計匯總為 `metadata`，供前端渲染真實圖表。
 *   **環境變數管理**：
     *   前端僅使用 `VITE_` 開頭的變數。
     *   後端 Service 優先使用 `SUPABASE_SERVICE_ROLE_KEY` 等安全金鑰，不暴露於前端。

@@ -30,23 +30,20 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 資料聚合邏輯 (Aggregation Logic)
-位於 `src/components/pages/PlayerAnalysisView.tsx`。
+位於 `src/components/pages/PlayerAnalysisView.tsx` 與 `api/stats/top-players.ts`。
 
-1.  **目標確立**: 取得所有 `closed_at < now` 的活動列表，建立 `eventIds` 陣列。
-2.  **單次查詢**: 
-    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank <= 100 AND chapter_char_id IS NULL`。
-3.  **統計表更新**:
-    *   維護一個巨大的 `playerStats: Record<string, PlayerStat>` 物件。
-    *   Key 為 `userId` (確保唯一性)。
-    *   遍歷查詢結果時：
-        *   `top100Count++`
-        *   若 `rank <= 15`，更新 `specificRankCounts`。
-        *   更新 `unitCounts` (依據該期活動的 Unit 屬性)。
-        *   更新 `latestName` (以最新的活動名稱為準)。
+1.  **後端預計算**: 歷史排行榜結算透過 GitHub Actions 執行 (`scripts/cron-runner.ts`)，批次統計並回寫入 `player_activity_stats` (包含 top100 計數與 specific ranks JSON 物件)。
+2.  **單次 API 請求**: 
+    *   前端向 `/api/stats/top-players?unit_id=0&limit=100` 發起請求。
+3.  **大數據分頁 (Paging Metadata)**:
+    *   後端除了回傳 limit 制訂的常客名單，也會透過 `while (range(0, 999))` 穿越 Supabase 的 1000 行限制。
+    *   回傳格式：`{ data: PlayerStat[], metadata: { totalTop100, rankCounts } }`。
+4.  **精確還原全服總數**:
+    *   前端不使用名單長度 (100) 做為「總人數」，而是精確拔取 `metadata.totalTop100` (如：8,246 人) 來呈現最真實的高端玩家總量。
 
 ### 2.2 效能優化
-*   **資料庫查詢優化**: 將原本需要發送數十次 API 請求的邏輯，改為單次 Supabase 查詢，大幅減少網路延遲與伺服器負載。
-*   **記憶體管理**: 僅儲存必要的統計數據，而非保留原始榜單陣列。
+*   **資料庫查詢快取**: 藉由 `player_activity_stats` 統計快取表，將原來在前端需合併處理數十萬筆的歷史資料，縮減成直接返回已匯總完成的精華 Top 100，頁面載入速度 <100ms。
+*   **突破分頁限制**: 後端藉由分頁匯總為 `metadata`，解決傳統清單無法計算全服不重複人數的問題。
 *   **Memoization**: 使用 `useMemo` 處理排序與過濾（`topFrequent100`, `topFrequentSpecific`），避免 React Render Cycle 造成卡頓。
 
 ---
@@ -84,13 +81,16 @@
 sequenceDiagram
     participant User as 使用者
     participant View as PlayerAnalysisView
+    participant API as /api/stats/top-players
     participant DB as Supabase
-
-    User->>View: 進入頁面啟動大數據掃描
-    View->>DB: 單次查詢所有歷史活動 Top 100 (SELECT ... WHERE event_id IN (...) AND rank <= 100)
-    DB-->>View: 回傳所有符合條件的榜單紀錄
-    View->>View: 聚合玩家數據 (次數、名次、團體偏好)
-    View->>View: 計算常客排行榜
-    View->>User: 渲染活躍玩家排行與團體標籤
+    
+    User->>View: 進入頁面
+    View->>API: 請求統計資料 (limit=100)
+    API->>DB: 讀取 pre-calculated 活躍玩家統計表
+    API->>DB: 穿越 1000 筆限制計算全服真實不重複總人數
+    DB-->>API: 匯總結果
+    API-->>View: 回傳 { data: [...100筆], metadata: { totalTop100: 8246, rankCounts: {...} } }
+    View->>View: 狀態更新
+    View->>User: 顯示最真實大數據及常客名單
 ```
 

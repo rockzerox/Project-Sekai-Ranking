@@ -66,11 +66,13 @@ erDiagram
 
     EVENT_BORDER_STATS {
         int event_id PK, FK
-        int rank
-        int score
-        timestamp last_played_at
-        json raw_user_card
-        int chapter_char_id
+        float duration_days
+        int top1
+        int top10
+        int top50
+        int top100
+        int border_200
+        timestamp computed_at
     }
 ```
 
@@ -136,8 +138,7 @@ erDiagram
 | 欄位名稱 | 型別 | 說明 |
 | :--- | :--- | :--- |
 | `event_id` | int | 外鍵 (FK)，對應 `events.id` |
-| `rank` | int | 排名 |
-| `score` | int | 分數 |
-| `last_played_at` | timestamp | 最後遊玩時間 |
-| `raw_user_card` | json | 玩家卡面原始資料 |
-| `chapter_char_id` | int | 章節角色 ID |
+| `duration_days` | float | **活動天數 (2位小數精度)**。基準依據 `events.aggregate_at - events.start_at` (結算日)，用以計算日均成長。 |
+| `top1`~`top100` | int | 前百大之具體分數區間 (例如 `top1`, `top10`) |
+| `border_200`~`10000` | int | 200名後各排位之具體分數區間 |
+| `computed_at` | timestamp | 該筆統計最後重新計算時間 |

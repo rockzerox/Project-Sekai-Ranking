@@ -14,8 +14,8 @@
 本模組主要被 **獨立的外部排程腳本 (如 GitHub Actions)** 喚醒。不加入與前端搶奪回應時間的一線流程，負責將笨重的歷史原始資料分而治之，聚合成如「玩家活動統計表」或「活動分數線大表」。
 
 ## 2. 技術實作 (Technical Implementation)
-*   **`recomputeAllPlayerStats()`**: 
-    1. 大量掃出 `event_rankings` 所有資料（排除 WL 特殊章節）。
+*   **`recomputeAllPlayerStats()`** (目前實作遷移至排程工具 `cron-runner`): 
+    1. 大量掃出 `event_rankings` 所有資料（排除 WL 特殊章節）。透過 `.range(from, to)` `while` 分頁迴圈完整截取，打破 Supabase 預設 1000 筆上限，確保掃描全部數萬筆歷史紀錄。
     2. 建立二維記憶體字典 Map 操作，即時計算該名玩家在各式團體中達標 Top100 的佔比、以及所有歷史落點分佈。
     3. 群集切割後以 `batchSize = 500` 透過 `.upsert` 批次回寫進入 `player_activity_stats`，達成快速換血。
 *   **`getBorderStats()`**: 採用快取/降級雙軌並行查詢機制。

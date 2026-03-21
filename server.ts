@@ -112,37 +112,24 @@ async function startServer() {
   });
   app.get("/api/stats/top-players", async (req, res) => {
     try {
-      const unit_id = req.query.unit_id || 0;
-      const limit = req.query.limit || 50;
+      const { dimension_type = 'all', dimension_id = 0 } = req.query;
       
-      const { data, error } = await supabase
-        .from('player_activity_stats')
-        .select(`
-          user_id,
-          top100_count,
-          specific_rank_counts,
-          players!inner (
-            user_name
-          )
-        `)
-        .eq('unit_id', Number(unit_id))
-        .order('top100_count', { ascending: false })
-        .limit(Number(limit));
-
-      if (error) throw error;
-
-      // 取得全域統計數據 (為了解決 1000 筆限制，改採分頁抓取)
+      // 1. 全量載入該維度所有人
       let allStats: any[] = [];
       let from = 0;
       let hasMore = true;
       while (hasMore) {
         const { data: statsChunk, error: countErr } = await supabase
           .from('player_activity_stats')
-          .select('top100_count, specific_rank_counts')
-          .eq('unit_id', Number(unit_id))
+          .select('user_id, top100_count, specific_rank_counts')
+          .eq('dimension_type', dimension_type.toString())
+          .eq('dimension_id', Number(dimension_id))
           .range(from, from + 999);
         
-        if (countErr) throw countErr;
+        if (countErr) {
+          console.error("Supabase top-players query error:", countErr);
+          throw countErr;
+        }
         allStats = [...allStats, ...(statsChunk || [])];
         if (!statsChunk || statsChunk.length < 1000) {
           hasMore = false;
@@ -151,18 +138,92 @@ async function startServer() {
         }
       }
 
+      // Metadata (總計資訊)
       const metadata = {
         totalTop100: allStats.filter(s => s.top100_count > 0).length,
         rankCounts: {} as Record<number, number>
       };
-
       for (let i = 1; i <= 10; i++) {
         metadata.rankCounts[i] = allStats.filter(s => (s.specific_rank_counts?.[i] || 0) > 0).length;
       }
 
-      res.type('json').send({ data, metadata });
-    } catch {
-      res.status(500).json({ error: "Failed to fetch top players stats" });
+      // 2. 在記憶體中精準切片 (Slicing)
+      const topFrequent100 = [...allStats]
+        .sort((a, b) => b.top100_count - a.top100_count)
+        .slice(0, 15);
+
+      const specificRanks: Record<number, any[]> = {};
+      for (let i = 1; i <= 10; i++) {
+        specificRanks[i] = [...allStats]
+          .filter(s => (s.specific_rank_counts?.[i] || 0) > 0)
+          .sort((a, b) => {
+             const countA = a.specific_rank_counts?.[i] || 0;
+             const countB = b.specific_rank_counts?.[i] || 0;
+             if (countA !== countB) return countB - countA;
+             return b.top100_count - a.top100_count; // Tie-breaker
+          })
+          .slice(0, 15);
+      }
+
+      // 3. 收集所有需要補齊細節的 user_id
+      const uniqueUserIds = new Set<string>();
+      topFrequent100.forEach(s => uniqueUserIds.add(s.user_id));
+      Object.values(specificRanks).forEach(list => list.forEach(s => uniqueUserIds.add(s.user_id)));
+      const userIdsArray = Array.from(uniqueUserIds);
+
+      // 4. 二次精準查詢 (Batch IN)
+      let nameMap = new Map<string, string>();
+      let unitCountsMap: Record<string, Record<string, number>> = {};
+      userIdsArray.forEach(id => unitCountsMap[id] = {});
+
+      if (userIdsArray.length > 0) {
+        // [A] 取得暱稱
+        const { data: usersData } = await supabase
+          .from('players')
+          .select('user_id, user_name')
+          .in('user_id', userIdsArray);
+        if (usersData) {
+          usersData.forEach(u => nameMap.set(u.user_id, u.user_name));
+        }
+
+        // [B] 取得團體徽章次數 (dimension_type = 'unit_id')
+        const { data: unitStats } = await supabase
+          .from('player_activity_stats')
+          .select('user_id, dimension_id, top100_count')
+          .eq('dimension_type', 'unit_id')
+          .in('user_id', userIdsArray);
+        if (unitStats) {
+          unitStats.forEach(st => {
+             unitCountsMap[st.user_id][st.dimension_id.toString()] = st.top100_count;
+          });
+        }
+      }
+
+      // 5. 組裝 JSON
+      const formatPlayer = (p: any) => ({
+        user_id: p.user_id,
+        top100_count: p.top100_count,
+        specific_rank_counts: p.specific_rank_counts,
+        players: { user_name: nameMap.get(p.user_id) || 'Unknown' }, // 保持與舊版相同介面結構以便前端解構
+        unitCounts: unitCountsMap[p.user_id] || {}
+      });
+
+      const formattedTop100 = topFrequent100.map(formatPlayer);
+      const formattedSpecific: Record<number, any[]> = {};
+      for (let i = 1; i <= 10; i++) {
+        formattedSpecific[i] = specificRanks[i].map(formatPlayer);
+      }
+
+      res.type('json').send({ 
+        data: {
+          topFrequent100: formattedTop100,
+          topFrequentSpecific: formattedSpecific
+        }, 
+        metadata 
+      });
+    } catch (e: any) {
+      console.error("Express top-players endpoint failed:", e);
+      res.status(500).json({ error: e.message || "Failed to fetch top players stats" });
     }
   });
   app.get("/api/stats/border-stats", async (req, res) => {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { EventSummary } from '../../types';
 import { UNITS, API_BASE_URL } from '../../config/constants';
@@ -8,6 +7,8 @@ import { useConfig } from '../../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
 import { UI_TEXT } from '../../config/uiText';
 import { supabase } from '../../lib/supabase';
+import { getAssetUrl } from '../../utils/gameUtils';
+import EventFilterGroup, { EventFilterState } from '../../components/ui/EventFilterGroup';
 
 interface PlayerStat {
     userId: string;
@@ -19,36 +20,79 @@ interface PlayerStat {
     unitCounts: Record<string, number>; 
 }
 
+const getBannerId = (e: EventSummary) => e.banner?.toString() || e.four_star_cards?.[0]?.toString().split('-')[0];
+const hasFourStar = (e: EventSummary, id: string) => 
+    e.four_star_cards?.some(cardId => cardId.toString().split('-')[0] === id) || false;
+
 const PlayerAnalysisView: React.FC = () => {
-    const [playerStats, setPlayerStats] = useState<PlayerStat[]>([]);
+    const [topFrequent100, setTopFrequent100] = useState<PlayerStat[]>([]);
+    const [topFrequentSpecificAll, setTopFrequentSpecificAll] = useState<Record<number, PlayerStat[]>>({});
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [totalEventsCount, setTotalEventsCount] = useState(0);
     const [selectedSpecificRank, setSelectedSpecificRank] = useState<number>(1);
     const [metadata, setMetadata] = useState<{ totalTop100: number; rankCounts: Record<number, number> } | null>(null);
+
+    const [filters, setFilters] = useState<EventFilterState>({
+        unit: 'all',
+        banner: 'all',
+        type: 'all',
+        storyType: 'all',
+        cardType: 'all',
+        fourStar: 'all',
+        theme: 'all'
+    });
 
     // 1. 初始化：取得統計數據
     useEffect(() => {
         const fetchData = async () => {
             setIsAnalyzing(true);
             try {
-                // 取得活動總數用於計算霸榜率
+                // 取得活動總數用於計算霸榜率，並依據目前的過濾維度做精準裁切
                 const events: EventSummary[] = await fetchJsonWithBigInt(`${API_BASE_URL}/event/list`);
                 const now = new Date();
-                const pastEventsCount = events.filter(e => new Date(e.closed_at) < now).length;
-                setTotalEventsCount(pastEventsCount);
+                const filteredEvents = events.filter(e => {
+                    const closed = new Date(e.closed_at) < now;
+                    if (!closed) return false;
+                    
+                    if (filters.unit !== 'all' && e.unit_id?.toString() !== filters.unit) return false;
+                    if (filters.banner !== 'all' && getBannerId(e) !== filters.banner) return false;
+                    if (filters.fourStar !== 'all' && !hasFourStar(e, filters.fourStar)) return false;
+                    
+                    return true;
+                });
+                setTotalEventsCount(filteredEvents.length);
 
-                // 取得預計算的排行榜 (unit_id = 0 代表總計)
-                const res = await fetchJsonWithBigInt(`${API_BASE_URL}/stats/top-players?unit_id=0&limit=100`);
+                // 取得預計算的排行榜 (依照前端傳入條件)
+                let dimType = 'all';
+                let dimId = '0';
+                
+                if (filters.unit !== 'all') {
+                    dimType = 'unit_id';
+                    dimId = filters.unit;
+                } else if (filters.banner !== 'all') {
+                    dimType = 'banner';
+                    dimId = filters.banner;
+                } else if (filters.fourStar !== 'all') {
+                    dimType = 'four_star_cards';
+                    dimId = filters.fourStar;
+                }
+
+                const res = await fetchJsonWithBigInt(`${API_BASE_URL}/stats/top-players?dimension_type=${dimType}&dimension_id=${dimId}`);
                 
                 if (res && res.data) {
-                    const formattedStats: PlayerStat[] = res.data.map((item: any) => ({
+                    const formatStat = (item: any): PlayerStat => ({
                         userId: item.user_id,
                         latestName: item.players?.user_name || 'Unknown',
                         top100Count: item.top100_count,
                         specificRankCounts: item.specific_rank_counts || {},
-                        unitCounts: {} // 預計算表暫不提供詳細單位拆解，若需此功能可後續擴充
-                    }));
-                    setPlayerStats(formattedStats);
+                        unitCounts: item.unitCounts || {}
+                    });
+                    setTopFrequent100((res.data.topFrequent100 || []).map(formatStat));
+                    const specificParsed: Record<number, PlayerStat[]> = {};
+                    for (let i = 1; i <= 10; i++) {
+                        specificParsed[i] = (res.data.topFrequentSpecific?.[i] || []).map(formatStat);
+                    }
+                    setTopFrequentSpecificAll(specificParsed);
                     setMetadata(res.metadata);
                 }
             } catch (e) {
@@ -58,32 +102,12 @@ const PlayerAnalysisView: React.FC = () => {
             }
         };
         fetchData();
-    }, []);
+    }, [filters]);
 
-    // 2. 數據排序與過濾 (Memoized)
-    const { topFrequent100, topFrequentSpecific, uniquePlayersCount, uniqueSpecificRankCount } = useMemo(() => {
-        // 左表：Top 100 常客 (已經由 API 排序好)
-        const sortedByTop100 = playerStats.slice(0, 15);
-
-        // 右表：特定排名常客 (依照該排名獲得次數排序)
-        const specificRankUsers = playerStats.filter(s => (s.specificRankCounts[selectedSpecificRank] || 0) > 0);
-        
-        const sortedBySpecificRank = [...specificRankUsers]
-            .sort((a, b) => {
-                const countA = a.specificRankCounts[selectedSpecificRank] || 0;
-                const countB = b.specificRankCounts[selectedSpecificRank] || 0;
-                if (countA !== countB) return countB - countA;
-                return b.top100Count - a.top100Count;
-            })
-            .slice(0, 15);
-
-        return {
-            topFrequent100: sortedByTop100,
-            topFrequentSpecific: sortedBySpecificRank,
-            uniquePlayersCount: metadata?.totalTop100 || 0,
-            uniqueSpecificRankCount: metadata?.rankCounts[selectedSpecificRank] || 0
-        };
-    }, [playerStats, selectedSpecificRank, metadata]);
+        // 2. 獲取當前所選排名的清單與總人數
+    const uniquePlayersCount = metadata?.totalTop100 || 0;
+    const uniqueSpecificRankCount = metadata?.rankCounts[selectedSpecificRank] || 0;
+    const currentSpecificList = topFrequentSpecificAll[selectedSpecificRank] || [];
 
     // 渲染表格列
     const renderRow = (stat: PlayerStat, idx: number, value: number, isTop100Table: boolean = false) => {
@@ -105,15 +129,23 @@ const PlayerAnalysisView: React.FC = () => {
                             .sort(([, a], [, b]) => b - a)
                             .map(([unit, count]) => {
                                 const unitConfig = UNITS[unit];
-                                const style = unitConfig ? unitConfig.style : "bg-slate-200 text-slate-600";
-                                const abbr = unitConfig ? unitConfig.abbr : unit;
+                                const bgColor = unitConfig ? unitConfig.color : "#94a3b8";
+                                const isMix = unit === "99";
+                                const iconUrl = unitConfig?.urlKey ? getAssetUrl(unit, 'unit') : null;
+
                                 return (
                                     <span 
                                         key={unit} 
-                                        className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold whitespace-nowrap ${style}`}
-                                        title={`${unit}: ${count} 次`}
+                                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm font-bold whitespace-nowrap text-white shadow-sm overflow-hidden"
+                                        style={{ backgroundColor: bgColor }}
+                                        title={`${unitConfig?.name || unit}: ${count} 次`}
                                     >
-                                        {abbr} {count}
+                                        {iconUrl && !isMix ? (
+                                            <img src={iconUrl} alt={unitConfig?.name} className="h-3.5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                                        ) : (
+                                            <span>{unitConfig?.abbr || unit}</span>
+                                        )}
+                                        <span>{count}</span>
                                     </span>
                                 );
                             })
@@ -134,13 +166,28 @@ const PlayerAnalysisView: React.FC = () => {
 
     return (
         <div className="w-full py-4 animate-fadeIn">
-             <div className="mb-6">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.playerAnalysis.title}</h2>
-                <p className="text-slate-500 dark:text-slate-400">
-                    {UI_TEXT.playerAnalysis.descriptionPrefix} <span className="font-bold text-cyan-600 dark:text-cyan-400">{totalEventsCount}</span> {UI_TEXT.playerAnalysis.descriptionSuffix}
-                </p>
+             <div className="mb-6 flex flex-col xl:flex-row justify-between xl:items-end gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{UI_TEXT.playerAnalysis.title}</h2>
+                    <p className="text-slate-500 dark:text-slate-400">
+                        {UI_TEXT.playerAnalysis.descriptionPrefix} <span className="font-bold text-cyan-600 dark:text-cyan-400">{totalEventsCount}</span> {UI_TEXT.playerAnalysis.descriptionSuffix}
+                    </p>
+                </div>
 
-                {isAnalyzing && (
+                <div className="flex-shrink-0">
+                    <EventFilterGroup 
+                        filters={filters}
+                        onFilterChange={setFilters}
+                        mode="exclusive"
+                        showEventType={false}
+                        showStoryType={false}
+                        showCardType={false}
+                        showTheme={false}
+                    />
+                </div>
+            </div>
+
+            {isAnalyzing && (
                     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mt-4 mb-6 relative overflow-hidden shadow-sm">
                         <div className="flex justify-center items-center relative z-10">
                             <span className="text-cyan-600 dark:text-cyan-400 font-bold text-sm animate-pulse">
@@ -149,7 +196,6 @@ const PlayerAnalysisView: React.FC = () => {
                         </div>
                     </div>
                 )}
-            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
                 {/* 左表：Top 100 總次數排行 */}
@@ -193,7 +239,7 @@ const PlayerAnalysisView: React.FC = () => {
                         </div>
                     }
                     subtitle={`${UI_TEXT.playerAnalysis.tableSpecific.subtitlePrefix} ${selectedSpecificRank} ${UI_TEXT.playerAnalysis.tableSpecific.subtitleSuffix}`}
-                    data={topFrequentSpecific} 
+                    data={currentSpecificList} 
                     columns={[
                         { header: '#', className: 'w-12' },
                         { header: '玩家 (Player)', className: 'w-auto' },

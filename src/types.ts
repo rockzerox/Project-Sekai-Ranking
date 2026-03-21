@@ -10,10 +10,15 @@ export type SortOption =
 export interface EventSummary {
   id: number;
   name: string;
+  unit_id?: number | null;
   start_at: string;
   aggregate_at: string;
   closed_at: string;
   ranking_announce_at: string;
+  banner?: number | null;
+  event_type?: string | null;
+  story_type?: string | null;
+  four_star_cards?: (number|string)[] | null;
 }
 
 export interface StatGroup {

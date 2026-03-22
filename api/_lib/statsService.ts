@@ -8,95 +8,144 @@ export interface PlayerActivityStats {
   last_computed_at: string;
 }
 
+const STORY_TYPE_MAP: Record<string, number> = {
+  'unit_event': 1,
+  'mixed_event': 2,
+  'world_link': 3,
+};
+
+function getStoryTypeId(storyType: string | null): number {
+  if (!storyType) return 99; // 預設未知
+  return STORY_TYPE_MAP[storyType] || 99;
+}
+
+function parseCardId(cardStr: string | null): number | null {
+  if (!cardStr || cardStr === '-') return null;
+  const parsed = parseInt(cardStr.split('-')[0], 10);
+  return isNaN(parsed) ? null : parsed;
+}
+
 /**
- * 重新計算所有玩家的統計數據並更新 player_activity_stats 表
+ * 重新計算所有玩家的統計數據並更新 player_activity_stats 表 (五大維度版本)
  */
 export const recomputeAllPlayerStats = async () => {
-  console.log('Starting recomputation of player stats...');
+  console.log('🔄 開始重新結算所有活躍玩家榜 (5-Dim Engine)...');
 
-  // 1. 取得所有排名資料與對應的活動單元 ID
-  const { data: rankings, error: rankingsError } = await supabase
-    .from('event_rankings')
-    .select(`
-      user_id,
-      rank,
-      events (
-        unit_id
-      )
-    `)
-    .eq('chapter_char_id', -1); // 排除 WL 章節資料
-
-  if (rankingsError) {
-    throw new Error(`Failed to fetch rankings: ${rankingsError.message}`);
+  // 先清空資料庫表避免舊的 ghost records
+  console.log("🧹 正在清空 player_activity_stats 表的舊有資料...");
+  const { error: truncateErr } = await supabase.rpc('execute_sql', { query: 'TRUNCATE TABLE player_activity_stats;' });
+  if (truncateErr) {
+      console.warn("⚠️ 警告: TRUNCATE TABLE 失敗，嘗試使用 DELETE FROM...", truncateErr.message);
+      await supabase.rpc('execute_sql', { query: 'DELETE FROM player_activity_stats;' });
   }
 
-  if (!rankings || rankings.length === 0) {
-    console.log('No rankings found to compute.');
-    return;
+  // 1. 取得所有 events 中已知的 metadata
+  const { data: eventsList, error: eventsError } = await supabase
+    .from('events')
+    .select('id, unit_id, story_type, banner, four_star_cards');
+
+  if (eventsError || !eventsList) {
+    throw new Error(`獲取 events 失敗: ${eventsError.message}`);
   }
 
-  // 2. 進行記憶體內聚合
-  // 結構: statsMap[user_id][unit_id] = { top100: number, ranks: { [rank]: count } }
-  const statsMap: Record<string, Record<number, { top100: number; ranks: Record<string, number> }>> = {};
+  type DimensionRecord = {
+    top100_count: number;
+    specific_rank_counts: Record<string, number>;
+  };
+  type UserStatsMap = Record<string, Record<string, Record<number, DimensionRecord>>>;
+  const globalStats: UserStatsMap = {};
 
-  rankings.forEach((row: any) => {
-    const userId = row.user_id;
-    const unitId = row.events?.unit_id || 0;
-    const rank = row.rank;
+  const addPoint = (userId: string, dimType: string, dimId: number, rank: number) => {
+    if (!globalStats[userId]) globalStats[userId] = {};
+    if (!globalStats[userId][dimType]) globalStats[userId][dimType] = {};
+    if (!globalStats[userId][dimType][dimId]) {
+      globalStats[userId][dimType][dimId] = { top100_count: 0, specific_rank_counts: {} };
+    }
 
-    // 初始化使用者與單元
-    const initStats = (uid: number) => {
-      if (!statsMap[userId]) statsMap[userId] = {};
-      if (!statsMap[userId][uid]) {
-        statsMap[userId][uid] = { top100: 0, ranks: {} };
+    const record = globalStats[userId][dimType][dimId];
+    record.top100_count += 1;
+    const rKey = rank.toString();
+    record.specific_rank_counts[rKey] = (record.specific_rank_counts[rKey] || 0) + 1;
+  };
+
+  for (const ev of eventsList) {
+    const eventId = ev.id;
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data: rankings, error: rankError } = await supabase
+        .from('event_rankings')
+        .select('user_id, rank')
+        .eq('event_id', eventId)
+        .eq('chapter_char_id', -1)
+        .lte('rank', 100)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (rankError || !rankings) break;
+
+      for (const row of rankings) {
+        const uid = row.user_id;
+        const rank = row.rank;
+
+        // 1. ALL
+        addPoint(uid, 'all', 0, rank);
+
+        // 2. UNIT
+        if (ev.unit_id !== null && ev.unit_id !== undefined) addPoint(uid, 'unit_id', ev.unit_id, rank);
+
+        // 3. STORY_TYPE
+        const sTypeInt = getStoryTypeId(ev.story_type);
+        addPoint(uid, 'story_type', sTypeInt, rank);
+
+        // 4. BANNER
+        const bId = parseCardId(ev.banner);
+        if (bId !== null) addPoint(uid, 'banner', bId, rank);
+
+        // 5. FOUR_STAR_CARDS
+        if (Array.isArray(ev.four_star_cards)) {
+          for (const card of ev.four_star_cards) {
+            const cId = parseCardId(card);
+            if (cId !== null) addPoint(uid, 'four_star_cards', cId, rank);
+          }
+        }
       }
-    };
 
-    // 更新特定單元統計
-    initStats(unitId);
-    if (rank <= 100) statsMap[userId][unitId].top100++;
-    statsMap[userId][unitId].ranks[rank] = (statsMap[userId][unitId].ranks[rank] || 0) + 1;
+      if (rankings.length < pageSize) hasMore = false;
+      else page++;
+    }
+  }
 
-    // 更新總計統計 (unit_id = 0)
-    initStats(0);
-    if (rank <= 100) statsMap[userId][0].top100++;
-    statsMap[userId][0].ranks[rank] = (statsMap[userId][0].ranks[rank] || 0) + 1;
-  });
-
-  // 3. 準備寫入資料庫
   const upsertData: any[] = [];
   const now = new Date().toISOString();
-
-  for (const userId in statsMap) {
-    for (const unitIdStr in statsMap[userId]) {
-      const unitId = parseInt(unitIdStr);
-      const stats = statsMap[userId][unitId];
-      
-      upsertData.push({
-        user_id: userId,
-        unit_id: unitId,
-        top100_count: stats.top100,
-        specific_rank_counts: stats.ranks,
-        last_computed_at: now
-      });
+  for (const uid of Object.keys(globalStats)) {
+    for (const dType of Object.keys(globalStats[uid])) {
+      for (const dIdStr of Object.keys(globalStats[uid][dType])) {
+        const dId = parseInt(dIdStr, 10);
+        const st = globalStats[uid][dType][dId];
+        upsertData.push({
+          user_id: uid,
+          dimension_type: dType,
+          dimension_id: dId,
+          top100_count: st.top100_count,
+          specific_rank_counts: st.specific_rank_counts,
+          last_computed_at: now
+        });
+      }
     }
   }
 
-  // 4. 批次寫入 Supabase (使用 upsert)
-  // 注意: 這裡假設 player_activity_stats 有 (user_id, unit_id) 的唯一約束或主鍵
-  const batchSize = 500;
+  const batchSize = 1000;
   for (let i = 0; i < upsertData.length; i += batchSize) {
-    const batch = upsertData.slice(i, i + batchSize);
-    const { error: upsertError } = await supabase
+    const chunk = upsertData.slice(i, i + batchSize);
+    const { error: upsertErr } = await supabase
       .from('player_activity_stats')
-      .upsert(batch, { onConflict: 'user_id,unit_id' });
-
-    if (upsertError) {
-      console.error(`Error upserting batch ${i / batchSize}:`, upsertError.message);
-    }
+      .upsert(chunk, { onConflict: 'user_id, dimension_type, dimension_id' });
+    if (upsertErr) console.error(`批次寫入失敗:`, upsertErr.message);
   }
 
-  console.log(`Successfully recomputed stats for ${upsertData.length} user-unit combinations.`);
+  console.log(`✅ 成功結算五大維度活躍玩家榜！共寫入 ${upsertData.length} 筆資料。\n`);
 };
 
 /**

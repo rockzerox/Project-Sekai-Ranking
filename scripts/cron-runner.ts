@@ -230,77 +230,9 @@ async function ingestEventRankings(ev: any) {
 }
 
 async function recomputeStats() {
-  console.log('⏳ 開始重新結算活躍玩家榜 (recomputeAllPlayerStats)...');
-  let rankings: any[] = [];
-  let from = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    const { data: chunk, error } = await supabase
-      .from('event_rankings')
-      .select(`user_id, rank, events (unit_id)`)
-      .eq('chapter_char_id', -1)
-      .range(from, from + 999);
-    
-    if (error) throw new Error(`[Supabase] 讀取 rankings 失敗: ${error.message}`);
-    rankings = [...rankings, ...(chunk || [])];
-    if (!chunk || chunk.length < 1000) {
-      hasMore = false;
-    } else {
-      from += 1000;
-    }
-  }
-
-  console.log(`📊 成功讀取 ${rankings.length} 筆歷史排名數據，開始計算...`);
-
-  const statsMap: Record<string, Record<number, { top100: number; ranks: Record<string, number> }>> = {};
-
-  rankings.forEach((row: any) => {
-    const userId = row.user_id;
-    const unitId = row.events?.unit_id || 0;
-    const rank = row.rank;
-
-    const initStats = (uid: number) => {
-      if (!statsMap[userId]) statsMap[userId] = {};
-      if (!statsMap[userId][uid]) {
-        statsMap[userId][uid] = { top100: 0, ranks: {} };
-      }
-    };
-
-    initStats(unitId);
-    if (rank <= 100) statsMap[userId][unitId].top100++;
-    statsMap[userId][unitId].ranks[rank] = (statsMap[userId][unitId].ranks[rank] || 0) + 1;
-
-    initStats(0);
-    if (rank <= 100) statsMap[userId][0].top100++;
-    statsMap[userId][0].ranks[rank] = (statsMap[userId][0].ranks[rank] || 0) + 1;
-  });
-
-  const upsertData: any[] = [];
-  const now = new Date().toISOString();
-  for (const userId in statsMap) {
-    for (const unitIdStr in statsMap[userId]) {
-      const unitId = parseInt(unitIdStr);
-      const stats = statsMap[userId][unitId];
-      upsertData.push({
-        user_id: userId,
-        unit_id: unitId,
-        top100_count: stats.top100,
-        specific_rank_counts: stats.ranks,
-        last_computed_at: now
-      });
-    }
-  }
-
-  console.log(`💾 寫入 ${upsertData.length} 筆活躍玩家統計...`);
-  for (let i = 0; i < upsertData.length; i += 500) {
-    const chunk = upsertData.slice(i, i + 500);
-    const { error: upsertErr } = await supabase
-      .from('player_activity_stats')
-      .upsert(chunk, { onConflict: 'user_id,unit_id' });
-    if (upsertErr) throw new Error(`[Supabase] 寫入 player_activity_stats 失敗: ${upsertErr.message}`);
-  }
-  console.log(`✅ 成功結算活躍玩家榜！\n`);
+  // 委派給 statsService.ts 的新版五大維度引擎
+  const { recomputeAllPlayerStats } = await import('../api/_lib/statsService.ts');
+  await recomputeAllPlayerStats();
 }
 
 async function main() {

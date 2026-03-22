@@ -9,43 +9,76 @@
 
 ---
 
-## 1. 實體關聯圖 (ERD)
-
 ```mermaid
 erDiagram
-    UNITS ||--o{ CHARACTERS : "belongs to"
-    UNITS ||--o{ EVENTS : "featured in"
-    CHARACTERS ||--o{ CARDS : "has"
+    %% --- Core Entities ---
+    UNITS ||--o{ CHARACTERS : "contains"
+    UNITS ||--o{ EVENTS : "featured_in"
+    CHARACTERS ||--o{ CARDS : "owns"
+    
+    %% --- Event & Content ---
     EVENTS ||--o{ SONGS : "includes"
-    EVENTS ||--o{ EVENT_BORDER_STATS : "has"
-    EVENTS ||--o{ EVENT_RANKINGS : "has"
-    PLAYERS ||--o{ EVENT_RANKINGS : "appears in"
-    PLAYERS ||--o{ PLAYER_ACTIVITY_STATS : "has"
+    EVENTS ||--o{ EVENT_BORDER_STATS : "snapshot_of"
+    EVENTS ||--o{ WL_CHAPTER_BORDER_STATS : "contains_chapters"
+    EVENTS ||--o{ EVENT_RANKINGS : "recorded_in"
+
+    %% --- Player & Statistics ---
+    PLAYERS ||--o{ EVENT_RANKINGS : "achieved"
+    PLAYERS ||--o{ PLAYER_ACTIVITY_STATS : "has_stats"
+
+    %% --- Attributes ---
+
+    UNITS {
+        int id PK
+        string name
+        string color
+        string abbr
+        string url_key
+    }
+
+    CHARACTERS {
+        int id PK
+        int unit_id FK
+        string name
+        string color
+    }
+
+    CARDS {
+        int card_id PK
+        int character_id FK
+        string card_rarity_type
+        string attr
+        string assetbundle_name
+    }
 
     EVENTS {
         int id PK
+        int unit_id FK "Can be NULL"
         string name
         timestamp start_at
         timestamp aggregate_at
         timestamp closed_at
-        timestamp ranking_announce_at
         string event_type
-        int unit_id FK
         string story_type
-        string card_type
-        string banner
-        string four_star_cards
-        string tag
+        string banner "Refers to Char ID"
+        string[] four_star_cards "Refers to Char IDs"
+    }
+
+    SONGS {
+        int music_id PK
+        int event_id FK
+        string title
+        string lyricist
+        string composer
     }
 
     EVENT_RANKINGS {
         bigint event_id FK
-        int chapter_char_id
+        int chapter_char_id "-1 for Main"
         int rank
         bigint score
         string user_id FK
         timestamp last_played_at
-        json raw_user_card
     }
 
     PLAYERS {
@@ -55,24 +88,28 @@ erDiagram
     }
 
     PLAYER_ACTIVITY_STATS {
-        string user_id PK
-        string dimension_type PK
-        int dimension_id PK
+        string user_id PK, FK
+        string dimension_type PK "all, unit_id, story_type, banner, four_star_cards"
+        int dimension_id PK "Polymorphic ID"
         int top100_count
         json specific_rank_counts
-        timestamp last_computed_at
     }
 
     EVENT_BORDER_STATS {
-        int event_id PK
+        int event_id PK, FK
         float duration_days
         int top1
-        int top10
-        int top50
         int top100
         int border_200
         int border_10000
-        timestamp computed_at
+    }
+
+    WL_CHAPTER_BORDER_STATS {
+        int event_id PK, FK
+        int chapter_char_id PK
+        float duration_days
+        int top1
+        int top100
     }
 ```
 

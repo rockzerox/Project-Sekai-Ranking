@@ -8,10 +8,11 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "migrate:events": "tsx scripts/migrate-events.ts",
-    "migrate:songs": "tsx scripts/migrate-songs.ts",
-    "backfill:rankings": "tsx scripts/backfill-rankings.ts",
-    "compute:stats": "tsx scripts/compute-player-stats.ts"
+    "migrate:events": "tsx scripts/archived/migrate-events.ts",
+    "migrate:songs": "tsx scripts/archived/migrate-songs.ts",
+    "backfill:rankings": "tsx scripts/maintenance/backfill-rankings.ts",
+    "compute:stats": "tsx scripts/maintenance/migrate-historic-stats.ts",
+    "cron:run": "tsx scripts/cron/cron-runner.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",

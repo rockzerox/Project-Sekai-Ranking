@@ -1,46 +1,56 @@
 # 📄 專案結構規格書 (Project Structure)
 
-**撰寫日期**: 2026-03-16
-**版本號**: 2.0.0
+**撰寫日期**: 2026-03-22
+**版本號**: 3.0.0
 
-本文件詳細說明 **Hi Sekai TW** 的專案目錄結構，旨在協助開發者快速定位程式碼與資源。
+本文件詳細說明 **Hi Sekai TW** 的專案目錄結構，旨在協助開發者與 AI 助手快速定位程式碼、腳本與規劃文件。
 
 ## 1. 目錄結構概覽
 
 ```text
 root/
-├── .agent/                 # 放置 AI 助手專用規則與協作日誌 (以 .gitignore 隔絕)
-├── api/                    # Vercel API Routes (Serverless Functions)
-│   └── ...                 # 各 API 端點 (不含共享邏輯)
-├── docs/                   # 專案規格書與技術文件 (Mermaid 序列圖)
-├── lib/                    # 後端共享邏輯與服務層 (Service Layer)
-├── scripts/                # 自動化排程與維護腳本群 (Cron Runner, Meta Sync)
-├── public/                 # 放置靜態資源 (images)
-├── src/                    # 原始碼目錄
-│   ├── components/         # React 組件
-│   │   ├── charts/         # 自定義 SVG 圖表組件
-│   │   ├── layout/         # 全域佈局 (Sidebar, Navbar)
-│   │   ├── pages/          # 核心功能視圖 (Live, Trend, Analysis, etc.)
-│   │   └── ui/             # 原子級 UI 組件 (Card, Button, Tooltip)
-│   ├── config/             # 遊戲常數與 UI 文字設定
-│   ├── contexts/           # ConfigContext (全域狀態與顏色映射)
-│   ├── data/               # 前端靜態資料 (如 eventDetail.json)
-│   ├── hooks/              # 業務邏輯與 API 請求封裝 (useRankings, useEventList)
-│   ├── services/           # 前端專用服務 (Card, FeatureFlag)
-│   ├── utils/              # 核心演算法 (U(K), WL 校正, 時間處理)
-│   ├── App.tsx             # 視圖切換與根邏輯
-│   └── index.tsx           # 應用程式進入點
-├── package.json            # 依賴管理
-├── tailwind.config.js      # 樣式系統配置
-└── vite.config.ts          # Vite 設定
+├── .agent/                 # ❤️ AI 助手協作核心 (Git-ignored)
+│   ├── workflows/          # AI 自動化工作流 (.md 指令集)
+│   ├── rules.md            # 專案專屬 AI 規範 (如隔離原則)
+│   ├── docs_change_log.md  # 文件異動追蹤日誌
+│   └── SESSION.md          # 任務進度與當前會話狀態
+├── .github/                # GitHub Actions 工作流 (CI/CD)
+├── api/                    # 🚀 Vercel Serverless Functions (後端)
+│   ├── _lib/               # 後端共享邏輯與 Service Layer (不計入端點數量)
+│   ├── [routes]/           # 各 API 端點 (event, song, stats, player, etc.)
+│   └── supabase.ts         # 後端專用 Supabase Client
+├── docs/                   # 📄 技術文件與頁面規格 (Markdown)
+│   ├── API_ARCHITECTURE.md # API 設計與架構規範
+│   ├── DATABASE_SCHEMA.md  # Supabase 資料庫綱要
+│   └── [PAGE_NAME].md      # 各功能頁面規格 (如 LIVE_EVENT, PLAYER_ANALYSIS)
+├── scripts/                # 🛠️ 自動化與維護腳本 (分類管理)
+│   ├── cron/               # 定期執行腳本 (如 cron-runner.ts)
+│   ├── maintenance/        # 維護性工作 (Backfill, Fix-durations, etc.)
+│   └── archived/           # 已過時或一次性遷移腳本
+├── public/                 # 靜態資源 (images, icons)
+├── src/                    # 💅 前端原始碼 (React + Vite)
+│   ├── components/         # 原子化 React 組件 (UI, Layout, Charts)
+│   ├── config/             # 遊戲常數、介面文字與 UI 配置
+│   ├── data/               # 前端本地資料快取 (eventDetail.json)
+│   ├── hooks/              # 封裝後的 React Hooks (API 請求與快取)
+│   ├── lib/                # 前端第三方 SDK 適配 (如 supabase.ts)
+│   ├── services/           # 前端業務邏輯服務層 (Card, Flag, Analytics)
+│   ├── utils/              # 純函式工具 (時間格式化、HL 計算)
+│   ├── App.tsx             # 路由與根頁面邏輯
+│   └── index.tsx           # 進入點
+├── vercel.json             # Vercel 部署配置
+└── vite.config.ts          # Vite 建構配置
 ```
 
-## 2. 目錄職責說明
+## 2. 目錄職責與設計模式
 
-*   **`lib/`**: **後端服務層**。封裝所有與外部 API (Hi Sekai API, Supabase) 的互動邏輯，隔離資料獲取細節，供 API Routes 使用。放在根目錄以避免被 Vercel 計入 Function 數量。
-*   **`scripts/`**: 包含排程自動執行的主程式 `cron-runner.ts`，與一次性的緊急資料庫修復工具如 `fix-durations.ts` 等。
-*   **`docs/`**: 存放所有功能頁面規格書、資料庫結構文件 (`DATABASE_SCHEMA.md`) 與技術文件。
-*   **`src/components/`**: 遵循原子設計原則，將 UI 拆分為獨立、可複用的組件。
-*   **`src/services/`**: **前端服務層**。處理僅限前端使用的邏輯（如卡片資料快取、功能旗標）。
-*   **`src/hooks/`**: 封裝組件級別的業務邏輯，如資料快取、狀態處理。
-*   **`src/utils/`**: 存放純函式 (Pure Functions)，如數學計算、時間格式化，不依賴 React 狀態。
+*   **`api/_lib/`**: **後端核心**。嚴格禁止在 API Routes 內撰寫長篇業務邏輯。所有資料獲取、計算與 DB 操作皆應封裝於此，確保端點檔案輕量化。
+*   **`scripts/` (三層架構)**:
+    *   `cron`: 僅放置由外部 Cron Job (如 Github Actions 或 Vercel Cron) 呼叫的常態性腳本。
+    *   `maintenance`: 用於資料庫校正、歷史數據回填等手動執行的修護腳本。
+    *   `archived`: 保存過去使用的遷移腳本（不再執行，僅供參考）。
+*   **`.agent/`**: 專為 AI 協作設計的緩存區。其中 `rules.md` 是 AI 每一次工作的起點（Wake-up Protocol），`docs_change_log.md` 則確保文件同步的透明度。
+*   **`docs/`**: 採用「行動文件」原則。當 API 或 UI 流程變動時，必須優先更新此目錄下的 `.md` 文件。
+*   **`src/lib/` vs `src/services/`**:
+    *   `lib`: 底層庫初始化（如 Supabase）。
+    *   `services`: 高層級功能（如卡片渲染邏輯、追蹤標籤管理）。

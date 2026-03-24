@@ -7,7 +7,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // 讀取 World Link 詳細資訊以獲取各章節天數 (chDavg)
-const wlDetailPath = path.resolve(__dirname, '../src/data/WorldLinkDetail.json');
+const wlDetailPath = path.resolve(__dirname, '../../src/data/WorldLinkDetail.json');
 const wlDetails = JSON.parse(fs.readFileSync(wlDetailPath, 'utf8'));
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -231,7 +231,7 @@ async function ingestEventRankings(ev: any) {
 
 async function recomputeStats() {
   // 委派給 statsService.ts 的新版五大維度引擎
-  const { recomputeAllPlayerStats } = await import('../api/_lib/statsService.ts');
+  const { recomputeAllPlayerStats } = await import('../../api/_lib/statsService.ts');
   await recomputeAllPlayerStats();
 }
 

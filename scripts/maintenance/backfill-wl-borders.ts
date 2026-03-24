@@ -6,7 +6,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // 讀取 World Link 詳細資訊以獲取各章節天數 (chDavg)
-const wlDetailPath = path.resolve(__dirname, '../src/data/WorldLinkDetail.json');
+const wlDetailPath = path.resolve(__dirname, '../../src/data/WorldLinkDetail.json');
 const wlDetails = JSON.parse(fs.readFileSync(wlDetailPath, 'utf8'));
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {

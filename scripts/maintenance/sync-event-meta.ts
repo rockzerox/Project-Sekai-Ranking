@@ -13,7 +13,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const eventDetailPath = path.resolve(__dirname, '../src/data/eventDetail.json');
+const eventDetailPath = path.resolve(__dirname, '../../src/data/eventDetail.json');
 const eventDetails = JSON.parse(fs.readFileSync(eventDetailPath, 'utf8'));
 
 async function syncEventMetadata() {

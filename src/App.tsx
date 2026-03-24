@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { EventSummary, ViewType } from './types';
-import TrophyIcon from './components/icons/TrophyIcon';
 import Sidebar from './components/layout/Sidebar';
+import MobileHeader from './components/layout/MobileHeader';
+import MobileTabBar from './components/layout/MobileTabBar';
+import MobileHomeView from './components/pages/MobileHomeView';
 import PastEventsView from './components/pages/PastEventsView';
 import EventComparisonView from './components/pages/EventComparisonView';
 import RankAnalysisView from './components/pages/RankAnalysisView';
@@ -35,6 +37,13 @@ const MainContent: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<{ id: number, name: string } | null>(null);
   const [allEvents, setAllEvents] = useState<EventSummary[]>([]);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchAllEvents = async () => {
@@ -55,7 +64,8 @@ const MainContent: React.FC = () => {
 
   const viewContent = () => {
       switch (currentView) {
-          case 'home': return <HomeView setCurrentView={setCurrentView} />;
+          // On mobile, 'home' view renders MobileHomeView (handled in JSX)
+      case 'home': return <HomeView setCurrentView={setCurrentView} />;
           case 'live': return <LiveEventView />;
           case 'past':
               if (selectedEvent) {
@@ -88,19 +98,44 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="flex bg-slate-50 dark:bg-slate-950 min-h-screen text-slate-900 dark:text-slate-200 font-sans transition-colors duration-300">
-        <Sidebar currentView={currentView} setCurrentView={setCurrentView} isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isCollapsed={isSidebarCollapsed} toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} theme={theme} toggleTheme={toggleTheme} />
-        <div className="flex-1 transition-all duration-300 w-full">
-            <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
-                <div className="flex items-center">
-                    <div className="bg-cyan-500/20 p-2 rounded-lg mr-3"><TrophyIcon className="w-6 h-6 text-cyan-600 dark:text-cyan-400" /></div>
-                    <h1 className="text-lg font-black text-slate-900 dark:text-white">Hi Sekai TW</h1>
-                </div>
-                <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 dark:text-slate-400"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg></button>
-            </div>
-            <main className="p-4 md:p-6 w-full custom-scrollbar">
-                <ErrorBoundary>{viewContent()}</ErrorBoundary>
+        {/* Desktop Sidebar — hidden on mobile */}
+        <Sidebar
+          currentView={currentView}
+          setCurrentView={setCurrentView}
+          isOpen={isSidebarOpen}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isCollapsed={isSidebarCollapsed}
+          toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          theme={theme}
+          toggleTheme={toggleTheme}
+        />
+
+        <div className="flex-1 transition-all duration-300 w-full flex flex-col">
+            {/* Mobile Header — desktop hidden */}
+            <MobileHeader
+              theme={theme}
+              toggleTheme={toggleTheme}
+              setCurrentView={(view) => { setCurrentView(view); setSelectedEvent(null); }}
+            />
+
+            <main className="p-4 md:p-6 w-full custom-scrollbar pb-24 md:pb-6">
+                <ErrorBoundary>
+                    {/* Mobile home: show live event widget */}
+                    {currentView === 'home' && isMobile ? (
+                        <MobileHomeView />
+                    ) : (
+                        viewContent()
+                    )}
+                </ErrorBoundary>
             </main>
         </div>
+
+        {/* Mobile Tab Bar — desktop hidden */}
+        <MobileTabBar
+          currentView={currentView}
+          setCurrentView={(view) => { setCurrentView(view); setSelectedEvent(null); }}
+        />
+
         <ScrollToTop />
     </div>
   );

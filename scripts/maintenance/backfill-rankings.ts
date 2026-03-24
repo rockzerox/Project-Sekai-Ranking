@@ -1,5 +1,5 @@
 // scripts/backfill-rankings.ts
-import { sb, HISEKAI, sleep } from './_client';
+import { sb, HISEKAI, sleep } from '../_client';
 
 const DELAY_MS = 800; // 每次請求間隔，避免對 hisekai 造成壓力
 const BIGINT_REGEX = /"([^"]+)"\s*:\s*(-?\d{15,})(?=[,}\s])/g;

@@ -12,7 +12,7 @@
 
 ## 1. 功能概述 (Feature Overview)
 
-本模組主要被 **獨立排程腳本 (`scripts/cron-runner.ts`)** 或 **一次性遷移腳本 (`scripts/migrate-historic-stats.ts`)** 喚醒。不介入與前端搶奪回應時間的一線流程，負責將歷史原始資料聚合成「玩家活動統計表」或「活動分數線大表」。
+本模組主要被 **獨立排程腳本 (`scripts/cron/cron-runner.ts`)** 或 **一次性遷移腳本 (`scripts/maintenance/migrate-historic-stats.ts`)** 喚醒。不介入與前端搶奪回應時間的一線流程，負責將歷史原始資料聚合成「玩家活動統計表」或「活動分數線大表」。
 
 ---
 
@@ -48,5 +48,5 @@
 ## 3. 模組依賴 (Module Dependencies)
 
 *   內部依賴: `api/_lib/supabase.ts` (具備批次 Upsert 之 service_role 金鑰)
-*   排程入口: `scripts/cron-runner.ts` → 直接 `import { recomputeAllPlayerStats } from '../api/_lib/statsService.ts'`
-*   遷移入口: `scripts/migrate-historic-stats.ts` (包含同等五維邏輯，用於一次性歷史資料補建)
+*   排程入口: `scripts/cron/cron-runner.ts` → 直接 `import { recomputeAllPlayerStats } from '../api/_lib/statsService.ts'`
+*   遷移入口: `scripts/maintenance/migrate-historic-stats.ts` (包含同等五維邏輯，用於一次性歷史資料補建)

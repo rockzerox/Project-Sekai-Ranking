@@ -6,6 +6,7 @@
 
 ## [v1.4.0] - 2026-03-27
 ### 🌐 World Link 章節感知 (Phase 1)
+- **GitHub Action**: 修復 `cron-runner.ts` 路徑錯誤導致的自動腳本失敗問題（改用 `npm run cron:run`），並同步更新了 `SERVICE_STATS_SERVICE.md` 的指令參照。
 - **`timeUtils.ts`**: 新增 `getWlChapterTimings`，統一管理各章節自有的啟動、暖場、運算中狀態，並解耦全域活動狀態。
 - **`LiveEventView.tsx`**: 改為獨立 2 分鐘前端心跳更新狀態。實作章節動態 disabled (Tooltip) 並在章節結算時（calculating）整併隱藏圖表與榜位並顯示對應倒數，完整解耦切換分頁與重置章節 tab 的副作用。
 - **GitIgnore**: 新增 `plan/` 的過濾規則以避免設計稿污染版本庫。

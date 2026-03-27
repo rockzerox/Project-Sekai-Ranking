@@ -5,6 +5,7 @@ import { SortOption } from '../../types';
 import { getAssetUrl } from '../../utils/gameUtils';
 import { calculateCV } from '../../utils/mathUtils';
 import { MS_PER_DAY, CHARACTERS } from '../../config/constants';
+import { getWlChapterTimings, WlChapterTiming } from '../../utils/timeUtils';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import ErrorMessage from '../ui/ErrorMessage';
 import EventHeaderCountdown from '../ui/EventHeaderCountdown';
@@ -18,6 +19,7 @@ import RankingList from '../shared/RankingList';
 import { useCardData } from '../../services/cardService';
 
 const ITEMS_PER_PAGE = 20;
+const NOW_REFRESH_MS = 2 * 60 * 1000; // 2-minute heartbeat (frontend only)
 
 const LiveEventView: React.FC = () => {
     const {
@@ -27,14 +29,20 @@ const LiveEventView: React.FC = () => {
 
     const { getEventColor, isWorldLink, getWlDetail } = useConfig();
     const { cards } = useCardData();
-    
+
     const [activeChapter, setActiveChapter] = useState<string>('all');
     const [searchTerm] = useState('');
     const [sortOption, setSortOption] = useState<SortOption>('score');
     const [isRankingsOpen, setIsRankingsOpen] = useState(true);
     const [isChartsOpen, setIsChartsOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
-    const [now] = useState(() => Date.now());
+
+    // ── Heartbeat: update `now` every 2 minutes (pure frontend, no API calls) ──
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), NOW_REFRESH_MS);
+        return () => clearInterval(id);
+    }, []);
 
     // Initial fetch
     useEffect(() => {
@@ -52,34 +60,62 @@ const LiveEventView: React.FC = () => {
         }
     }, [activeChapter, worldLinkChapters, cachedLiveRankings, setRankings]);
 
-    // Reset page on search/sort change
-    useEffect(() => { 
-        setTimeout(() => setCurrentPage(prev => prev === 'highlights' ? prev : 1), 0); 
+    // Reset page on sort change
+    useEffect(() => {
+        setTimeout(() => setCurrentPage(prev => prev === 'highlights' ? prev : 1), 0);
     }, [searchTerm, sortOption]);
 
-    const handlePageChange = (page: number | 'highlights') => {
-        setCurrentPage(page);
-        setActiveChapter('all');
-        // No fetch required as all data is loaded in the initial fetchRankings('live')
-        if (page !== 'highlights') {
-            if (cachedLiveRankings.length > 0) setRankings(cachedLiveRankings);
-        }
-    };
+    // ── World Link setup ──────────────────────────────────────────────────────
+    const isWl = !!(liveEventId && isWorldLink(liveEventId));
 
+    const chapterTimings: WlChapterTiming[] = useMemo(() => {
+        if (!isWl || !liveEventId || !liveEventTiming) return [];
+        const wlInfo = getWlDetail(liveEventId);
+        if (!wlInfo) return [];
+        return getWlChapterTimings(wlInfo, liveEventTiming.startAt, now);
+    }, [isWl, liveEventId, liveEventTiming, getWlDetail, now]);
+
+    const activeChapterTiming: WlChapterTiming | null = useMemo(() =>
+        chapterTimings.find(c => c.charId === activeChapter) ?? null,
+    [chapterTimings, activeChapter]);
+
+    // ── Duration for daily-avg & chart calculations ───────────────────────────
     const currentEventDuration = useMemo(() => {
+        if (isWl && activeChapter !== 'all' && activeChapterTiming) {
+            const s = new Date(activeChapterTiming.startAt).getTime();
+            const e = new Date(activeChapterTiming.aggregateAt).getTime();
+            return Math.max(0.01, (Math.min(now, e) - s) / MS_PER_DAY);
+        }
         if (liveEventTiming) {
             const start = new Date(liveEventTiming.startAt).getTime();
-            const agg = new Date(liveEventTiming.aggregateAt).getTime();
+            const agg   = new Date(liveEventTiming.aggregateAt).getTime();
             return Math.max(0.01, (Math.min(now, agg) - start) / MS_PER_DAY);
         }
         return 1;
-    }, [liveEventTiming, now]);
+    }, [isWl, activeChapter, activeChapterTiming, liveEventTiming, now]);
 
+    // ── Countdown target ──────────────────────────────────────────────────────
+    const countdownTarget = useMemo(() => {
+        if (isWl && activeChapter !== 'all' && activeChapterTiming) {
+            // Only show countdown while chapter is actively running
+            if (activeChapterTiming.status === 'active') return activeChapterTiming.aggregateAt;
+            return null;
+        }
+        return liveEventTiming?.aggregateAt ?? null;
+    }, [isWl, activeChapter, activeChapterTiming, liveEventTiming]);
+
+    // ── Page change — does NOT reset activeChapter ────────────────────────────
+    const handlePageChange = (page: number | 'highlights') => {
+        setCurrentPage(page);
+        if (page !== 'highlights' && cachedLiveRankings.length > 0 && activeChapter === 'all') {
+            setRankings(cachedLiveRankings);
+        }
+    };
+
+    // ── Sorting & filtering ───────────────────────────────────────────────────
     const sortedAndFilteredRankings = useMemo(() => {
         const filtered = rankings.filter(entry => entry.user.display_name.toLowerCase().includes(searchTerm.toLowerCase()));
-        
-        // 精華片段模式僅顯示 100 名(含)以後的邊界
-        const viewList = currentPage === 'highlights' 
+        const viewList = currentPage === 'highlights'
             ? filtered.filter(entry => entry.rank >= 100)
             : filtered;
 
@@ -89,12 +125,13 @@ const LiveEventView: React.FC = () => {
                 return (b.score / currentEventDuration) - (a.score / currentEventDuration);
             }
             if (sortOption === 'lastPlayedAt') {
-                if(!a.lastPlayedAt) return 1; if(!b.lastPlayedAt) return -1;
+                if (!a.lastPlayedAt) return 1; if (!b.lastPlayedAt) return -1;
                 return new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime();
             }
             const [period, metric] = sortOption.split('_') as [string, string];
             if (a.stats[period as keyof typeof a.stats] && b.stats[period as keyof typeof b.stats]) {
-                return (b.stats[period as keyof typeof b.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0) - (a.stats[period as keyof typeof a.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0);
+                return (b.stats[period as keyof typeof b.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0) -
+                       (a.stats[period as keyof typeof a.stats][metric as 'count' | 'score' | 'speed' | 'average'] || 0);
             }
             return 0;
         });
@@ -108,12 +145,17 @@ const LiveEventView: React.FC = () => {
         return sortedAndFilteredRankings.slice((pageNum - 1) * ITEMS_PER_PAGE, pageNum * ITEMS_PER_PAGE);
     }, [sortedAndFilteredRankings, currentPage]);
 
+    // ── Full-event calculating (all chapters ended) ───────────────────────────
     const isCalculating = useMemo(() => {
         if (!liveEventTiming) return false;
-        const now = new Date();
-        return now >= new Date(liveEventTiming.aggregateAt) && now < new Date(liveEventTiming.rankingAnnounceAt);
+        const n = new Date();
+        return n >= new Date(liveEventTiming.aggregateAt) && n < new Date(liveEventTiming.rankingAnnounceAt);
     }, [liveEventTiming]);
 
+    // ── Chapter-level calculating guard ──────────────────────────────────────
+    const isChapterCalculating = isWl && activeChapter !== 'all' && activeChapterTiming?.status === 'calculating';
+
+    // ── Competitive stats ─────────────────────────────────────────────────────
     const competitiveStats = useMemo(() => {
         const isHighlights = currentPage === 'highlights';
         const getS = (rank: number) => rankings.find(r => r.rank === rank)?.score || 0;
@@ -122,12 +164,11 @@ const LiveEventView: React.FC = () => {
             if (rankings.length < 100) return null;
             const s1 = getS(1); const s10 = getS(10); const s50 = getS(50); const s100 = getS(100);
             const range50_100 = rankings.filter(r => r.rank >= 50 && r.rank <= 100).map(r => r.score);
-            
             return {
                 type: 'top100' as const,
                 stats: [
-                    { label: 'T1/T10', diff: s1 - s10, ratio: s10 > 0 ? (s1 / s10).toFixed(1) : '0', color: 'text-yellow-500' },
-                    { label: 'T10/T50', diff: s10 - s50, ratio: s50 > 0 ? (s10 / s50).toFixed(1) : '0', color: 'text-purple-400' },
+                    { label: 'T1/T10',   diff: s1  - s10,  ratio: s10  > 0 ? (s1  / s10 ).toFixed(1) : '0', color: 'text-yellow-500' },
+                    { label: 'T10/T50',  diff: s10 - s50,  ratio: s50  > 0 ? (s10 / s50 ).toFixed(1) : '0', color: 'text-purple-400' },
                     { label: 'T50/T100', diff: s50 - s100, ratio: s100 > 0 ? (s50 / s100).toFixed(1) : '0', color: 'text-cyan-400' },
                     { label: 'T50-100 CV', cv: calculateCV(range50_100), color: 'text-emerald-400' }
                 ]
@@ -135,14 +176,11 @@ const LiveEventView: React.FC = () => {
         } else {
             const s100 = getS(100); const s200 = getS(200); const s300 = getS(300);
             const s400 = getS(400); const s500 = getS(500); const s1000 = getS(1000);
-            
             const calcStat = (label: string, high: number, low: number, color: string) => ({
-                label,
-                diff: high - low,
+                label, diff: high - low,
                 ratio: low > 0 ? (high / low).toFixed(1) : '—',
                 color: (high > 0 && low > 0) ? color : 'text-slate-600'
             });
-
             return {
                 type: 'highlights' as const,
                 stats: [
@@ -156,6 +194,7 @@ const LiveEventView: React.FC = () => {
         }
     }, [currentPage, rankings]);
 
+    // ── Full-event calculating screen ─────────────────────────────────────────
     if (isCalculating && liveEventTiming) {
         return (
             <div className="flex flex-col items-center justify-center py-20 animate-fadeIn text-center">
@@ -179,46 +218,118 @@ const LiveEventView: React.FC = () => {
     const isHighlights = currentPage === 'highlights';
     const shouldHideStats = isHighlights;
 
-    // World Link Logic for Live Event
-    const isWl = liveEventId && isWorldLink(liveEventId);
-    let WorldLinkTabs = null;
+    // ── World Link Tabs ───────────────────────────────────────────────────────
+    let WorldLinkTabs: React.ReactNode = null;
 
     if (isWl && liveEventId) {
-        const wlInfo = getWlDetail(liveEventId);
-        const chapters = wlInfo?.chorder || [];
         WorldLinkTabs = (
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
-                {chapters.map(charId => {
-                    const isActive = activeChapter === charId;
-                    const char = CHARACTERS[charId];
-                    const charName = char?.name || charId;
-                    const charColor = char?.color || '#999';
-                    const charImg = getAssetUrl(charId, 'character');
+                {/* 總榜 tab */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }}
+                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${
+                        activeChapter === 'all'
+                            ? 'bg-slate-700 text-white border-transparent shadow-md'
+                            : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                >
+                    總榜 (Total)
+                </button>
+
+                {chapterTimings.map((ct) => {
+                    const isActive    = activeChapter === ct.charId;
+                    const char        = CHARACTERS[ct.charId];
+                    const isDisabled  = ct.status === 'not_started' || ct.status === 'warming';
+                    const canClick    = !isDisabled;
+
+                    let tooltip = '';
+                    if (ct.status === 'not_started') {
+                        tooltip = `${new Date(ct.startAt).toLocaleString('zh-TW', {
+                            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })} 開始`;
+                    } else if (ct.status === 'warming') {
+                        tooltip = '資料尚未就緒，請稍後';
+                    }
+
                     return (
-                        <button key={charId} onClick={(e) => { e.stopPropagation(); setActiveChapter(charId); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
-                            {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
-                            <span className="hidden sm:inline">{charName}</span>
-                        </button>
+                        <div key={ct.charId} className="relative group/tab">
+                            <button
+                                disabled={!canClick}
+                                onClick={(e) => { e.stopPropagation(); if (canClick) setActiveChapter(ct.charId); }}
+                                className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${
+                                    isDisabled
+                                        ? 'opacity-30 grayscale cursor-not-allowed bg-transparent text-slate-400 border-slate-600'
+                                        : isActive
+                                            ? 'text-white border-transparent shadow-md'
+                                            : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'
+                                }`}
+                                style={{ backgroundColor: (isActive && canClick) ? char?.color : 'transparent' }}
+                            >
+                                {getAssetUrl(ct.charId, 'character') && (
+                                    <img
+                                        src={getAssetUrl(ct.charId, 'character')}
+                                        alt=""
+                                        className="w-4 h-4 rounded-full border border-white/30"
+                                    />
+                                )}
+                                <span className="hidden sm:inline">{char?.name || ct.charId}</span>
+                            </button>
+
+                            {tooltip && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5
+                                    bg-slate-900/95 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap
+                                    pointer-events-none opacity-0 group-hover/tab:opacity-100 transition-opacity z-50">
+                                    {tooltip}
+                                </div>
+                            )}
+                        </div>
                     );
                 })}
             </div>
         );
     }
 
-    let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";
+    // ── Rankings title (includes WL tabs) ────────────────────────────────────
+    let rankingsTitle: React.ReactNode = '前百排行榜 (Top 100 Rankings)';
     if (isWl) {
         rankingsTitle = (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-3">
                 <div className="flex items-center gap-3">
-                    <span className="font-black whitespace-nowrap">{isHighlights ? "精彩片段" : "前百排行榜"}</span>
+                    <span className="font-black whitespace-nowrap">{isHighlights ? '精彩片段' : '前百排行榜'}</span>
                 </div>
                 {WorldLinkTabs}
             </div>
         );
     } else if (isHighlights) {
-        rankingsTitle = "精彩片段 (Highlights)";
+        rankingsTitle = '精彩片段 (Highlights)';
     }
+
+    // ── aggregateAt for ChartAnalysis ─────────────────────────────────────────
+    const chartAggregateAt = (isWl && activeChapter !== 'all' && activeChapterTiming)
+        ? activeChapterTiming.aggregateAt
+        : liveEventTiming?.aggregateAt;
+
+    // ── Chapter-calculating replacement block ─────────────────────────────────
+    const ChapterCalculatingBlock = isChapterCalculating && activeChapterTiming ? (
+        <div className="space-y-4">
+            {/* Tabs are kept visible so user can navigate away */}
+            <div className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                {WorldLinkTabs}
+            </div>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="bg-amber-900/30 p-6 rounded-2xl border border-amber-700 max-w-sm w-full">
+                    <svg className="w-12 h-12 text-amber-400 animate-pulse mx-auto mb-3"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-white font-bold mb-1">章節結算中</p>
+                    <p className="text-slate-400 text-sm mb-4">正在統計此章節最終排名</p>
+                    <CountdownTimer targetDate={activeChapterTiming.rankingAnnounceAt} />
+                </div>
+            </div>
+        </div>
+    ) : null;
 
     return (
         <div className="animate-fadeIn">
@@ -228,17 +339,17 @@ const LiveEventView: React.FC = () => {
                     <div className="grid gap-4 lg:gap-6 lg:gap-y-1 w-full items-center grid-cols-1 lg:grid-cols-[auto_minmax(200px,auto)_auto_1fr] [grid-template-areas:'title'_'image'_'countdown'_'update'_'stats'] lg:[grid-template-areas:'image_title_countdown_stats'_'image_update_countdown_stats']">
                         {/* Image */}
                         {liveEventId && (
-                            <img 
-                                src={getAssetUrl(liveEventId.toString(), 'event') || ''} 
-                                alt="Event Banner" 
-                                className="[grid-area:image] w-full lg:w-auto lg:max-w-[170px] h-auto rounded-xl shadow-sm object-contain mx-auto lg:mx-0" 
-                                onError={(e) => e.currentTarget.style.display = 'none'} 
+                            <img
+                                src={getAssetUrl(liveEventId.toString(), 'event') || ''}
+                                alt="Event Banner"
+                                className="[grid-area:image] w-full lg:w-auto lg:max-w-[170px] h-auto rounded-xl shadow-sm object-contain mx-auto lg:mx-0"
+                                onError={(e) => e.currentTarget.style.display = 'none'}
                             />
                         )}
-                        
+
                         {/* Title */}
-                        <h2 
-                            className="[grid-area:title] text-xl sm:text-2xl font-bold leading-tight break-words text-center lg:text-left self-end" 
+                        <h2
+                            className="[grid-area:title] text-xl sm:text-2xl font-bold leading-tight break-words text-center lg:text-left self-end"
                             style={{ color: (liveEventId && getEventColor(liveEventId)) || '#06b6d4' }}
                         >
                             {eventName}
@@ -249,10 +360,10 @@ const LiveEventView: React.FC = () => {
                             最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
                         </p>
 
-                        {/* Countdown */}
-                        {liveEventTiming && (
+                        {/* Countdown — chapter-aware */}
+                        {countdownTarget && (
                             <div className="[grid-area:countdown] w-full max-w-md mx-auto lg:mx-0 flex justify-center lg:justify-start lg:self-start lg:pt-1">
-                                <EventHeaderCountdown targetDate={liveEventTiming.aggregateAt} />
+                                <EventHeaderCountdown targetDate={countdownTarget} />
                             </div>
                         )}
 
@@ -266,25 +377,38 @@ const LiveEventView: React.FC = () => {
 
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
-                    <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                        <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={liveEventId || undefined} cards={cards || undefined} isLiveEvent={true} aggregateAt={liveEventTiming?.aggregateAt} />
-                    </CollapsibleSection>
-                    <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                            <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
-                            <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
-                        </div>
-                        <RankingList 
-                            rankings={paginatedRankings} 
-                            sortOption={sortOption} 
-                            hideStats={shouldHideStats} 
-                            aggregateAt={liveEventTiming?.aggregateAt} 
-                            eventDuration={currentEventDuration}
-                            cardsMap={cards || undefined}
-                            isLiveEvent={true}
-                            now={now}
-                        />
-                    </CollapsibleSection>
+                    {/* Chapter calculating replaces both chart and ranking sections */}
+                    {ChapterCalculatingBlock ?? (
+                        <>
+                            <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
+                                <ChartAnalysis
+                                    rankings={sortedAndFilteredRankings}
+                                    sortOption={sortOption}
+                                    isHighlights={isHighlights}
+                                    eventId={liveEventId || undefined}
+                                    cards={cards || undefined}
+                                    isLiveEvent={true}
+                                    aggregateAt={chartAggregateAt}
+                                />
+                            </CollapsibleSection>
+                            <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                    <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
+                                    <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
+                                </div>
+                                <RankingList
+                                    rankings={paginatedRankings}
+                                    sortOption={sortOption}
+                                    hideStats={shouldHideStats}
+                                    aggregateAt={liveEventTiming?.aggregateAt}
+                                    eventDuration={currentEventDuration}
+                                    cardsMap={cards || undefined}
+                                    isLiveEvent={true}
+                                    now={now}
+                                />
+                            </CollapsibleSection>
+                        </>
+                    )}
                 </>
             )}
         </div>

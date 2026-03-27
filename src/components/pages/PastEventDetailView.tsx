@@ -65,10 +65,9 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     const handlePageChange = (page: number | 'highlights') => {
         setCurrentPage(page);
-        setActiveChapter('all');
-        // No fetch required here as everything is already loaded by fetchRankings
+        // activeChapter is intentionally NOT reset here — pagination and chapter are independent
         if (page !== 'highlights') {
-            if (cachedPastRankings.length > 0) setRankings(cachedPastRankings);
+            if (cachedPastRankings.length > 0 && activeChapter === 'all') setRankings(cachedPastRankings);
         }
     };
 

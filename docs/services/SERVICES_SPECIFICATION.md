@@ -35,7 +35,7 @@
 ## 3. 視圖鉤子層橋接 (React Hooks Layer)
 請注意，前端取得與消化 API Server 資源的最前線統一被封裝在自訂鉤子之中。
 由於本專案仰賴即時與巨量呈現，鉤子必須掌握本地快取的重任。
-*   👉 **請參閱**: [HOOKS_SPECIFICATION.md](./HOOKS_SPECIFICATION.md) 了解 `useRankings` 與 `useEventList` 這兩大統馭畫面的狀態引擎其結構與生命週期綁定方式。
+*   👉 **請參閱**: [HOOKS_SPECIFICATION.md](../architecture/HOOKS_SPECIFICATION.md) 了解 `useRankings` 與 `useEventList` 這兩大統馭畫面的狀態引擎其結構與生命週期綁定方式。
 
 ## 3. 資料獲取策略 (Data Fetching Strategy)
 

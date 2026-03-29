@@ -20,9 +20,10 @@ root/
 │   ├── [routes]/           # 各 API 端點 (event, song, stats, player, etc.)
 │   └── supabase.ts         # 後端專用 Supabase Client
 ├── docs/                   # 📄 技術文件與頁面規格 (Markdown)
-│   ├── API_ARCHITECTURE.md # API 設計與架構規範
-│   ├── DATABASE_SCHEMA.md  # Supabase 資料庫綱要
-│   └── [PAGE_NAME].md      # 各功能頁面規格 (如 LIVE_EVENT, PLAYER_ANALYSIS)
+│   ├── architecture/       # 架構設計、資料庫與基礎環境設定
+│   ├── components/         # 共用原子與自訂組件規格
+│   ├── pages/              # 各功能頁面規格 (如 LIVE_EVENT)
+│   └── services/           # 後端微服務與 API Logic 規範
 ├── scripts/                # 🛠️ 自動化與維護腳本 (分類管理)
 │   ├── cron/               # 定期執行腳本 (如 cron-runner.ts)
 │   ├── maintenance/        # 維護性工作 (Backfill, Fix-durations, etc.)

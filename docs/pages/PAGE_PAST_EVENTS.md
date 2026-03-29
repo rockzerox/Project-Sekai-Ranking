@@ -10,7 +10,7 @@
 *   `/api/events/list`
 *   `/api/events/:id`
 *   `/api/event/:id/rankings`
-*(詳細規格請參照 `/docs/API_ARCHITECTURE.md`)*
+*(詳細規格請參照 `/docs/architecture/API_ARCHITECTURE.md`)*
 
 ---
 

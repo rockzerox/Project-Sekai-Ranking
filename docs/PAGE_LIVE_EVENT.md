@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 現時活動 (Live Event)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-29
+**版本號**: 1.2.0
 
 **文件代號**: `PAGE_LIVE_EVENT`
 **對應視圖**: `currentView === 'live'` (src/components/pages/LiveEventView.tsx)
@@ -25,6 +25,7 @@
 *   **精彩片段 (Highlights)**: 切換模式以查看特定名次（如 T200, T500, T1000, T2000, T5000, T10000）的分數線，而非連續的 1-100 名。
 *   **倒數計時**: 顯示距離活動結算 (Aggregate At) 的剩餘時間。對 WL 個人章節，會動態切換為章節各自的結束時間。
 *   **競爭數據儀表板**: 自動計算 T1/T10、T10/T50 等區間的分數倍率與差值，以及 T50-T100 的變異係數 (CV)，用以判斷競爭激烈程度。
+*   **圖表歷史參考線 (WL Historical Reference Line)**: 若為 World Link 活動且選擇了特定角色章節，圖表會繪製一條對應「上一輪同角色 T100」的水平虛線，顏色與角色代表色一致。精彩片段 (Highlights) 模式下則繪製對應所選名次的歷史線。
 *   **動態圖表**: 繪製分數分佈曲線，視覺化呈現排名斷層。
 *   **安全線/死心線計算**:
     *   **安全線 (Safe Line)**: 根據剩餘時間，計算「理論上即使現在停止遊玩，被追上的機率極低」的分數門檻。
@@ -72,7 +73,16 @@ const giveUpThreshold = targetScore - maxGain;
 *   **最後更新時間 (Last Updated)**: 強制定義為「使用者發出請求並成功取得響應的**本機當下時間**」，確保真實反映前端資料快照時間，而非後端伺服器的聚合時間。
 *   **`currentPage`**: 控制顯示一般榜單 (number) 或是精彩片段 ('highlights')。進入精彩片段模式時，統一從 `sortedAndFilteredRankings` 中過濾掉第 1 至 99 名。
 
+#### D. WL 歷史分數整合 (Phase 2 新增)
+*   邏輯位於 `src/contexts/ConfigContext.tsx` 的 `getPrevRoundWlChapterScore(eventId, charId)` 函式。
+*   **查找規則**：
+    *   若現為**第 2 輪以後**的章節：透過 `WorldLinkDetail.json` 查找上一輪 (round - 1) 中，包含相同角色 charId 的活動 ID，再從 `wlStats` 快取中取得其歷史邊線分數。
+    *   若現為**第 1 輪**：目前無上一輪可參考，邏輯回傳 `null`（不顯示歷史線）。
+*   **傳遞鏈**：`ConfigContext.getPrevRoundWlChapterScore` → `ChartAnalysis`（接收 `activeChapterId` prop）→ `LineChart`（接收 `historicalLine` prop）。
+*   **UI 儀表板標籤**：在圖表標題列常駐顯示上輪 T1 / T10 / T100 分數文字標籤，顏色套用當前章節角色代表色。
+
 ---
+
 
 ## 3. UI/UX 排版設計 (UI Layout)
 

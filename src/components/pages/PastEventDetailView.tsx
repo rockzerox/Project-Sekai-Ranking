@@ -14,6 +14,7 @@ import ChartAnalysis from '../charts/ChartAnalysis';
 import Pagination from '../ui/Pagination';
 import SortSelector from '../ui/SortSelector';
 import RankingList from '../shared/RankingList';
+import WorldLinkTabs from '../shared/WorldLinkTabs';
 import { useCardData } from '../../services/cardService';
 
 const ITEMS_PER_PAGE = 20;
@@ -178,28 +179,22 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     // World Link Logic
     const isWl = isWorldLink(event.id);
-    let WorldLinkTabs = null;
+    let worldLinkTabsNode = null;
 
     if (isWl) {
         const wlInfo = getWlDetail(event.id);
         const chapters = wlInfo?.chorder || [];
-        WorldLinkTabs = (
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <button onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }} className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${activeChapter === 'all' ? 'bg-slate-700 text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>總榜 (Total)</button>
-                {chapters.map(charId => {
-                    const isActive = activeChapter === charId;
-                    const char = CHARACTERS[charId];
-                    const charName = char?.name || charId;
-                    const charColor = char?.color || '#999';
-                    const charImg = getAssetUrl(charId, 'character');
-                    return (
-                        <button key={charId} onClick={(e) => { e.stopPropagation(); setActiveChapter(charId); }} className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${isActive ? 'text-white border-transparent shadow-md' : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'}`} style={{ backgroundColor: isActive ? charColor : 'transparent', borderColor: isActive ? 'transparent' : undefined }}>
-                            {charImg && <img src={charImg} alt={charName} className="w-4 h-4 rounded-full border border-white/30" />}
-                            <span className="hidden sm:inline">{charName}</span>
-                        </button>
-                    );
-                })}
-            </div>
+        const mappedChapters = chapters.map(charId => ({
+            charId,
+            status: 'ended' as const
+        }));
+        
+        worldLinkTabsNode = (
+            <WorldLinkTabs
+                chapters={mappedChapters}
+                activeChapter={activeChapter}
+                onChapterChange={setActiveChapter}
+            />
         );
     }
 
@@ -210,7 +205,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
                 <div className="flex items-center gap-3">
                     <span className="font-black whitespace-nowrap">{isHighlights ? "精彩片段" : "前百排行榜"}</span>
                 </div>
-                {WorldLinkTabs}
+                {worldLinkTabsNode}
             </div>
         );
     } else if (isHighlights) {
@@ -253,6 +248,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
+                    {worldLinkTabsNode && <div className="mb-6">{worldLinkTabsNode}</div>}
                     <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
                         <ChartAnalysis rankings={sortedAndFilteredRankings} sortOption={sortOption} isHighlights={isHighlights} eventId={event.id} cards={cards || undefined} aggregateAt={evtInfo?.aggregate_at} />
                     </CollapsibleSection>

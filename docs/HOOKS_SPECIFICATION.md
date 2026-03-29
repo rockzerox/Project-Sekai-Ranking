@@ -1,8 +1,8 @@
 # 🪝 前端資料鉤子規格書 (Hooks Specification)
 
 > **Document Name**: HOOKS_SPECIFICATION.md
-> **Version**: v1.0.0
-> **Date**: 2026-03-19
+> **Version**: v1.1.0
+> **Date**: 2026-03-29
 
 **文件代號**: `HOOKS_SPECIFICATION`
 **檔案路徑**: `src/hooks/useRankings.ts`, `src/hooks/useEventList.ts`
@@ -24,8 +24,8 @@
 *   **介面定義 (重點擷取)**:
 ```typescript
 interface UseRankingsReturn {
-    rankings: RankEntry[];           // 當前活動清單 (已排序)
-    worldLinkChapters: Record<string, RankEntry[]>; // 特化章節清單
+    rankings: RankEntry[];           // 當前活動總榜清單 (已排序)
+    worldLinkChapters: Record<string, RankEntry[]>; // 特化章節清單 (以 charId 為 key)
     liveEventTiming: { startAt: string, aggregateAt: string, rankingAnnounceAt: string } | null;
     fetchRankings: (eventId: number | 'live') => Promise<void>;
 }

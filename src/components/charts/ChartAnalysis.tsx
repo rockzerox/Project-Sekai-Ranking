@@ -3,9 +3,10 @@ import { useCardData } from '../../services/cardService';
 import { RankEntry, SortOption, HisekaiBorderApiResponse, PastEventBorderApiResponse, HisekaiApiResponse, CardsMap } from '../../types';
 import LineChart from '../../components/charts/LineChart';
 import CrownIcon from '../../components/icons/CrownIcon';
-import { API_BASE_URL } from '../../config/constants';
+import { API_BASE_URL, CHARACTERS } from '../../config/constants';
 import { formatScoreForChart } from '../../utils/mathUtils';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
+import { useConfig } from '../../contexts/ConfigContext';
 
 interface ChartAnalysisProps {
   rankings: RankEntry[];
@@ -15,6 +16,7 @@ interface ChartAnalysisProps {
   cards?: CardsMap;
   isLiveEvent?: boolean;
   aggregateAt?: string | null;
+  activeChapterId?: string;
 }
 
 interface BorderItem {
@@ -23,11 +25,24 @@ interface BorderItem {
     name: string;
 }
 
-const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp, isLiveEvent = false, aggregateAt: aggregateAtProp }) => {
+const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isHighlights = false, eventId, cards: cardsProp, isLiveEvent = false, aggregateAt: aggregateAtProp, activeChapterId }) => {
   const { cards: cardsFromHook } = useCardData();
+  const { getPrevRoundWlChapterScore } = useConfig();
   const cards = cardsProp || cardsFromHook;
   const [now] = useState(() => Date.now());
   const [selectedHighlightRank, setSelectedHighlightRank] = useState<number>(200);
+
+  const prevRoundScores = useMemo(() => {
+    if (!isLiveEvent || !eventId || !activeChapterId || activeChapterId === 'all') return null;
+    return getPrevRoundWlChapterScore(eventId, activeChapterId);
+  }, [isLiveEvent, eventId, activeChapterId, getPrevRoundWlChapterScore]);
+
+  const activeCharColor = useMemo(() => {
+    if (activeChapterId && activeChapterId !== 'all') {
+        return CHARACTERS[activeChapterId]?.color;
+    }
+    return undefined;
+  }, [activeChapterId]);
 
   const { borderData, t100Score, liveAggregateAt, t100SafeCount } = useMemo(() => {
     const borders = rankings
@@ -243,6 +258,32 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
                         )}
                     </div>
                 )}
+                {/* 歷史分數儀表板 */}
+                {prevRoundScores && activeCharColor && (
+                    <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
+                        {isHighlights ? (
+                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-white/20 shadow-sm" style={{ backgroundColor: `${activeCharColor}20`, borderColor: `${activeCharColor}40`, color: activeCharColor }} title="上一輪同一角色的對應名次分數">
+                                <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">📊 上輪 T{selectedHighlightRank}:</span>
+                                <span className="text-xs sm:text-sm font-mono font-black">{valueFormatter(prevRoundScores[`top${selectedHighlightRank}` as keyof typeof prevRoundScores] || 0)}</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-white/20 shadow-sm" style={{ backgroundColor: `${activeCharColor}20`, borderColor: `${activeCharColor}40`, color: activeCharColor }} title="上一輪同一角色的 T1 分數">
+                                    <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">📊 上輪 T1:</span>
+                                    <span className="text-xs sm:text-sm font-mono font-black">{valueFormatter(prevRoundScores.top1 || 0)}</span>
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-white/20 shadow-sm" style={{ backgroundColor: `${activeCharColor}20`, borderColor: `${activeCharColor}40`, color: activeCharColor }} title="上一輪同一角色的 T10 分數">
+                                    <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">T10:</span>
+                                    <span className="text-xs sm:text-sm font-mono font-black">{valueFormatter(prevRoundScores.top10 || 0)}</span>
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-white/20 shadow-sm" style={{ backgroundColor: `${activeCharColor}20`, borderColor: `${activeCharColor}40`, color: activeCharColor }} title="上一輪同一角色的 T100 分數">
+                                    <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">T100:</span>
+                                    <span className="text-xs sm:text-sm font-mono font-black">{valueFormatter(prevRoundScores.top100 || 0)}</span>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
             {isHighlights && (!eventId || isLiveEvent) && (sortOption === 'score' || sortOption === 'dailyAvg') && (
                 <div className="flex flex-wrap gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 self-start lg:self-auto">
@@ -253,7 +294,29 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({ rankings, sortOption, isH
             )}
         </div>
         {chartData.length > 0 ? (
-            <LineChart data={chartData} variant={chartVariant} lineColor={color} valueFormatter={valueFormatter} yAxisFormatter={yAxisFormatter} xAxisLabel="Rank" yAxisLabel={yLabel} safeThreshold={safeThreshold} safeRankCutoff={safeRankCutoff} giveUpThreshold={giveUpThreshold} giveUpRankCutoff={giveUpRankCutoff} cardsMap={cards || undefined} />
+            <LineChart 
+                data={chartData} 
+                variant={chartVariant} 
+                lineColor={color} 
+                valueFormatter={valueFormatter} 
+                yAxisFormatter={yAxisFormatter} 
+                xAxisLabel="Rank" 
+                yAxisLabel={yLabel} 
+                safeThreshold={safeThreshold} 
+                safeRankCutoff={safeRankCutoff} 
+                giveUpThreshold={giveUpThreshold} 
+                giveUpRankCutoff={giveUpRankCutoff} 
+                cardsMap={cards || undefined} 
+                historicalLine={
+                    prevRoundScores && activeCharColor
+                        ? { 
+                            score: isHighlights ? (prevRoundScores[`top${selectedHighlightRank}` as keyof typeof prevRoundScores] || 0) : (prevRoundScores.top100 || 0), 
+                            color: activeCharColor,
+                            label: `T${isHighlights ? selectedHighlightRank : 100}`
+                        }
+                        : undefined
+                }
+            />
         ) : (
              <div className="text-center py-10"><p className="text-slate-400">暫無資料顯示</p></div>
         )}

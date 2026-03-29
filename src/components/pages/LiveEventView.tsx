@@ -16,6 +16,7 @@ import ChartAnalysis from '../charts/ChartAnalysis';
 import Pagination from '../ui/Pagination';
 import SortSelector from '../ui/SortSelector';
 import RankingList from '../shared/RankingList';
+import WorldLinkTabs from '../shared/WorldLinkTabs';
 import { useCardData } from '../../services/cardService';
 
 const ITEMS_PER_PAGE = 20;
@@ -219,73 +220,15 @@ const LiveEventView: React.FC = () => {
     const shouldHideStats = isHighlights;
 
     // ── World Link Tabs ───────────────────────────────────────────────────────
-    let WorldLinkTabs: React.ReactNode = null;
+    let worldLinkTabsNode: React.ReactNode = null;
 
     if (isWl && liveEventId) {
-        WorldLinkTabs = (
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                {/* 總榜 tab */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); setActiveChapter('all'); }}
-                    className={`px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${
-                        activeChapter === 'all'
-                            ? 'bg-slate-700 text-white border-transparent shadow-md'
-                            : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                >
-                    總榜 (Total)
-                </button>
-
-                {chapterTimings.map((ct) => {
-                    const isActive    = activeChapter === ct.charId;
-                    const char        = CHARACTERS[ct.charId];
-                    const isDisabled  = ct.status === 'not_started' || ct.status === 'warming';
-                    const canClick    = !isDisabled;
-
-                    let tooltip = '';
-                    if (ct.status === 'not_started') {
-                        tooltip = `${new Date(ct.startAt).toLocaleString('zh-TW', {
-                            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        })} 開始`;
-                    } else if (ct.status === 'warming') {
-                        tooltip = '資料尚未就緒，請稍後';
-                    }
-
-                    return (
-                        <div key={ct.charId} className="relative group/tab">
-                            <button
-                                disabled={!canClick}
-                                onClick={(e) => { e.stopPropagation(); if (canClick) setActiveChapter(ct.charId); }}
-                                className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${
-                                    isDisabled
-                                        ? 'opacity-30 grayscale cursor-not-allowed bg-transparent text-slate-400 border-slate-600'
-                                        : isActive
-                                            ? 'text-white border-transparent shadow-md'
-                                            : 'bg-transparent text-slate-50 dark:text-slate-400 border-slate-300 dark:border-slate-600 hover:opacity-80'
-                                }`}
-                                style={{ backgroundColor: (isActive && canClick) ? char?.color : 'transparent' }}
-                            >
-                                {getAssetUrl(ct.charId, 'character') && (
-                                    <img
-                                        src={getAssetUrl(ct.charId, 'character')}
-                                        alt=""
-                                        className="w-4 h-4 rounded-full border border-white/30"
-                                    />
-                                )}
-                                <span className="hidden sm:inline">{char?.name || ct.charId}</span>
-                            </button>
-
-                            {tooltip && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5
-                                    bg-slate-900/95 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap
-                                    pointer-events-none opacity-0 group-hover/tab:opacity-100 transition-opacity z-50">
-                                    {tooltip}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+        worldLinkTabsNode = (
+            <WorldLinkTabs
+                chapters={chapterTimings}
+                activeChapter={activeChapter}
+                onChapterChange={setActiveChapter}
+            />
         );
     }
 
@@ -297,7 +240,7 @@ const LiveEventView: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <span className="font-black whitespace-nowrap">{isHighlights ? '精彩片段' : '前百排行榜'}</span>
                 </div>
-                {WorldLinkTabs}
+                {worldLinkTabsNode}
             </div>
         );
     } else if (isHighlights) {
@@ -314,7 +257,7 @@ const LiveEventView: React.FC = () => {
         <div className="space-y-4">
             {/* Tabs are kept visible so user can navigate away */}
             <div className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                {WorldLinkTabs}
+                {worldLinkTabsNode}
             </div>
             <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="bg-amber-900/30 p-6 rounded-2xl border border-amber-700 max-w-sm w-full">
@@ -377,6 +320,17 @@ const LiveEventView: React.FC = () => {
 
             {isLoading ? <LoadingSpinner /> : error ? <ErrorMessage message={error} /> : (
                 <>
+                    {/* World Link Tabs */}
+                    {isWl && chapterTimings.length > 0 && (
+                        <div className="mb-6">
+                            <WorldLinkTabs 
+                                chapters={chapterTimings} 
+                                activeChapter={activeChapter} 
+                                onChapterChange={setActiveChapter} 
+                            />
+                        </div>
+                    )}
+
                     {/* Chapter calculating replaces both chart and ranking sections */}
                     {ChapterCalculatingBlock ?? (
                         <>
@@ -389,6 +343,7 @@ const LiveEventView: React.FC = () => {
                                     cards={cards || undefined}
                                     isLiveEvent={true}
                                     aggregateAt={chartAggregateAt}
+                                    activeChapterId={activeChapter}
                                 />
                             </CollapsibleSection>
                             <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>

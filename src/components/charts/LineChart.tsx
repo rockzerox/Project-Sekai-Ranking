@@ -30,6 +30,7 @@ interface LineChartProps {
   giveUpThreshold?: number; 
   giveUpRankCutoff?: number; 
   cardsMap?: CardsMap;
+  historicalLine?: { score: number; color?: string; label?: string };
 }
 
 const LineChart: React.FC<LineChartProps> = ({ 
@@ -45,7 +46,8 @@ const LineChart: React.FC<LineChartProps> = ({
   safeThreshold,
   safeRankCutoff,
   giveUpThreshold,
-  giveUpRankCutoff
+  giveUpRankCutoff,
+  historicalLine
 }) => {
   const axisFormatter = yAxisFormatter || valueFormatter;
   const [isMobile, setIsMobile] = useState(false);
@@ -266,6 +268,7 @@ const LineChart: React.FC<LineChartProps> = ({
   // 判斷線條是否在顯示範圍內
   const isSafeLineVisible = safeThreshold !== undefined && safeThreshold >= yDomainMin && safeThreshold <= yDomainMax;
   const isGiveUpLineVisible = giveUpThreshold !== undefined && giveUpThreshold >= yDomainMin && giveUpThreshold <= yDomainMax;
+  const isHistoricalLineVisible = historicalLine !== undefined && historicalLine.score >= yDomainMin && historicalLine.score <= yDomainMax;
 
   return (
     <div className="bg-slate-900/70 p-4 pb-12 rounded-lg w-full border border-slate-800">
@@ -322,6 +325,19 @@ const LineChart: React.FC<LineChartProps> = ({
                     {/* 死心線顯示 - 修改點：增加 isGiveUpLineVisible 判斷 */}
                     {isGiveUpLineVisible && giveUpThreshold !== undefined && (
                         <line x1="0" y1={getYPercent(giveUpThreshold)} x2="100" y2={getYPercent(giveUpThreshold)} stroke="#f43f5e" strokeWidth="1" strokeDasharray="4 2" strokeOpacity="0.7" vectorEffect="non-scaling-stroke" />
+                    )}
+
+                    {/* 歷史線顯示 */}
+                    {isHistoricalLineVisible && historicalLine !== undefined && (
+                        <line 
+                            x1="0" y1={getYPercent(historicalLine.score)} 
+                            x2="100" y2={getYPercent(historicalLine.score)} 
+                            stroke={historicalLine.color || "#94a3b8"} 
+                            strokeWidth="1.5" 
+                            strokeDasharray="6 4" 
+                            strokeOpacity="0.85" 
+                            vectorEffect="non-scaling-stroke" 
+                        />
                     )}
                 </svg>
 

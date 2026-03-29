@@ -83,6 +83,7 @@ async function startServer() {
     }
   });
 
+
   app.get("/api/event/:id/rankings", async (req, res) => {
     try {
       const rankings = await getUnifiedRankings(req.params.id, false);

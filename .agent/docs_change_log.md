@@ -1,8 +1,15 @@
 # Project Sekai Ranking Documentation Change Log
 
 > **Document Name**: docs_change_log.md
-> **Version**: v1.3.0
-> **Date**: 2026-03-22
+> **Version**: v1.5.0
+> **Date**: 2026-03-29
+
+## [v1.5.0] - 2026-03-29
+### 🌐 World Link 全面升級 (Phase 2)
+- **歷史參考線 (Phase 2A)**：在 `ConfigContext.tsx` 實作 `getPrevRoundWlChapterScore`，讀取 `WorldLinkDetail.json` 推算上輪邊線。並於 `LiveEventView` 中的圖表增繪角色專屬顏色的虛線（歷史分數指標）。
+- **共用章節選擇器 (Phase 2B)**：將 WL Tabs 邏輯解耦為 `WorldLinkTabs.tsx` 共用組件，成功修復並應用於 `PastEventDetailView` 與 `LiveEventView` 中，並完善了未開始與結算中的狀態 UI 與倒數提示。
+- **手機版排版優化 (Phase 2C)**：重構 `MobileHomeView.tsx`，大幅提升資訊密度，將倒數計時與更新時間同行顯示。並讓手機版首頁支援隱藏角色文字的精靈版 WL 切換 Tabs，實現首頁榜單隨章節即時切換。
+- **規格書更新**：新增 `COMPONENT_WORLD_LINK_TABS.md`，並更新 `PAGE_LIVE_EVENT.md`, `PAGE_MOBILE_HOME.md`, `PAGE_PAST_EVENTS.md`, `HOOKS_SPECIFICATION.md`, `API_ARCHITECTURE.md` 反映 Phase 2 的實作與 API 擴充。
 
 ## [v1.4.0] - 2026-03-27
 ### 🌐 World Link 章節感知 (Phase 1)

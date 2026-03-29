@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRankings } from '../../hooks/useRankings';
 import { useConfig } from '../../contexts/ConfigContext';
 import { getAssetUrl } from '../../utils/gameUtils';
+import { getWlChapterTimings, WlChapterTiming } from '../../utils/timeUtils';
 import EventHeaderCountdown from '../ui/EventHeaderCountdown';
 import CountdownTimer from '../ui/CountdownTimer';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import WorldLinkTabs from '../shared/WorldLinkTabs';
 
 interface RankCardConfig {
     rank: number;
@@ -24,6 +26,7 @@ const RANK_CARDS: RankCardConfig[] = [
 const MobileHomeView: React.FC = () => {
     const {
         rankings,
+        worldLinkChapters,
         isLoading,
         eventName,
         liveEventId,
@@ -32,31 +35,61 @@ const MobileHomeView: React.FC = () => {
         fetchRankings,
     } = useRankings();
 
-    const { getEventColor } = useConfig();
+    const { getEventColor, isWorldLink, getWlDetail } = useConfig();
+
+    const [activeChapter, setActiveChapter] = useState<string>('all');
+
+    // 心跳計時：每 2 分鐘更新 now，供 WL 章節狀態計算使用
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 2 * 60 * 1000);
+        return () => clearInterval(id);
+    }, []);
 
     useEffect(() => {
         fetchRankings('live');
     }, [fetchRankings]);
 
-    // Detect "calculating" window: event ended but results not announced yet
+    // 結算中偵測
     const isCalculating = useMemo(() => {
         if (!liveEventTiming) return false;
-        const now = new Date();
-        return now >= new Date(liveEventTiming.aggregateAt) && now < new Date(liveEventTiming.rankingAnnounceAt);
+        const n = new Date();
+        return n >= new Date(liveEventTiming.aggregateAt) && n < new Date(liveEventTiming.rankingAnnounceAt);
     }, [liveEventTiming]);
 
-    // Countdown only visible while event is still ongoing
+    // 活動是否進行中（倒數計時顯示條件）
     const isEventActive = useMemo(() => {
         if (!liveEventTiming) return false;
         return new Date() < new Date(liveEventTiming.aggregateAt);
     }, [liveEventTiming]);
 
-    const getEntry = (rank: number) => rankings.find(r => r.rank === rank);
+    // ── World Link 設定 ──────────────────────────────────────────────────────
+    const isWl = !!(liveEventId && isWorldLink(liveEventId));
+
+    const chapterTimings: WlChapterTiming[] = useMemo(() => {
+        if (!isWl || !liveEventId || !liveEventTiming) return [];
+        const wlInfo = getWlDetail(liveEventId);
+        if (!wlInfo) return [];
+        return getWlChapterTimings(wlInfo, liveEventTiming.startAt, now);
+    }, [isWl, liveEventId, liveEventTiming, getWlDetail, now]);
+
+    // 切換章節時重置
+    const handleChapterChange = (charId: string) => {
+        setActiveChapter(charId);
+    };
+
+    // 依據選定章節決定顯示哪組排名數據
+    const displayRankings = useMemo(() => {
+        if (!isWl || activeChapter === 'all') return rankings;
+        return worldLinkChapters[activeChapter] || [];
+    }, [isWl, activeChapter, rankings, worldLinkChapters]);
+
+    const getEntry = (rank: number) => displayRankings.find(r => r.rank === rank);
 
     const bannerUrl = liveEventId ? getAssetUrl(liveEventId.toString(), 'event') : null;
     const eventColor = liveEventId ? getEventColor(liveEventId) : '#06b6d4';
 
-    // --- Calculating state: mirror LiveEventView's waiting screen (compact mobile version) ---
+    // ── 結算中畫面 ──────────────────────────────────────────────────────────
     if (isCalculating && liveEventTiming) {
         return (
             <div className="flex flex-col items-center justify-center py-12 px-4 animate-fadeIn text-center">
@@ -82,9 +115,9 @@ const MobileHomeView: React.FC = () => {
     return (
         <div className="flex flex-col gap-4 px-4 py-4 pb-6 animate-fadeIn">
 
-            {/* Event Banner card */}
+            {/* 活動資訊卡 (Event Banner Card) */}
             <div className="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                {/* Banner image */}
+                {/* Banner 圖片 */}
                 {bannerUrl && (
                     <img
                         src={bannerUrl}
@@ -96,7 +129,7 @@ const MobileHomeView: React.FC = () => {
                 )}
 
                 <div className="px-4 pt-3 pb-4 flex flex-col items-center gap-2 text-center">
-                    {/* Event name */}
+                    {/* 活動名稱 */}
                     <h2
                         className="font-black text-base leading-snug line-clamp-2"
                         style={{ color: eventColor }}
@@ -104,33 +137,44 @@ const MobileHomeView: React.FC = () => {
                         {isLoading ? '載入中...' : (eventName || '暫無活動')}
                     </h2>
 
-                    {/* Countdown — only show while event is still active */}
-                    {liveEventTiming && isEventActive && (
-                        <div className="flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <EventHeaderCountdown
-                                targetDate={liveEventTiming.aggregateAt}
-                                className="text-xs px-2 py-0.5 rounded-lg border"
-                            />
-                        </div>
-                    )}
-
-                    {/* Last updated */}
-                    {lastUpdated && (
-                        <p className="text-[10px] text-slate-400 font-mono">
-                            更新: {lastUpdated.toLocaleTimeString()}
-                        </p>
-                    )}
+                    {/* 倒數計時 + 更新時間 — 同一行顯示 */}
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                        {liveEventTiming && isEventActive && (
+                            <>
+                                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <EventHeaderCountdown
+                                    targetDate={liveEventTiming.aggregateAt}
+                                    className="text-xs px-2 py-0.5 rounded-lg border"
+                                />
+                            </>
+                        )}
+                        {lastUpdated && (
+                            <p className="text-[10px] text-slate-400 font-mono">
+                                更新: {lastUpdated.toLocaleTimeString()}
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Score cards — hidden during calculating period */}
+            {/* WL 章節切換 Tabs — 僅於 World Link 活動期間顯示 */}
+            {isWl && chapterTimings.length > 0 && (
+                <div className="bg-white dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm px-3 py-2.5">
+                    <WorldLinkTabs
+                        chapters={chapterTimings}
+                        activeChapter={activeChapter}
+                        onChapterChange={handleChapterChange}
+                    />
+                </div>
+            )}
+
+            {/* 榜線分數卡片 — 結算期間隱藏 */}
             {!isCalculating && (
                 <div className="flex flex-col gap-2.5">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-1">
-                        即時榜線分數
+                        {isWl && activeChapter !== 'all' ? '章節即時榜線' : '即時榜線分數'}
                     </p>
 
                     {isLoading ? (
@@ -140,24 +184,24 @@ const MobileHomeView: React.FC = () => {
                     ) : (
                         RANK_CARDS.map(({ rank, label, badgeClass, accentColor }) => {
                             const entry = getEntry(rank);
-                            if (!entry) return null; // hide cards with no data instead of showing "—"
+                            if (!entry) return null;
                             return (
                                 <div
                                     key={rank}
                                     className="relative bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center px-4 py-3 gap-4 overflow-hidden"
                                 >
-                                    {/* Left accent */}
+                                    {/* 左側色條 */}
                                     <div
                                         className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-sm"
                                         style={{ backgroundColor: accentColor }}
                                     />
 
-                                    {/* Rank badge */}
+                                    {/* 名次徽章 */}
                                     <span className={`flex-shrink-0 text-[11px] font-black px-2 py-0.5 rounded-full border ${badgeClass}`}>
                                         {label}
                                     </span>
 
-                                    {/* Score + player */}
+                                    {/* 分數 + 玩家名稱 */}
                                     <div className="flex-1 min-w-0">
                                         <p className="font-black text-xl font-mono text-slate-900 dark:text-white leading-none tracking-tight">
                                             {entry.score.toLocaleString()}

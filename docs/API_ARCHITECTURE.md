@@ -66,8 +66,8 @@
 ### 3.2. 排名相關 (Rankings)
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |
 | :--- | :--- | :--- | :--- |
-| `/api/event/live/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得當前活動 Top 100 與所有特定榜線之合併資料 |
-| `/api/event/:id/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得歷史活動 Top 100 與所有特定榜線之合併資料 |
+| `/api/event/live/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得當前活動 Top 100 與所有特定榜線之合併資料（包含 World Link 角色各自的章節 `userWorldBloomChapterRankings` 邊線數據） |
+| `/api/event/:id/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得歷史活動 Top 100 與所有特定榜線之合併資料（也包含章節數據解析） |
 
 ### 3.3. 玩家與資料 (Data)
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |

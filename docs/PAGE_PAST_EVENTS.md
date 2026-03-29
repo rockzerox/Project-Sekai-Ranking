@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 歷代活動 (Past Events)
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-03-29
+**版本號**: 1.2.0
 
 **文件代號**: `PAGE_PAST_EVENTS`
 **對應視圖**: `currentView === 'past'` (src/components/pages/PastEventsView.tsx & src/components/pages/PastEventDetailView.tsx)

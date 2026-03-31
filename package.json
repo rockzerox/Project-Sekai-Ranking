@@ -1,8 +1,8 @@
 {
-  "name": "hi-sekai-tw",
+  "name": "pjsk-tw-observatory",
   "version": "1.0.0",
   "private": true,
-  "description": "Hi Sekai TW - Project Sekai Ranking Analyzer",
+  "description": "PJSK TW Observatory - Project Sekai 台服排名觀測站",
   "scripts": {
     "dev": "tsx watch server.ts",
     "build": "tsc && vite build",

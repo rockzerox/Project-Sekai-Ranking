@@ -237,7 +237,7 @@ async function recomputeStats() {
 
 async function main() {
   try {
-    console.log("=== 🚀 Hi Sekai TW 自動歸檔腳本啟動 ===\n");
+    console.log("=== 🚀 PJSK TW Observatory 自動歸檔腳本啟動 ===\n");
     const allEvents = await syncEvents();
 
     const now = new Date();

@@ -1,9 +1,9 @@
-# 📦 Hi Sekai TW 部署與生產環境說明書 (Deployment Guide)
+# 📦 PJSK TW Observatory 部署與生產環境說明書 (Deployment Guide)
 
 **撰寫日期**: 2026-03-16
 **版本號**: 2.0.0
 
-本文件詳細說明 **Hi Sekai TW** 專案從開發環境遷移至正式生產環境（Production）的完整流程、架構要求、環境變數配置與維護指南。
+本文件詳細說明 **PJSK TW Observatory** 專案從開發環境遷移至正式生產環境（Production）的完整流程、架構要求、環境變數配置與維護指南。
 
 ---
 

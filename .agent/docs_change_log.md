@@ -1,8 +1,15 @@
 # Project Sekai Ranking Documentation Change Log
-
 > **Document Name**: docs_change_log.md
-> **Version**: v1.5.0
-> **Date**: 2026-03-29
+> **Version**: v1.6.0
+> **Date**: 2026-03-31
+
+## [v1.6.0] - 2026-03-31
+### 🏷️ 品牌重塑 (Rebranding)
+- **品牌更名**：正式將專案名稱從 "Hi Sekai TW" 更名為 **"PJSK TW Observatory｜世界計畫台服排名觀測站"**。
+- **UI 更新**：同步更新 `src/config/uiText.ts` 中的 `siteName` 與首頁標題，以及 `index.html` 的瀏覽器標籤名稱。
+- **中繼資料**：更新 `package.json` (slug: `pjsk-tw-observatory`), `metadata.json` 與開發腳本的啟動日誌。
+- **規格書同步**：全面更新 `README.md`, `PRODUCT_POLICY.md`, `DEPLOYMENT.md`, `PROJECT_STRUCTURE.md`, `SERVICES_SPECIFICATION.md` 與 `PAGE_HOME.md` 中的品牌引用，確保內外文件一致性。
+- **API 隔離**：保留所有對第三方 "Hi Sekai API" 的正確引用，僅更動本 App 自身的品牌標示。
 
 ## [v1.5.0] - 2026-03-29
 ### 🌐 World Link 全面升級 (Phase 2)

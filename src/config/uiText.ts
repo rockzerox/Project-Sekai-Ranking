@@ -1,7 +1,7 @@
 
 export const UI_TEXT = {
   common: {
-    siteName: "Hi Sekai TW",
+    siteName: "PJSK TW Observatory",
     subTitle: "Database",
     unofficialLabel: "非官方粉絲製作網站",
     dataBy: "Data by",
@@ -52,7 +52,7 @@ export const UI_TEXT = {
     }
   },
   home: {
-    title: "Hi Sekai TW Rankings",
+    title: "PJSK TW Observatory",
     description: "提供 Project Sekai 台服最完整的排名數據查詢、歷代活動存檔以及多維度的數據分析工具。",
     features: {
       live: { title: "現時活動", desc: "查看目前正在進行中的活動即時排名、分數預測及時速分析。" },

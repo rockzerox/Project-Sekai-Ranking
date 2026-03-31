@@ -3,7 +3,7 @@
 **撰寫日期**: 2026-03-16
 **版本號**: 2.0.0
 
-本文件詳細說明 **Hi Sekai TW** 服務層的架構與各模組職責。服務層分為 **前端服務層 (`src/services/`)** 與 **後端服務層 (`lib/`)**，負責與外部資料來源 (Supabase, Hi Sekai API) 進行互動，並將處理後的資料提供給展示層 (Presentation Layer) 或 API 端點使用。
+本文件詳細說明 **PJSK TW Observatory** 服務層的架構與各模組職責。服務層分為 **前端服務層 (`src/services/`)** 與 **後端服務層 (`lib/`)**，負責與外部資料來源 (Supabase, Hi Sekai API) 進行互動，並將處理後的資料提供給展示層 (Presentation Layer) 或 API 端點使用。
 
 ## 1. 架構概述
 

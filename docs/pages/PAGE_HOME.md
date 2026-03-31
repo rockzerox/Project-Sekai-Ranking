@@ -47,7 +47,7 @@
 ## 3. UI/UX 排版設計 (UI Layout)
 
 ### 3.1 英雄區塊 (Hero Section)
-*   **標題**: 大字體顯示 "Hi Sekai TW Rankings"。
+*   **標題**: 大字體顯示 \"PJSK TW Observatory\"。
 *   **裝飾**: 兩側配置 `TrophyIcon`，背景帶有淡淡的 Cyan 光暈。
 *   **描述**: 簡短說明網站用途。
 

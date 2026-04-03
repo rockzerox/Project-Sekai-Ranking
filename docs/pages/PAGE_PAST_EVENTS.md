@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 歷代活動 (Past Events)
 
-**撰寫日期**: 2026-03-29
-**版本號**: 1.2.0
+**撰寫日期**: 2026-04-03
+**版本號**: 1.3.0
 
 **文件代號**: `PAGE_PAST_EVENTS`
 **對應視圖**: `currentView === 'past'` (src/components/pages/PastEventsView.tsx & src/components/pages/PastEventDetailView.tsx)
@@ -92,10 +92,16 @@
     *   右側顯示該期活動的競爭數據 (T1/T10 差距等)。
 *   **排行榜內容**:
     *   重複使用 `RankingList` 與 `ChartAnalysis` 組件。
-    *   支援支援「一般榜單」與「精彩片段」模式。在「精彩片段」模式下，統一自 `sortedAndFilteredRankings` 過濾名次 `>= 100` 的資料以精確呈現各標竿榜線。
-    *   **分頁與章節解耦**: 切換排行榜分頁或排序時，系統會保留當前選擇的 World Link 章節，不會重置回總榜，確保使用者在瀏覽特定章節時的體驗連貫。
+    *   **標題欄 (CollapsibleSection Title)**:
+        *   文字依模式動態顯示：「前百排行榜 (Top 100 Rankings)」或「精彩片段 (Highlights)」。
+        *   **手機端**：標題欄嵌入小型切換按鈕（`sm:hidden`），文字為目的地名稱；WL 活動則「標題+按鈕」在第一行，章節 Tabs 在下一行，兩者不衝突。
+        *   **桌面端**：切換功能由 `Pagination` 的「精彩片段」按鈕負責。
+    *   **分頁行為**：
+        *   **手機端**: 完全省略 `Pagination` 元件，一次顯示最多 100 筆（`slice(0, 100)` 避免 border entries 混入），使用者垂直滾動瀏覽。
+        *   **桌面端**: 保留分頁，每頁 20 筆。
+    *   **分頁與章節解耦**: 切換排行榜分頁或排序時，系統會保留當前選擇的 World Link 章節，不會重置回總榜。
     *   **角色頭像支援**: 透過資料轉換層 (`transformUserCardToPlayerInfo`)，將歷代活動的 `userCard` 格式轉換為標準格式，從而支援顯示隊長角色的 Q 版頭像。
-    *   若為 World Link，標題列會額外出現 **章節切換 Tabs** (總榜 / 角色 A / 角色 B...)。在手機版 (小於 `sm` 斷點) 自動隱藏角色名稱，僅顯示頭像以優化觸控體驗。
+    *   **WL 章節 Tabs**: 若為 World Link，標題列會額外出現章節切換 Tabs。在手機版 (小於 `sm` 斷點) 自動隱藏角色名稱，僅顯示頭像以優化觸控體驗。
 
 ---
 
@@ -111,6 +117,7 @@
 *   `src/components/charts/ChartAnalysis.tsx` (詳情頁復用)
 *   `src/hooks/useEventList.ts` (取得列表)
 *   `src/hooks/useRankings.ts` (取得詳情)
+*   `src/hooks/useMobile.ts` *(新增)*
 *   `contexts/ConfigContext.ts` (提供 eventDetails 靜態資料)
 *   `src/config/uiText.ts`
 

@@ -427,7 +427,8 @@ const LineChart: React.FC<LineChartProps> = ({
             </div>
       </div>
       
-      {isMobile && (
+      {/* \u5efa\u8b70\u6a6a\u5411\u89c0\u770b\u63d0\u793a \u2014 \u5df2\u4fdd\u7559\u4ee3\u78bc\u4f46\u66ab\u505c\u986f\u793a\uff08\u624b\u6a5f\u7248\u9010\u6b65\u4f18\u5316\u5f8c\u5df2\u4e0d\u9700\u8981\uff09 */}
+      {false && isMobile && (
           <div className="mt-4 p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs text-center rounded border border-amber-200 dark:border-amber-800">
               建議橫向觀看以獲得最佳體驗 (Landscape mode recommended)
           </div>

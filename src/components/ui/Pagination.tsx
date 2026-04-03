@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { SortOption } from '../../types';
+import { useMobile } from '../../hooks/useMobile';
 
 interface PaginationProps {
   totalItems: number;
@@ -19,6 +20,7 @@ const Pagination: React.FC<PaginationProps> = ({
   activeSort,
   hideHighlights = false
 }) => {
+  const isMobile = useMobile();
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   // 現在允許在 'score' 或 'dailyAvg' 時進入精彩片段
   const isHighlightsDisabled = activeSort && activeSort !== 'score' && activeSort !== 'dailyAvg';
@@ -47,9 +49,12 @@ const Pagination: React.FC<PaginationProps> = ({
 
   return (
     <div className="flex flex-wrap justify-center items-center gap-2">
-      <div className="flex items-center gap-2 flex-wrap justify-center">
-        {pageButtons}
-      </div>
+      {/* 手機端隱藏數字分頁按鈕 — 直接滑動瀏覽全部 */}
+      {!isMobile && (
+        <div className="flex items-center gap-2 flex-wrap justify-center">
+          {pageButtons}
+        </div>
+      )}
       
       {/* Highlights Button */}
       {!hideHighlights && (

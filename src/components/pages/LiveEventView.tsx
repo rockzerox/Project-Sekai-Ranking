@@ -6,6 +6,7 @@ import { getAssetUrl } from '../../utils/gameUtils';
 import { calculateCV } from '../../utils/mathUtils';
 import { MS_PER_DAY, CHARACTERS } from '../../config/constants';
 import { getWlChapterTimings, WlChapterTiming } from '../../utils/timeUtils';
+import { useMobile } from '../../hooks/useMobile';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import ErrorMessage from '../ui/ErrorMessage';
 import EventHeaderCountdown from '../ui/EventHeaderCountdown';
@@ -30,6 +31,7 @@ const LiveEventView: React.FC = () => {
 
     const { getEventColor, isWorldLink, getWlDetail } = useConfig();
     const { cards } = useCardData();
+    const isMobile = useMobile();
 
     const [activeChapter, setActiveChapter] = useState<string>('all');
     const [searchTerm] = useState('');
@@ -142,9 +144,11 @@ const LiveEventView: React.FC = () => {
 
     const paginatedRankings = useMemo(() => {
         if (currentPage === 'highlights') return sortedAndFilteredRankings;
+        // 手機端不分頁，但限制前 100 筆，避免 border entries 混入
+        if (isMobile) return sortedAndFilteredRankings.slice(0, 100);
         const pageNum = typeof currentPage === 'number' ? currentPage : 1;
         return sortedAndFilteredRankings.slice((pageNum - 1) * ITEMS_PER_PAGE, pageNum * ITEMS_PER_PAGE);
-    }, [sortedAndFilteredRankings, currentPage]);
+    }, [sortedAndFilteredRankings, currentPage, isMobile]);
 
     // ── Full-event calculating (all chapters ended) ───────────────────────────
     const isCalculating = useMemo(() => {
@@ -232,19 +236,34 @@ const LiveEventView: React.FC = () => {
         );
     }
 
-    // ── Rankings title (includes WL tabs) ────────────────────────────────────
-    let rankingsTitle: React.ReactNode = '前百排行榜 (Top 100 Rankings)';
+    // 手機端：切換按鈕嵌入標題欄 - 文字為目的地名稱
+    const highlightsToggleBtn = !isHighlights
+        ? <button
+            onClick={(e) => { e.stopPropagation(); handlePageChange('highlights'); }}
+            className="sm:hidden px-2 py-0.5 text-[10px] font-bold rounded border border-pink-500/40 text-pink-400 hover:bg-pink-900/30 transition-colors whitespace-nowrap flex-shrink-0"
+          >⚡ 精彩片段</button>
+        : <button
+            onClick={(e) => { e.stopPropagation(); handlePageChange(1); }}
+            className="sm:hidden px-2 py-0.5 text-[10px] font-bold rounded border border-cyan-500/40 text-cyan-400 hover:bg-cyan-900/30 transition-colors whitespace-nowrap flex-shrink-0"
+          >↩ 前百排行榜</button>;
+
+    // ── Rankings title (includes WL tabs + mobile toggle) ────────────────────
+    let rankingsTitle: React.ReactNode = (
+        <span className="flex items-center gap-2 w-full">
+            <span>{isHighlights ? '精彩片段 (Highlights)' : '前百排行榜 (Top 100 Rankings)'}</span>
+            {highlightsToggleBtn}
+        </span>
+    );
     if (isWl) {
         rankingsTitle = (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <span className="font-black whitespace-nowrap">{isHighlights ? '精彩片段' : '前百排行榜'}</span>
+                    {highlightsToggleBtn}
                 </div>
                 {worldLinkTabsNode}
             </div>
         );
-    } else if (isHighlights) {
-        rankingsTitle = '精彩片段 (Highlights)';
     }
 
     // ── aggregateAt for ChartAnalysis ─────────────────────────────────────────
@@ -276,43 +295,84 @@ const LiveEventView: React.FC = () => {
 
     return (
         <div className="animate-fadeIn">
-            <div className="mb-6">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">現時活動 (Live Event)</h2>
-                <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div className="grid gap-4 lg:gap-6 lg:gap-y-1 w-full items-center grid-cols-1 lg:grid-cols-[auto_minmax(200px,auto)_auto_1fr] [grid-template-areas:'title'_'image'_'countdown'_'update'_'stats'] lg:[grid-template-areas:'image_title_countdown_stats'_'image_update_countdown_stats']">
-                        {/* Image */}
+            <div className="mb-4">
+                {/* ── 手機端緊湊 Header（< sm）：小圖 + 名稱第一行，倒數+更新時間第二行 ── */}
+                <div className="sm:hidden bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                    <div className="flex items-start gap-2.5 px-3 py-2.5">
+                        {/* 小圖 */}
                         {liveEventId && (
                             <img
                                 src={getAssetUrl(liveEventId.toString(), 'event') || ''}
                                 alt="Event Banner"
-                                className="[grid-area:image] w-full lg:w-auto lg:max-w-[170px] h-auto rounded-xl shadow-sm object-contain mx-auto lg:mx-0"
+                                className="h-10 w-auto rounded-lg object-contain flex-shrink-0 mt-0.5"
                                 onError={(e) => e.currentTarget.style.display = 'none'}
                             />
                         )}
-
-                        {/* Title */}
-                        <h2
-                            className="[grid-area:title] text-xl sm:text-2xl font-bold leading-tight break-words text-center lg:text-left self-end"
-                            style={{ color: (liveEventId && getEventColor(liveEventId)) || '#06b6d4' }}
-                        >
-                            {eventName}
-                        </h2>
-
-                        {/* Update Time */}
-                        <p className="[grid-area:update] text-slate-500 dark:text-slate-400 text-xs font-mono text-center lg:text-left self-start">
-                            最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
-                        </p>
-
-                        {/* Countdown — chapter-aware */}
-                        {countdownTarget && (
-                            <div className="[grid-area:countdown] w-full max-w-md mx-auto lg:mx-0 flex justify-center lg:justify-start lg:self-start lg:pt-1">
-                                <EventHeaderCountdown targetDate={countdownTarget} />
+                        {/* 名稱與計時區塊 */}
+                        <div className="flex-1 min-w-0">
+                            {/* 第一行：活動名稱 */}
+                            <h2
+                                className="font-black text-sm leading-snug line-clamp-2 mb-1"
+                                style={{ color: (liveEventId && getEventColor(liveEventId)) || '#06b6d4' }}
+                            >
+                                {eventName}
+                            </h2>
+                            {/* 第二行：倒數計時 + 更新時間（裸文字，相同行） */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {countdownTarget && (
+                                    <EventHeaderCountdown
+                                        targetDate={countdownTarget}
+                                        bare
+                                        className="text-[10px]"
+                                    />
+                                )}
+                                {countdownTarget && lastUpdated && (
+                                    <span className="text-slate-300 dark:text-slate-600 text-[10px]">·</span>
+                                )}
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                    更新 {lastUpdated ? lastUpdated.toLocaleTimeString() : '載入中...'}
+                                </span>
                             </div>
-                        )}
-
-                        {/* Stats */}
-                        <div className="[grid-area:stats] w-full lg:w-auto border-t lg:border-t-0 border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 flex justify-center lg:justify-end">
+                        </div>
+                    </div>
+                    {/* 統計區塊 */}
+                    {competitiveStats && (
+                        <div className="border-t border-slate-100 dark:border-slate-700 px-3 py-2">
                             <StatsDisplay stats={competitiveStats} />
+                        </div>
+                    )}
+                </div>
+
+                {/* ── 桌面端 Header（≥ sm）：保持原有 CSS Grid 佈局 ── */}
+                <div className="hidden sm:block">
+                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">現時活動 (Live Event)</h2>
+                    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="grid gap-4 lg:gap-6 lg:gap-y-1 w-full items-center grid-cols-1 lg:grid-cols-[auto_minmax(200px,auto)_auto_1fr] [grid-template-areas:'title'_'image'_'countdown'_'update'_'stats'] lg:[grid-template-areas:'image_title_countdown_stats'_'image_update_countdown_stats']">
+                            {liveEventId && (
+                                <img
+                                    src={getAssetUrl(liveEventId.toString(), 'event') || ''}
+                                    alt="Event Banner"
+                                    className="[grid-area:image] w-full lg:w-auto lg:max-w-[170px] h-auto rounded-xl shadow-sm object-contain mx-auto lg:mx-0"
+                                    onError={(e) => e.currentTarget.style.display = 'none'}
+                                />
+                            )}
+                            <h2
+                                className="[grid-area:title] text-xl sm:text-2xl font-bold leading-tight break-words text-center lg:text-left self-end"
+                                style={{ color: (liveEventId && getEventColor(liveEventId)) || '#06b6d4' }}
+                            >
+                                {eventName}
+                            </h2>
+                            <p className="[grid-area:update] text-slate-500 dark:text-slate-400 text-xs font-mono text-center lg:text-left self-start">
+                                最後更新: {lastUpdated ? lastUpdated.toLocaleTimeString() : '更新中...'}
+                            </p>
+                            {countdownTarget && (
+                                <div className="[grid-area:countdown] w-full max-w-md mx-auto lg:mx-0 flex justify-center lg:justify-start lg:self-start lg:pt-1">
+                                    <EventHeaderCountdown targetDate={countdownTarget} />
+                                </div>
+                            )}
+                            <div className="[grid-area:stats] w-full lg:w-auto border-t lg:border-t-0 border-slate-100 dark:border-slate-700 pt-4 lg:pt-0 flex justify-center lg:justify-end">
+                                <StatsDisplay stats={competitiveStats} />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -348,7 +408,8 @@ const LiveEventView: React.FC = () => {
                             </CollapsibleSection>
                             <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                                    <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
+                                    {/* 手機端已由 rankingsTitle 內的按鈕處理切換，桌面端保留 Pagination */}
+                                    {!isMobile && <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />}
                                     <SortSelector activeSort={sortOption} onSortChange={setSortOption} limitToScore={shouldHideStats} />
                                 </div>
                                 <RankingList

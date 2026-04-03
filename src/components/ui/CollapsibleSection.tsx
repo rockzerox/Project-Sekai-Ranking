@@ -13,7 +13,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children
     <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden mb-4 transition-shadow hover:shadow-cyan-500/10">
       <div
         onClick={onToggle}
-        className="w-full flex justify-between items-center p-4 text-left font-bold text-lg text-white hover:bg-slate-700/50 transition-colors cursor-pointer"
+        className="w-full flex justify-between items-center p-4 text-left font-bold text-base sm:text-lg text-white hover:bg-slate-700/50 transition-colors cursor-pointer"
         aria-expanded={isOpen}
         role="button"
         tabIndex={0}

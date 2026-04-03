@@ -6,6 +6,7 @@ import { getAssetUrl, getChar } from '../../utils/gameUtils';
 import { calculatePreciseDuration } from '../../utils/timeUtils';
 import { calculateCV } from '../../utils/mathUtils';
 import { UNIT_MASTER, CHARACTERS } from '../../config/constants';
+import { useMobile } from '../../hooks/useMobile';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import ErrorMessage from '../ui/ErrorMessage';
 import StatsDisplay from '../shared/StatsDisplay';
@@ -33,6 +34,7 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     const { eventDetails, getEventColor, isWorldLink, getWlDetail } = useConfig();
     const { cards } = useCardData();
+    const isMobile = useMobile();
     
     const [activeChapter, setActiveChapter] = useState<string>('all');
     const [searchTerm] = useState('');
@@ -111,9 +113,11 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
 
     const paginatedRankings = useMemo(() => {
         if (currentPage === 'highlights') return sortedAndFilteredRankings;
+        // 手機端不分頁，但只取前 100 筆，避免 border entries 混入（重新編號後仍在前100）
+        if (isMobile) return sortedAndFilteredRankings.slice(0, 100);
         const pageNum = typeof currentPage === 'number' ? currentPage : 1;
         return sortedAndFilteredRankings.slice((pageNum - 1) * ITEMS_PER_PAGE, pageNum * ITEMS_PER_PAGE);
-    }, [sortedAndFilteredRankings, currentPage]);
+    }, [sortedAndFilteredRankings, currentPage, isMobile]);
 
     const competitiveStats = useMemo(() => {
         const isHighlights = currentPage === 'highlights';
@@ -198,18 +202,33 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
         );
     }
 
-    let rankingsTitle: React.ReactNode = "前百排行榜 (Top 100 Rankings)";
+    // 手機端：切換按鈕嵌入標題 - 顯示目的地的名稱
+    const highlightsToggleBtn = !isHighlights
+        ? <button
+            onClick={(e) => { e.stopPropagation(); handlePageChange('highlights'); }}
+            className="sm:hidden px-2 py-0.5 text-[10px] font-bold rounded border border-pink-500/40 text-pink-400 hover:bg-pink-900/30 transition-colors whitespace-nowrap flex-shrink-0"
+          >⚡ 精彩片段</button>
+        : <button
+            onClick={(e) => { e.stopPropagation(); handlePageChange(1); }}
+            className="sm:hidden px-2 py-0.5 text-[10px] font-bold rounded border border-cyan-500/40 text-cyan-400 hover:bg-cyan-900/30 transition-colors whitespace-nowrap flex-shrink-0"
+          >↩ 前百排行榜</button>;
+
+    let rankingsTitle: React.ReactNode = (
+        <span className="flex items-center gap-2 w-full">
+            <span>{isHighlights ? "精彩片段 (Highlights)" : "前百排行榜 (Top 100 Rankings)"}</span>
+            {highlightsToggleBtn}
+        </span>
+    );
     if (isWl) {
         rankingsTitle = (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <span className="font-black whitespace-nowrap">{isHighlights ? "精彩片段" : "前百排行榜"}</span>
+                    {highlightsToggleBtn}
                 </div>
                 {worldLinkTabsNode}
             </div>
         );
-    } else if (isHighlights) {
-        rankingsTitle = "精彩片段 (Highlights)";
     }
 
     return (
@@ -254,7 +273,8 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
                     </CollapsibleSection>
                     <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                            <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />
+                            {/* 手機端已由 rankingsTitle 內的按鈕處理切換，桌面端保留 Pagination */}
+                            {!isMobile && <Pagination totalItems={100} itemsPerPage={ITEMS_PER_PAGE} currentPage={currentPage} onPageChange={handlePageChange} activeSort={sortOption} />}
                             <SortSelector activeSort={sortOption} onSortChange={handleSortChange} limitToScore={shouldHideStats} />
                         </div>
                         <RankingList rankings={paginatedRankings} sortOption={sortOption} hideStats={shouldHideStats} eventDuration={currentEventDuration} cardsMap={cards || undefined} />

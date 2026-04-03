@@ -1,7 +1,31 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.6.0
-> **Date**: 2026-03-31
+> **Version**: v1.7.0
+> **Date**: 2026-04-03
+
+## [v1.7.0] - 2026-04-03
+### 📱 手機版 UX 全面優化 (Mobile UX Overhaul)
+- **`useMobile.ts`**: 新增統一 640px 斷點偵測 Hook，集中管理所有響應式邏輯判斷。
+- **`RankingItem.tsx`** → v2.0.0:
+  - 字體密度縮小（手機端降一個字級）。
+  - 安全線/死心線：直立手機模式下移除 `hidden sm:flex` 限制，直立可見。
+  - 新增**玩家活躍狀態指示器**：`isLiveEvent` 時依最後上線時間顯示綠點（線上）或月亮+進度條（離線）。
+  - 展開圖標容器整體不渲染（`isClickable = false` 時），消除精彩片段模式右側死區空間。
+- **`LiveEventView.tsx`**:
+  - **手機端 Header 重構**：採用「名稱在上 / 裸文字倒數+更新時間在下」雙行緊湊佈局，取代舊版獨立倒數計時器方塊。
+  - **無限滾動**：手機端移除 `Pagination`，`paginatedRankings` 改用 `slice(0, 100)` 避免 border entries 混入。
+  - **精彩片段切換按鈕**：移入 `CollapsibleSection` 標題欄（`sm:hidden`），文字顯示目的地名稱，WL 活動下按鈕置於第一欄，章節 Tabs 置於第二欄，無衝突。
+  - 修正桌面端「現時活動」標題及更新時間文字的 Unicode 轉義殘留問題。
+- **`PastEventDetailView.tsx`**: 同步套用手機端無分頁與標題欄切換按鈕邏輯。
+- **`LineChart.tsx`**: 停用手機版「建議橫向」提示橫幅。
+- **`EventHeaderCountdown.tsx`** → v1.1.0: 新增 `bare` prop，支援裸文字渲染模式（無框線/背景），用於手機端緊湊 Header。
+- **規格書更新**:
+  - `PAGE_LIVE_EVENT.md` → v1.3.0
+  - `PAGE_PAST_EVENTS.md` → v1.3.0
+  - 新增 `COMPONENT_RANKING_ITEM.md` (v2.0.0)
+  - 新增 `COMPONENT_EVENT_HEADER_COUNTDOWN.md` (v1.1.0)
+
+
 
 ## [v1.6.0] - 2026-03-31
 ### 🏷️ 品牌重塑 (Rebranding)

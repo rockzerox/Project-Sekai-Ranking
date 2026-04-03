@@ -134,7 +134,7 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
                                  <p className="text-[10px] text-slate-500">總分</p>
                              </div>
                              
-                             <div className="hidden sm:flex flex-col gap-0.5 text-[9px] font-mono leading-tight bg-slate-100 dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                             <div className="flex flex-col gap-0.5 text-[9px] font-mono leading-tight bg-slate-100 dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
                                  <span className="text-emerald-600 dark:text-emerald-400 font-bold" title="安全線: 超過此分數理論上必定能守住名次">
                                      安: {safeLine.toLocaleString()}
                                  </span>
@@ -177,7 +177,7 @@ const DetailStatCard: React.FC<{ title: string, stat: { count: number, score: nu
   );
 };
 
-const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, now }) => {
+const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats = false, aggregateAt, eventDuration, cardsMap, isLiveEvent, now }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { rank, user, stats } = entry;
   const styles = getRankStyles(rank);
@@ -195,6 +195,19 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
           setIsExpanded(!isExpanded);
       }
   };
+
+  // ── 玩家活躍狀態計算（僅限現時活動）──────────────────────────────────────
+  const offlineMinutes = (isLiveEvent && entry.lastPlayedAt && now)
+      ? (now - new Date(entry.lastPlayedAt).getTime()) / 60000
+      : -1;
+  const isOnline = offlineMinutes >= 0 && offlineMinutes <= 2;
+  const showRestBar = isLiveEvent && !isOnline && offlineMinutes > 2;
+  const fillPercent = showRestBar ? Math.min(100, (offlineMinutes / (24 * 60)) * 100) : 0;
+  const offlineLabel = offlineMinutes > 24 * 60
+      ? '24h+'
+      : offlineMinutes >= 60
+          ? `${Math.floor(offlineMinutes / 60)}h`
+          : `${Math.floor(offlineMinutes)}m`;
   
   // Determine avatar URL
   // Logic: Try to get cardId from last_player_info. If available, look up in cardsMap to get characterId.
@@ -222,49 +235,69 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
         tabIndex={isClickable ? 0 : -1}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
-        className={`w-full flex items-center p-2 sm:p-3 text-left transition-colors outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500/50 ${isClickable ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer' : ''}`}
+        className={`w-full flex items-center p-1.5 sm:p-3 text-left transition-colors outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500/50 ${isClickable ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer' : ''}`}
         aria-expanded={isExpanded}
         aria-controls={`details-${user.id}`}
       >
         {/* Rank Section */}
-        <div className="flex items-center justify-center w-12 sm:w-16 flex-shrink-0">
-          <span className={`text-lg sm:text-xl font-bold ${styles.rankText}`}>
+        <div className="flex items-center justify-center w-8 sm:w-16 flex-shrink-0">
+          <span className={`text-sm sm:text-xl font-bold ${styles.rankText}`}>
             {rank}
           </span>
         </div>
 
-        {/* Avatar Section */}
-        <div className="flex-shrink-0 mx-2 sm:mx-3">
+        {/* Avatar Section — relative 容器以容納綠點 */}
+        <div className="relative flex-shrink-0 mx-1 sm:mx-3">
             {avatarUrl ? (
                 <img 
                     src={avatarUrl} 
                     alt="Leader" 
-                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700"
+                    className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700"
                     onError={(e) => e.currentTarget.style.display = 'none'}
                 />
             ) : (
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
                     <span className="text-[10px] text-slate-400">No Img</span>
                 </div>
+            )}
+            {/* 🟢 Online Dot */}
+            {isOnline && (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-400 rounded-full border-[1.5px] border-white dark:border-slate-800 animate-pulse" />
             )}
         </div>
 
         {/* Name Section */}
         <div className="flex-grow overflow-hidden mr-2 flex flex-col justify-center">
-            <p className="text-sm sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
+            <p className="text-xs sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
               {user.display_name}
             </p>
-            {/* Optional: Show ID or other info if needed, currently hidden/empty in original */}
+            {/* 🌙 Rest Bar — 離線 > 2 分鐘且為現時活動時顯示 */}
+            {showRestBar && (
+                <div className="flex items-center gap-1 mt-0.5">
+                    <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <div className="w-14 sm:w-20 h-1 sm:h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex-shrink-0">
+                        <div
+                            className="h-full rounded-full bg-cyan-500/70 transition-all"
+                            style={{ width: `${fillPercent}%` }}
+                        />
+                    </div>
+                    <span className="text-[8px] sm:text-[9px] text-slate-400 font-mono leading-none">
+                        {offlineLabel}
+                    </span>
+                </div>
+            )}
         </div>
 
         {/* Stats Section */}
-        <div className="text-right flex-shrink-0 w-auto min-w-[5rem] sm:min-w-[7rem] px-2">
+        <div className="text-right flex-shrink-0 w-auto min-w-[4rem] sm:min-w-[7rem] px-2">
           <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} eventDuration={eventDuration} now={now} />
         </div>
 
-        {/* Expand Icon - Only show if clickable */}
-        <div className="ml-2 sm:ml-4 flex-shrink-0 w-5">
-          {isClickable && (
+        {/* Expand Icon - 整個容器只在 clickable 時渲染，避免 highlights 模式右側死區 */}
+        {isClickable && (
+          <div className="ml-2 sm:ml-4 flex-shrink-0 w-5">
               <svg
                 className={`w-4 h-4 sm:w-5 sm:h-5 text-slate-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                 fill="none"
@@ -274,8 +307,8 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {isClickable && (

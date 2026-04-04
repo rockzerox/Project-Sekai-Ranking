@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useMobile } from '../../hooks/useMobile';
 import { WorldBloomChapter, WorldBloomChapterBorder } from '../../types';
 import { CHARACTERS, API_BASE_URL } from '../../config/constants';
 import { getAssetUrl } from '../../utils/gameUtils';
@@ -36,7 +37,8 @@ const HorizontalBarChart: React.FC<{
     data: AggregatedCharStat[];
     dataKey: MetricType;
     displayMode: 'total' | 'daily';
-}> = ({ data, dataKey, displayMode }) => {
+    isMobile?: boolean;
+}> = ({ data, dataKey, displayMode, isMobile }) => {
     const isBorder = typeof dataKey === 'number';
     const getValue = (char: AggregatedCharStat) => {
         const raw = isBorder ? (char.borders[dataKey as number] || 0) : char[dataKey as keyof AggregatedCharStat] as number;
@@ -44,8 +46,14 @@ const HorizontalBarChart: React.FC<{
     };
     const sortedData = [...data].sort((a, b) => getValue(b) - getValue(a));
     const maxVal = Math.max(...sortedData.map(d => getValue(d)));
+    // Compact sizes for mobile
+    const barH   = isMobile ? 'h-5' : 'h-8';
+    const imgSz  = isMobile ? 'w-5 h-5' : 'w-8 h-8';
+    const gap    = isMobile ? 'gap-1' : 'gap-2';
+    const pr     = isMobile ? 'pr-8'  : 'pr-12';
+    const valSz  = isMobile ? 'text-[9px]' : 'text-xs';
     return (
-        <div className="flex flex-col gap-2 pr-12">
+        <div className={`flex flex-col ${gap} ${pr}`}>
             {sortedData.map((char) => {
                 const val = getValue(char);
                 const percentage = maxVal > 0 ? (val / maxVal) * 100 : 0;
@@ -54,10 +62,10 @@ const HorizontalBarChart: React.FC<{
                     <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group relative">
                         <div className="hidden sm:block w-24 flex-shrink-0 text-right pr-3 truncate font-bold" style={{ color: char.color }}>{char.charName}</div>
                         <div className="absolute left-0 -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 dark:bg-slate-800/90 px-2 py-1 rounded text-xs font-bold shadow-md z-30 pointer-events-none" style={{ color: char.color }}>{char.charName}</div>
-                        <div className="flex-1 h-8 bg-slate-200 dark:bg-slate-700/50 rounded-r relative flex items-center overflow-visible">
-                            <div className="h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-2" style={{ width: `${percentage}%`, backgroundColor: char.color, opacity: 0.85 }}></div>
-                            <span className="absolute left-2 text-slate-700 dark:text-white font-mono drop-shadow-md font-bold z-10 pointer-events-none">{val.toLocaleString()}</span>
-                            {charImg && <img src={charImg} alt={char.charName} className="absolute w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover z-20 transition-all duration-500 ease-out" style={{ left: `${percentage}%`, marginLeft: '0.5rem' }} />}
+                        <div className={`flex-1 ${barH} bg-slate-200 dark:bg-slate-700/50 rounded-r relative flex items-center overflow-visible`}>
+                            <div className={`h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-1`} style={{ width: `${percentage}%`, backgroundColor: char.color, opacity: 0.85 }}></div>
+                            <span className={`absolute left-1.5 text-slate-700 dark:text-white font-mono drop-shadow-md font-bold z-10 pointer-events-none ${valSz}`}>{val.toLocaleString()}</span>
+                            {charImg && <img src={charImg} alt={char.charName} className={`absolute ${imgSz} rounded-full border border-slate-200 dark:border-slate-600 object-cover z-20 transition-all duration-500 ease-out`} style={{ left: `${percentage}%`, marginLeft: '0.35rem' }} />}
                         </div>
                     </div>
                 );
@@ -87,17 +95,24 @@ const GlobalScoreChart: React.FC<{
     data: AggregatedCharStat[];
     displayMode: 'total' | 'daily';
     globalBase: 'T100' | 'T500';
-}> = ({ data, displayMode, globalBase }) => {
+    isMobile?: boolean;
+}> = ({ data, displayMode, globalBase, isMobile }) => {
     const getVal = (char: AggregatedCharStat, raw: number) => displayMode === 'daily' ? Math.ceil(raw / char.duration) : raw;
     const getBaseValue = (char: AggregatedCharStat) => globalBase === 'T100' ? getVal(char, char.top100) : getVal(char, char.borders[500] || 0);
     const sortedData = [...data].sort((a, b) => getBaseValue(b) - getBaseValue(a));
     const globalMax = Math.max(...data.map(d => getBaseValue(d))) * 1.05;
     const scatterRanks = globalBase === 'T100' ? [200, 300, 400, 500, 1000] : [1000, 2000, 5000, 10000, 50000];
+    // Compact sizes for mobile
+    const barH   = isMobile ? 'h-5' : 'h-8';
+    const imgSz  = isMobile ? 'w-5 h-5' : 'w-8 h-8';
+    const gap    = isMobile ? 'gap-1' : 'gap-3';
+    const pr     = isMobile ? 'pr-8'  : 'pr-12';
+    const valSz  = isMobile ? 'text-[8px]' : 'text-[10px]';
     return (
-        <div className="flex flex-col gap-3 pr-12">
-            <div className="flex flex-wrap justify-end items-center gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-slate-300 mb-2 px-2">
-                <div className="flex items-center gap-1"><div className="w-8 h-4 bg-slate-300/50 dark:bg-slate-500/30 border border-slate-400 dark:border-slate-500 rounded-sm"></div><span>{globalBase} Range</span></div>
-                {scatterRanks.map(rank => (<div key={rank} className="flex items-center gap-1" title={`Rank ${rank}`}><RankShape rank={rank} color="#71717a" /><span className="font-mono">T{rank}</span></div>))}
+        <div className={`flex flex-col ${gap} ${pr}`}>
+            <div className="flex flex-wrap justify-end items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-300 mb-1 px-2">
+                <div className="flex items-center gap-1"><div className="w-6 h-3 bg-slate-300/50 dark:bg-slate-500/30 border border-slate-400 dark:border-slate-500 rounded-sm"></div><span className={isMobile ? 'text-[10px]' : ''}>{globalBase} Range</span></div>
+                {scatterRanks.map(rank => (<div key={rank} className="flex items-center gap-0.5" title={`Rank ${rank}`}><RankShape rank={rank} color="#71717a" /><span className={`font-mono ${isMobile ? 'text-[9px]' : ''}`}>T{rank}</span></div>))}
             </div>
             {sortedData.map((char) => {
                 const val = getBaseValue(char);
@@ -107,9 +122,9 @@ const GlobalScoreChart: React.FC<{
                     <div key={`${char.eventId}-${char.charId}`} className="flex items-center text-xs sm:text-sm group relative">
                         <div className="hidden sm:block w-24 flex-shrink-0 text-right pr-3 truncate font-bold" style={{ color: char.color }}>{char.charName}</div>
                         <div className="absolute left-0 -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 dark:bg-slate-800/90 px-2 py-1 rounded text-xs font-bold shadow-md z-30 pointer-events-none" style={{ color: char.color }}>{char.charName}</div>
-                        <div className="flex-1 h-8 bg-slate-100 dark:bg-slate-800/30 rounded-r relative border-l border-slate-300 dark:border-slate-700 overflow-visible">
-                            <div className="absolute top-0 left-0 h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-2" style={{ width: `${barWidth}%`, backgroundColor: char.color, opacity: 0.4 }}>
-                                <div className="text-[10px] text-slate-700 dark:text-white font-mono font-bold whitespace-nowrap drop-shadow-sm pointer-events-none">{displayMode === 'daily' ? val.toLocaleString() : `${(val / 10000).toFixed(1)}萬`}</div>
+                        <div className={`flex-1 ${barH} bg-slate-100 dark:bg-slate-800/30 rounded-r relative border-l border-slate-300 dark:border-slate-700 overflow-visible`}>
+                            <div className="absolute top-0 left-0 h-full rounded-r transition-all duration-500 ease-out flex items-center justify-end px-1" style={{ width: `${barWidth}%`, backgroundColor: char.color, opacity: 0.4 }}>
+                                <div className={`${valSz} text-slate-700 dark:text-white font-mono font-bold whitespace-nowrap drop-shadow-sm pointer-events-none`}>{displayMode === 'daily' ? val.toLocaleString() : `${(val / 10000).toFixed(1)}萬`}</div>
                             </div>
                             {scatterRanks.map(rank => {
                                 const rawScore = char.borders[rank] || 0;
@@ -118,7 +133,7 @@ const GlobalScoreChart: React.FC<{
                                 const pos = (score / globalMax) * 100;
                                 return (<div key={rank} className="absolute top-1/2 -translate-y-1/2 transform -translate-x-1/2 z-10" style={{ left: `${pos}%` }} title={`Top ${rank}: ${score.toLocaleString()}`}><RankShape rank={rank} color={char.color} /></div>);
                             })}
-                            {charImg && <img src={charImg} alt={char.charName} className="absolute top-0 w-8 h-8 rounded-full border border-slate-200 dark:border-slate-600 object-cover z-20 transition-all duration-500 ease-out" style={{ left: `${barWidth}%`, marginLeft: '0.5rem' }} />}
+                            {charImg && <img src={charImg} alt={char.charName} className={`absolute top-0 ${imgSz} rounded-full border border-slate-200 dark:border-slate-600 object-cover z-20 transition-all duration-500 ease-out`} style={{ left: `${barWidth}%`, marginLeft: '0.35rem' }} />}
                         </div>
                     </div>
                 );
@@ -129,6 +144,7 @@ const GlobalScoreChart: React.FC<{
 
 const WorldLinkView: React.FC = () => {
     const { getWlIdsByRound, getWlDetail } = useConfig();
+    const isMobile = useMobile();
     const [aggregatedData, setAggregatedData] = useState<AggregatedCharStat[]>([]);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
@@ -294,7 +310,7 @@ const WorldLinkView: React.FC = () => {
                                 )}
                             </div>
                             
-                            {chartViewMode === 'activity' ? <HorizontalBarChart data={aggregatedData} dataKey={chartMetric} displayMode={displayMode} /> : <GlobalScoreChart data={aggregatedData} displayMode={displayMode} globalBase={globalBase} />}
+                            {chartViewMode === 'activity' ? <HorizontalBarChart data={aggregatedData} dataKey={chartMetric} displayMode={displayMode} isMobile={isMobile} /> : <GlobalScoreChart data={aggregatedData} displayMode={displayMode} globalBase={globalBase} isMobile={isMobile} />}
                         </div>
                     ) : (
                         <div className="animate-fadeIn grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">

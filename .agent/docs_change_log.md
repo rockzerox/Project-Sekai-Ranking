@@ -1,7 +1,19 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.7.0
-> **Date**: 2026-04-03
+> **Version**: v1.7.1
+> **Date**: 2026-04-05
+
+## [v1.7.1] - 2026-04-05
+### 🐛 手機版 UI 瑕疵修正 (Mobile UX Bug Fixes)
+- **`ScrollToTop.tsx`**: 修正手機端回頂部按鈕（`fixed bottom-4`）與 `MobileTabBar`（`h-16` 底部固定）重疊的問題。手機端改為 `bottom-20`（80px）使按鈕懸浮於 TabBar 上方，桌面端維持 `bottom-4` 不變。
+- **`WorldLinkView.tsx`** → `HorizontalBarChart` & `GlobalScoreChart` 新增手機端 **Compact Mode**：
+  - 引入 `useMobile` Hook，在 ≤640px 寬度時自動啟動緊湊模式。
+  - Bar 高度：`h-8` (32px) → `h-5` (20px)；角色頭像：`w-8 h-8` → `w-5 h-5`；行間距：`gap-2/3` → `gap-1`。
+  - 每行佔高約 24px，26 條角色合計約 624px，手機一屏可見約 20~22 條，僅需極小幅滑動即可覽全部。
+  - 桌面端完全不受影響，視覺呈現與先前版本一致。
+- **規格書更新**:
+  - `APP_SPECIFICATION.md` → v1.0.1
+  - `PAGE_WORLD_LINK.md` → v2.0.1
 
 ## [v1.7.0] - 2026-04-03
 ### 📱 手機版 UX 全面優化 (Mobile UX Overhaul)

@@ -1,4 +1,5 @@
 import React from 'react';
+import { MOBILE_CLASSES } from '../../config/mobileTokens';
 
 export interface SelectOption {
   value: string | number;
@@ -42,7 +43,7 @@ const Select: React.FC<SelectProps> = ({
           className={`
             appearance-none w-full bg-white dark:bg-slate-800 
             border border-slate-300 dark:border-slate-700 
-            text-slate-900 dark:text-white text-sm rounded-lg 
+            text-slate-900 dark:text-white ${MOBILE_CLASSES.select.text} rounded-lg 
             focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 
             block p-2.5 pr-8 outline-none transition-colors
             disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-600

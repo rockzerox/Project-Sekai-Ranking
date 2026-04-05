@@ -1,28 +1,21 @@
-# 🕒 Session Context (上次更新: 2026-04-03)
+# 🕒 Session Context (上次更新: 2026-04-05)
 
 ## 🏁 目前狀態摘要 (Status Summary)
-完成手機版 UX 第一波優化（5 項工作 / 8 個檔案）。TypeScript 編譯通過，等待使用者手機端實機驗證。
+完成手機版 Design Token 提煉重構（v1.7.2）。5 個共用 UI 元件已改為引用 `mobileTokens.ts` 集中管理，TypeScript 編譯通過，使用者手機實機驗證無問題。
 
 ## ✅ 已完成事項 (Done)
-**本次 Session：手機版 UX 優化實作**
-- **[NEW] useMobile Hook** (`src/hooks/useMobile.ts`) — 統一 640px 斷點偵測，取代 3 處散落邏輯
-- **RankingItem 字體縮減**：名次 `text-sm`、名稱 `text-xs`、頭像 `w-7 h-7`，手機端全面降一級
-- **安全線/死心線**：移除 `hidden sm:flex`，現在直立手機也可見
-- **綠點指示器**：≤2 分鐘上線在頭像右下角顯示 `animate-pulse` 綠點（僅 `isLiveEvent`）
-- **月亮休息條**：>2 分鐘顯示月亮 icon + cyan 品牌色進度條（0-24h 刻度）+ 離線時間標籤
-- **手機版不分頁**：LiveEventView + PastEventDetailView 手機端直接回傳全 100 筆
-- **Pagination 手機端**：數字頁按鈕 `!isMobile` 隱藏，精彩片段按鈕保留
-- **LiveEventView Header 壓縮**：手機端 `sm:hidden` 緊湊排（小圖+名稱+倒數一行）、桌面端 `hidden sm:block` 保留 Grid
-- **CollapsibleSection**：標題 `text-base sm:text-lg`
-- **LineChart**：`{false && isMobile &&` 停用橫向提示，代碼保留備用
+詳細改動內容見 `docs_change_log.md` (v1.7.1 ~ v1.7.2)。
 
-**前次 Session：**
-- 品牌重塑至 PJSK TW Observatory，Git 已推送
+- **最新架構改動**：
+  - 🆕 `src/config/mobileTokens.ts` — 手機版語義化 Token 常數檔，35 個 Token
+  - 重構 `Select`, `CollapsibleSection`, `RankingItem`, `EventFilterGroup`, `SortSelector`
+  - Token 為「預設值」，特殊場景（WorldLink compact 等）保留 inline
+  - `EventHeaderCountdown`, `Card` 等 P2 元件暫不改動
 
 ## 🚩 下次開始建議 (Next Action)
-- **等待使用者手機實機回饋**（字體密度、休息條可讀性、Header 排版）
-- 根據回饋決定是否微調（特別是 Header 資訊排版）
-- 之後繼續：社群夥伴引流區塊 + UnitAnalysis/CharacterAnalysis 路由復活
+- Phase 1 剩餘任務：接回 `UnitAnalysis` 與 `CharacterAnalysis` 路由
+- 社群夥伴引流區塊
+
 
 ## 💡 關鍵備忘 (Critical Notes)
 - `useMobile` 使用 640px（`sm` 斷點）；App.tsx 框架層繼續使用 768px（`md`）不動

@@ -5,6 +5,7 @@ import { Filter, X } from 'lucide-react';
 import { getUnitOptions, getBannerOptions, getEventTypeOptions, getStoryTypeOptions, getCardTypeOptions, getFourStarOptions, getThemeOptions } from '../../utils/filterUtils';
 import Select from '../../components/ui/Select';
 import { UI_TEXT } from '../../config/uiText';
+import { MOBILE_CLASSES } from '../../config/mobileTokens';
 
 export interface EventFilterState {
     unit: string;
@@ -137,7 +138,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
             {/* Filter Button */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm w-full sm:w-auto justify-center sm:justify-start"
+                className={`flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md ${MOBILE_CLASSES.filter.button} font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm w-full sm:w-auto justify-center sm:justify-start`}
             >
                 <Filter size={16} className="text-cyan-600 dark:text-cyan-400" />
                 <span>{UI_TEXT.common.filter.button}</span>
@@ -152,7 +153,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
             {activeKeys.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
                     {activeKeys.map(key => (
-                        <span key={key} className="flex items-center gap-1 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 px-2 py-1 rounded-md text-xs font-medium">
+                        <span key={key} className={`flex items-center gap-1 bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 px-2 py-1 rounded-md ${MOBILE_CLASSES.filter.label} font-medium`}>
                             {getFilterLabel(key, filters[key])}
                             <button onClick={() => removeFilter(key)} className="hover:text-cyan-900 dark:hover:text-cyan-100 focus:outline-none ml-1">
                                 <X size={12} />
@@ -186,7 +187,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
                         <div className="p-5 space-y-4 overflow-y-auto flex-1">
                             {showUnit && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">團體 (Unit)</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>團體 (Unit)</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.unit}
@@ -198,7 +199,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 
                             {showBanner && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Banner 角色</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>Banner 角色</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.banner}
@@ -210,7 +211,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 
                             {showFourStar && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">四星成員</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>四星成員</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.fourStar}
@@ -222,7 +223,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 
                             {showEventType && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">活動類型</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>活動類型</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.type}
@@ -234,7 +235,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 
                             {showStoryType && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">劇情類型</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>劇情類型</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.storyType}
@@ -246,7 +247,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 
                             {showCardType && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">卡池類型</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>卡池類型</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.cardType}
@@ -258,7 +259,7 @@ const EventFilterGroup: React.FC<EventFilterGroupProps> = ({
 
                             {showTheme && (
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">主題活動</label>
+                                    <label className={`${MOBILE_CLASSES.filter.label} font-bold text-slate-500 dark:text-slate-400`}>主題活動</label>
                                     <Select
                                         className={`w-full py-2 text-sm ${itemClassName}`}
                                         value={localFilters.theme}

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { RankEntry, SortOption, CardsMap } from '../../types';
 import { formatScoreToChinese } from '../../utils/mathUtils';
 import { getAssetUrl } from '../../utils/gameUtils';
+import { MOBILE_CLASSES } from '../../config/mobileTokens';
 
 interface RankingItemProps {
   entry: RankEntry;
@@ -54,8 +55,8 @@ const formatLastPlayed = (dateString: string) => {
 const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStats: boolean, aggregateAt?: string, eventDuration?: number, now?: number }> = ({ entry, sortOption, hideStats, aggregateAt, eventDuration = 1, now }) => {
     const renderStat = (value: number, label: string) => (
         <>
-            <p className="text-base sm:text-lg font-bold text-cyan-600 dark:text-cyan-400">{Math.round(value).toLocaleString()}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500">{label}</p>
+            <p className={`${MOBILE_CLASSES.text.valueLg} font-bold text-cyan-600 dark:text-cyan-400`}>{Math.round(value).toLocaleString()}</p>
+            <p className={`${MOBILE_CLASSES.text.caption} text-slate-500`}>{label}</p>
         </>
     );
 
@@ -81,16 +82,16 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
     switch(sortOption) {
         case 'lastPlayedAt':
             return <>
-                <p className="text-sm sm:text-base font-bold text-cyan-600 dark:text-cyan-400">{formatLastPlayed(entry.lastPlayedAt)}</p>
-                <p className="text-[10px] sm:text-xs text-slate-500">最後上線</p>
+                <p className={`${MOBILE_CLASSES.text.bodyLg} font-bold text-cyan-600 dark:text-cyan-400`}>{formatLastPlayed(entry.lastPlayedAt)}</p>
+                <p className={`${MOBILE_CLASSES.text.caption} text-slate-500`}>最後上線</p>
             </>;
         case 'dailyAvg': {
             const daily = Math.ceil(entry.score / eventDuration);
             return <>
-                <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                <p className={`${MOBILE_CLASSES.text.valueLg} font-bold text-emerald-600 dark:text-emerald-400`}>
                     {formatScoreToChinese(daily)}
                 </p>
-                <p className="text-[10px] sm:text-xs text-slate-500">日均分</p>
+                <p className={`${MOBILE_CLASSES.text.caption} text-slate-500`}>日均分</p>
             </>;
         }
         // 1 Hour Stats
@@ -145,10 +146,10 @@ const StatDisplay: React.FC<{ entry: RankEntry, sortOption: SortOption, hideStat
                          </div>
                      ) : (
                          <>
-                             <p className="text-base sm:text-lg font-bold text-cyan-600 dark:text-cyan-400">
+                             <p className={`${MOBILE_CLASSES.text.valueLg} font-bold text-cyan-600 dark:text-cyan-400`}>
                                  {Math.round(entry.score).toLocaleString()}
                              </p>
-                             <p className="text-[10px] sm:text-xs text-slate-500">總分</p>
+                             <p className={`${MOBILE_CLASSES.text.caption} text-slate-500`}>總分</p>
                          </>
                      )}
                  </div>
@@ -166,7 +167,7 @@ const DetailStatCard: React.FC<{ title: string, stat: { count: number, score: nu
 
   return (
     <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg shadow-sm border border-slate-200 dark:border-transparent">
-      <h4 className="font-bold text-cyan-600 dark:text-cyan-400 mb-2 text-center text-sm sm:text-base">{title}</h4>
+      <h4 className={`font-bold text-cyan-600 dark:text-cyan-400 mb-2 text-center ${MOBILE_CLASSES.text.bodyLg}`}>{title}</h4>
       <div className="space-y-1">
         {renderStatDetail('次數 (Plays)', stat.count.toLocaleString())}
         {renderStatDetail('得分 (Score)', stat.score.toLocaleString())}
@@ -235,55 +236,55 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
         tabIndex={isClickable ? 0 : -1}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
-        className={`w-full flex items-center p-1.5 sm:p-3 text-left transition-colors outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500/50 ${isClickable ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer' : ''}`}
+        className={`w-full flex items-center ${MOBILE_CLASSES.padding.item} text-left transition-colors outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500/50 ${isClickable ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer' : ''}`}
         aria-expanded={isExpanded}
         aria-controls={`details-${user.id}`}
       >
         {/* Rank Section */}
-        <div className="flex items-center justify-center w-8 sm:w-16 flex-shrink-0">
-          <span className={`text-sm sm:text-xl font-bold ${styles.rankText}`}>
+        <div className={`flex items-center justify-center ${MOBILE_CLASSES.layout.rankW} flex-shrink-0`}>
+          <span className={`${MOBILE_CLASSES.text.bodyLg} font-bold ${styles.rankText}`}>
             {rank}
           </span>
         </div>
 
         {/* Avatar Section — relative 容器以容納綠點 */}
-        <div className="relative flex-shrink-0 mx-1 sm:mx-3">
+        <div className={`relative flex-shrink-0 ${MOBILE_CLASSES.layout.avatarMx}`}>
             {avatarUrl ? (
                 <img 
                     src={avatarUrl} 
                     alt="Leader" 
-                    className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700"
+                    className={`${MOBILE_CLASSES.avatar.md} rounded-full border border-slate-200 dark:border-slate-600 object-cover bg-slate-100 dark:bg-slate-700`}
                     onError={(e) => e.currentTarget.style.display = 'none'}
                 />
             ) : (
-                <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <div className={`${MOBILE_CLASSES.avatar.md} rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 flex items-center justify-center`}>
                     <span className="text-[10px] text-slate-400">No Img</span>
                 </div>
             )}
             {/* 🟢 Online Dot */}
             {isOnline && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-400 rounded-full border-[1.5px] border-white dark:border-slate-800 animate-pulse" />
+                <span className={`absolute -bottom-0.5 -right-0.5 ${MOBILE_CLASSES.avatar.dot} bg-emerald-400 rounded-full border-[1.5px] border-white dark:border-slate-800 animate-pulse`} />
             )}
         </div>
 
         {/* Name Section */}
         <div className="flex-grow overflow-hidden mr-2 flex flex-col justify-center">
-            <p className="text-xs sm:text-lg font-semibold text-slate-900 dark:text-white truncate" title={user.display_name}>
+            <p className={`${MOBILE_CLASSES.text.body} font-semibold text-slate-900 dark:text-white truncate sm:text-lg`} title={user.display_name}>
               {user.display_name}
             </p>
             {/* 🌙 Rest Bar — 離線 > 2 分鐘且為現時活動時顯示 */}
             {showRestBar && (
                 <div className="flex items-center gap-1 mt-0.5">
-                    <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`${MOBILE_CLASSES.icon.xs} text-slate-400 flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
-                    <div className="w-14 sm:w-20 h-1 sm:h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex-shrink-0">
+                    <div className={`${MOBILE_CLASSES.layout.restBarW} ${MOBILE_CLASSES.layout.restBarH} bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex-shrink-0`}>
                         <div
                             className="h-full rounded-full bg-cyan-500/70 transition-all"
                             style={{ width: `${fillPercent}%` }}
                         />
                     </div>
-                    <span className="text-[8px] sm:text-[9px] text-slate-400 font-mono leading-none">
+                    <span className={`${MOBILE_CLASSES.text.micro} text-slate-400 font-mono leading-none`}>
                         {offlineLabel}
                     </span>
                 </div>
@@ -291,15 +292,15 @@ const RankingItem: React.FC<RankingItemProps> = ({ entry, sortOption, hideStats 
         </div>
 
         {/* Stats Section */}
-        <div className="text-right flex-shrink-0 w-auto min-w-[4rem] sm:min-w-[7rem] px-2">
+        <div className={`text-right flex-shrink-0 w-auto ${MOBILE_CLASSES.layout.statsMinW} px-2`}>
           <StatDisplay entry={entry} sortOption={sortOption} hideStats={hideStats} aggregateAt={aggregateAt} eventDuration={eventDuration} now={now} />
         </div>
 
         {/* Expand Icon - 整個容器只在 clickable 時渲染，避免 highlights 模式右側死區 */}
         {isClickable && (
-          <div className="ml-2 sm:ml-4 flex-shrink-0 w-5">
+          <div className={`${MOBILE_CLASSES.layout.expandMl} flex-shrink-0 w-5`}>
               <svg
-                className={`w-4 h-4 sm:w-5 sm:h-5 text-slate-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                className={`${MOBILE_CLASSES.icon.sm} text-slate-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

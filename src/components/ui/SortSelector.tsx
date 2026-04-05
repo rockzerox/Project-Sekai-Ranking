@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { SortOption } from '../../types';
+import { MOBILE_CLASSES } from '../../config/mobileTokens';
 
 interface SortSelectorProps {
   activeSort: SortOption;
@@ -75,7 +76,7 @@ const SortSelector: React.FC<SortSelectorProps> = ({ activeSort, onSortChange, l
                   onSortChange(option.id);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-4 py-2 text-sm transition-colors duration-150 ${
+                className={`w-full text-left px-4 py-2 ${MOBILE_CLASSES.filter.button} transition-colors duration-150 ${
                   activeSort === option.id
                     ? 'bg-cyan-900/50 text-cyan-400 border-l-4 border-cyan-500'
                     : 'text-slate-300 hover:bg-slate-700 hover:text-white'

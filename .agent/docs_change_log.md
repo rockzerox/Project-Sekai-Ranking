@@ -1,7 +1,21 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.7.1
+> **Version**: v1.7.2
 > **Date**: 2026-04-05
+
+## [v1.7.2] - 2026-04-05
+### ♻️ 手機版 Design Token 提煉重構 (Mobile Design Token Refactor)
+- **`src/config/mobileTokens.ts`** 🆕：新增手機版 Design Token 常數檔，採語義命名（`text.sectionTitle`、`avatar.md`、`layout.rankW` 等），集中管理 35 個響應式 Tailwind class 對映，取代各元件中散落的 `sm:` 魔術字串。
+- **重構元件（視覺輸出完全不變，僅改程式碼來源）**：
+  - `Select.tsx`：`text-sm` → `MOBILE_CLASSES.select.text`
+  - `CollapsibleSection.tsx`：標題字體改引用 `text.sectionTitle`
+  - `RankingItem.tsx`：全部約 10 處 `sm:` 串改用對應 Token（名次/名稱/頭像/間距/按鈕等）
+  - `EventFilterGroup.tsx`：篩選觸發按鈕、active tag、Modal label 共 9 處
+  - `SortSelector.tsx`：下拉項目文字改用 `filter.button`
+- **設計原則**：
+  - Token 為**預設值**；WorldLink compact mode、LiveEvent Header 等特殊場景保留 inline override
+  - `EventHeaderCountdown`、`Card` 等 P2 元件暫不改動，待後續有需求時再評估
+- **規格書更新**：`APP_SPECIFICATION.md` → v1.0.2
 
 ## [v1.7.1] - 2026-04-05
 ### 🐛 手機版 UI 瑕疵修正 (Mobile UX Bug Fixes)

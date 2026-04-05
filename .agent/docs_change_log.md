@@ -1,7 +1,16 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.7.2
+> **Version**: v1.7.3
 > **Date**: 2026-04-05
+
+## [v1.7.3] - 2026-04-05
+### ✨ 圖表分析優化與 Bug 修復 (ChartAnalysis Improvements & Bug Fixes)
+- **`ChartAnalysis.tsx`** 全面優化與邏輯修正：
+  - **顯示文字簡化**：`[推估] ⚔️ 潛在追擊:` 簡化為 `⚔️ 激戰:`，`[推估] ⛔ T100 死心線:` 簡化為 `⛔ 死心:`，縮短手機版佔用空間。
+  - **多名次分析支援**：Top100 總分分佈圖表新增 `[T3] [T10] [T50] [T100]` 名次分析選擇器，可根據所選名次動態計算對應的安全線、激戰區與死心線。
+  - **死心線邏輯限制**：當目標名次為 T3/T10/T50 時，死心線分析改為嚴格限制在 100 名內篩選，並顯示 `Rank N 後 out` 樣板文字。T100 保留 border 數據外插功能。
+  - **剩餘席位邏輯增強**：當所有席位皆已達安全線（即剩餘席位為 0）時，取代原有激戰與死心標籤，統一醒目顯示 `✅ T{N} 已確定`。
+  - **修復 Highlights T100 席位計算不一致問題**：統一精彩片段（Highlights）與即時榜單（Top100）的 T100 剩餘席位計算邏輯，皆改為過濾即時榜單名單的**直接計數法**，確保兩者顯示數字完全一致。
 
 ## [v1.7.2] - 2026-04-05
 ### ♻️ 手機版 Design Token 提煉重構 (Mobile Design Token Refactor)

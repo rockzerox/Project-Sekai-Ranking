@@ -1,7 +1,7 @@
 # 📄 根組件規格說明書 - 全域應用程式 (App Root)
 
 **撰寫日期**: 2026-04-05
-**版本號**: 1.0.2
+**版本號**: 1.0.3
 
 **文件代號**: `APP_SPECIFICATION`
 **檔案路徑**: `src/App.tsx`
@@ -78,6 +78,7 @@
 
 ## 4. 變更日誌 (Change Log)
 
+*   **v1.0.3 (2026-04-05)**: `ChartAnalysis.tsx` 重大優化，包含文字簡化、新增 Top100 名次(T3/T10/T50/T100)分析切換、優化非 T100 席位死心線邏輯(僅限 100 名內)、新增「已確定」狀態，並修復 Highlights 與 Top100 視圖中 T100 剩餘席位不一致的計算 Bug。
 *   **v1.0.2 (2026-04-05)**: 引入 `src/config/mobileTokens.ts` 手機版 Design Token 架構，重構 `Select`、`CollapsibleSection`、`RankingItem`、`EventFilterGroup`、`SortSelector` 共 5 個共用元件之 `sm:` 響應式 class，集中改為引用 Token 常數。視覺輸出不變，維護性大幅提升。
 *   **v1.0.1 (2026-04-05)**: 修正 `ScrollToTop` 按鈕在手機版與 `MobileTabBar` 重疊的問題。
 *   **v1.0.0 (2026-03-24)**: 加入手機版/桌面版 UI 互斥渲染邏輯，改用 reactive `isMobile` state 取代原本的靜態函式。

@@ -138,9 +138,16 @@ const LiveEventView: React.FC = () => {
             }
             return 0;
         });
-        if (currentPage === 'highlights') return sorted;
-        return sorted.map((entry, index) => ({ ...entry, rank: index + 1 }));
+        return sorted;
     }, [searchTerm, rankings, sortOption, currentPage, currentEventDuration]);
+
+    // Chart calculations always need the full dataset (not highlights-filtered)
+    // Passing sortedAndFilteredRankings to ChartAnalysis strips rank 1-99 in Highlights
+    // mode, breaking the 'secured' count and causing T100 inconsistency across views.
+    const chartRankings = useMemo(() =>
+        [...rankings].sort((a, b) => a.rank - b.rank),
+        [rankings]
+    );
 
     const paginatedRankings = useMemo(() => {
         if (currentPage === 'highlights') return sortedAndFilteredRankings;
@@ -396,7 +403,7 @@ const LiveEventView: React.FC = () => {
                         <>
                             <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
                                 <ChartAnalysis
-                                    rankings={sortedAndFilteredRankings}
+                                    rankings={chartRankings}
                                     sortOption={sortOption}
                                     isHighlights={isHighlights}
                                     eventId={liveEventId || undefined}

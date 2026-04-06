@@ -133,6 +133,10 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({
                 // Unified direct-count remaining slots (consistent with Top100 view)
                 const secured = data.filter(r => (r.rank || 0) <= selectedHighlightRank && r.value > calculatedSafeThreshold!).length;
                 calculatedRemainingSlots = Math.max(0, selectedHighlightRank - secured);
+                // 🔒 K=0 gate: Highlights T100 — no external chasers means all 100 slots are locked
+                if (selectedHighlightRank === 100 && (!calculatedT100Extended || calculatedT100Extended.chasers === 0)) {
+                  calculatedRemainingSlots = 0;
+                }
               }
             }
           }
@@ -169,6 +173,13 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({
                     const rank = r.rank || 0;
                     return rank > selectedLiveRank && rank <= 100 && r.value > calculatedGiveUpThreshold!;
                   }).length;
+                  // 🔒 K=0 gate: no external chasers → all N slots are locked
+                  if (calculatedLiveChasers === 0) calculatedRemainingSlots = 0;
+                } else {
+                  // 🔒 T100 K=0 gate: no external chasers → all 100 slots are locked
+                  if (!calculatedT100Extended || calculatedT100Extended.chasers === 0) {
+                    calculatedRemainingSlots = 0;
+                  }
                 }
               }
             }
@@ -253,24 +264,24 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({
           {!isHighlights && isLiveCondition && showScoreStats && remainingSafeSlots !== undefined && (
             <div className="flex flex-wrap items-center gap-2 animate-fadeIn">
               {remainingSafeSlots === 0 ? (
-                <BadgeGreen title={`T${selectedLiveRank} 所有名次已確定`}>
+                <BadgeGreen title={`T${selectedLiveRank} 邊界戰已結束，前 ${selectedLiveRank} 名已確定`}>
                   <CrownIcon className="w-3.5 h-3.5" />
-                  <LabelSm>✅ T{selectedLiveRank} 已確定</LabelSm>
+                  <LabelSm>✅ 大局已定</LabelSm>
                 </BadgeGreen>
               ) : (
                 <>
-                  <BadgeGreen title={`剩餘 ${remainingSafeSlots} 個名額可供爭奪`}>
+                  <BadgeGreen title={`T${selectedLiveRank} 圈內仍有 ${remainingSafeSlots} 個席次在搶奪中`}>
                     <CrownIcon className="w-3.5 h-3.5" />
-                    <LabelSm>T{selectedLiveRank} 剩餘:</LabelSm>
-                    <ValueSm>{remainingSafeSlots} 名</ValueSm>
+                    <LabelSm>搶位:</LabelSm>
+                    <ValueSm>{remainingSafeSlots} 席</ValueSm>
                   </BadgeGreen>
                   {selectedLiveRank === 100 && t100ExtendedStats && (
                     <>
                       <BadgeAmber title="理論上仍有機會追上 T100 的人數">
-                        <LabelSm>⚔️ 激戰:</LabelSm><ValueSm>~{t100ExtendedStats.chasers} 人</ValueSm>
+                        <LabelSm>⚔️ 追兵:</LabelSm><ValueSm>~{t100ExtendedStats.chasers} 人</ValueSm>
                       </BadgeAmber>
-                      <BadgeRose title="T100 死心排名">
-                        <LabelSm>⛔ 死心:</LabelSm><ValueSm>Rank {t100ExtendedStats.giveUpRank}+</ValueSm>
+                      <BadgeRose title="T100 淘汰線">
+                        <LabelSm>⛔ 出局:</LabelSm><ValueSm>Rank {t100ExtendedStats.giveUpRank}+</ValueSm>
                       </BadgeRose>
                     </>
                   )}
@@ -278,12 +289,12 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({
                     <>
                       {liveChasers !== undefined && (
                         <BadgeAmber>
-                          <LabelSm>⚔️ 激戰:</LabelSm><ValueSm>{liveChasers} 人</ValueSm>
+                          <LabelSm>⚔️ 追兵:</LabelSm><ValueSm>{liveChasers} 人</ValueSm>
                         </BadgeAmber>
                       )}
                       {liveGiveUpRankInTop100 != null && (
                         <BadgeRose title={`Rank ${liveGiveUpRankInTop100} 以後理論上無法進入 T${selectedLiveRank}`}>
-                          <LabelSm>⛔ 死心:</LabelSm><ValueSm>Rank {liveGiveUpRankInTop100} 後 out</ValueSm>
+                          <LabelSm>⛔ 出局:</LabelSm><ValueSm>Rank {liveGiveUpRankInTop100}+</ValueSm>
                         </BadgeRose>
                       )}
                     </>
@@ -302,18 +313,18 @@ const ChartAnalysis: React.FC<ChartAnalysisProps> = ({
                   remainingSafeSlots === 0 ? (
                     <BadgeGreen>
                       <CrownIcon className="w-3.5 h-3.5" />
-                      <LabelSm>✅ T100 已確定</LabelSm>
+                      <LabelSm>✅ 穩了！</LabelSm>
                     </BadgeGreen>
                   ) : (
                     <>
                       <BadgeGreen>
                         <CrownIcon className="w-3.5 h-3.5" />
-                        <LabelSm>T100 剩餘:</LabelSm><ValueSm>{remainingSafeSlots} 名</ValueSm>
+                        <LabelSm>未穩:</LabelSm><ValueSm>{remainingSafeSlots} 席</ValueSm>
                       </BadgeGreen>
                       {t100ExtendedStats && (
                         <>
-                          <BadgeAmber><LabelSm>⚔️ 激戰:</LabelSm><ValueSm>~{t100ExtendedStats.chasers} 人</ValueSm></BadgeAmber>
-                          <BadgeRose><LabelSm>⛔ 死心:</LabelSm><ValueSm>Rank {t100ExtendedStats.giveUpRank}+</ValueSm></BadgeRose>
+                          <BadgeAmber><LabelSm>⚠️ 追兵:</LabelSm><ValueSm>~{t100ExtendedStats.chasers} 人</ValueSm></BadgeAmber>
+                          <BadgeRose><LabelSm>⛔ 出局:</LabelSm><ValueSm>Rank {t100ExtendedStats.giveUpRank}+</ValueSm></BadgeRose>
                         </>
                       )}
                     </>

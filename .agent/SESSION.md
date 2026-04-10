@@ -1,15 +1,14 @@
-# 🔄 Session Wrapped (Session: 2026-04-10)
+# 🔄 Session Wrapped (Session: 2026-04-11)
 
 ## 🏁 Current Achievements
-1. **[WL Integration] Hisekai API 整合完成**: 已成功對接新的 `player_top_100_rankings` 與 `world_link_top_100_rankings` 欄位，支援 Event 163 (WL)。
-2. **[UX] WL 章節排序修正**: 修正了章節標籤僅依角色 ID 排序的邏輯，現在統一透過 `WorldLinkDetail.json` 中的 `chorder` 驅動，順序與官方一致。
-3. **[Mobile] 首頁功能強化**: 手機首頁榜單現已支援「上一輪 WL 對應分數」顯示，具備角色主題色識別度。
-4. **[Validation] 驗證通過**: 經使用者手動驗證、`npm run build` 確認編譯通過，代碼已 PUSH。
+1. **[WL Fix] 修正上一輪 WL 分數取值錯誤**:
+    - 解決了 `ConfigContext.tsx` 中 `getPrevRoundWlChapterScore` 漏判 `chapterCharId` 的 Bug，確保不同角色的歷史分數不會互相污染。
+    - 加入 `Number()` 轉換，解決字串/數字型別不一致導致的顯示異常。
+2. **[Validation] 手動驗證通過**: 使用者已透過本地伺服器 (`npm run dev`) 驗證修復結果正確。
 
 ## 💡 Next Action
 - 監控 Event 163 剩餘章節的狀態切換。
-- 準備 Phase 1 其他剩餘任務 (如 `UnitAnalysis` 復活)。
+- **Phase 1 剩餘任務**：重啟 `UnitAnalysis` 與 `CharacterAnalysis` 頁面計畫。
 
 ## 📝 備忘
-- Supabase 大數據查詢仍需注意分頁限制。
-- 雙源時間邏輯 (Live API vs Detail JSON) 已穩定，暫不進行過早重構。
+- `wlStats` 的 API 回傳結構中 `chapterCharId` 是數字，前端處理 ID 時需留意補零字串的轉換。

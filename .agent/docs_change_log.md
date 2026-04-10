@@ -1,7 +1,14 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.8.0
-> **Date**: 2026-04-10
+> **Version**: v1.8.1
+> **Date**: 2026-04-11
+
+## [v1.8.1] - 2026-04-11
+### 🐛 WL 上一輪分數取值修復 (WL Prev-Round Score Bug Fix)
+- **`ConfigContext.tsx`**: 修復 `getPrevRoundWlChapterScore` 在從 API 緩存中查找數據時，僅對比 `eventId` 而漏掉 `chapterCharId` 的問題。
+  - **精確尋找**：現在會同時比對活動 ID 與篇章角色 ID，確保切換不同角色時能顯示正確的歷史分數。
+  - **型別防錯**：透過 `Number(charId)` 強制轉型，修正字串型 ID（如 `"01"`) 與 API 數字型 ID（如 `1`）不匹配導致的顯示異常。
+
 
 ## [v1.8.0] - 2026-04-10
 ### 🌐 World Link Live API 整合與 UI 優化 (WL Live API Integration & UI Polish)

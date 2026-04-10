@@ -106,7 +106,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
         if (!prevEventId) return null;
 
-        const stat = wlStats.find((s: any) => s.eventId === prevEventId);
+        const stat = wlStats.find((s: any) => s.eventId === prevEventId && s.chapterCharId === Number(charId));
         if (!stat) return null;
 
         return {

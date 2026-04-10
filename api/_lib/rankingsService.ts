@@ -32,8 +32,27 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
         start_at: topData.start_at,
         closed_at: topData.closed_at,
         ranking_announce_at: topData.ranking_announce_at,
-        rankings: topData.top_100_player_rankings || [],
-        borders: borderData.border_player_rankings || [],
+        // 總榜：兼容新舊欄位名 (新: player_top_100_rankings, 舊: top_100_player_rankings)
+        rankings: topData.player_top_100_rankings || topData.top_100_player_rankings || [],
+        borders: borderData.player_border_rankings || borderData.border_player_rankings || [],
+        // WL 章節：新 API 格式 (含 start_at / closed_at / aggregate_at 時間戳)
+        chapters: (topData.world_link_top_100_rankings || []).map((ch: any) => ({
+          gameCharacterId: ch.character,
+          chapterId: ch.id,
+          startAt: ch.start_at,
+          closedAt: ch.closed_at,
+          aggregateAt: ch.aggregate_at,
+          rankings: ch.player_rankings || [],
+        })),
+        chapterBorders: (borderData.world_link_border_rankings || []).map((ch: any) => ({
+          gameCharacterId: ch.character,
+          chapterId: ch.id,
+          startAt: ch.start_at,
+          closedAt: ch.closed_at,
+          aggregateAt: ch.aggregate_at,
+          borderRankings: ch.player_borders || [],
+        })),
+        // 後向相容：保留舊欄位（一般活動 / 歷史 API 照舊）
         userWorldBloomChapterRankings: topData.userWorldBloomChapterRankings || [],
         userWorldBloomChapterRankingBorders: borderData.userWorldBloomChapterRankingBorders || []
       });

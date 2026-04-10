@@ -33,6 +33,7 @@ interface UseRankingsReturn {
     rankings: RankEntry[];
     setRankings: React.Dispatch<React.SetStateAction<RankEntry[]>>;
     worldLinkChapters: Record<string, RankEntry[]>;
+    worldLinkChapterTimings: Record<string, { startAt: string; aggregateAt: string; closedAt: string }>;
     isLoading: boolean;
     error: string | null;
     eventName: string;
@@ -85,6 +86,7 @@ export const useRankings = (): UseRankingsReturn => {
     const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]);
     const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]);
     const [worldLinkChapters, setWorldLinkChapters] = useState<Record<string, RankEntry[]>>({});
+    const [worldLinkChapterTimings, setWorldLinkChapterTimings] = useState<Record<string, { startAt: string; aggregateAt: string; closedAt: string }>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -125,8 +127,29 @@ export const useRankings = (): UseRankingsReturn => {
                 setRankings(uniqueMain);
                 setCachedLiveRankings(uniqueMain);
                 
-                // Chapter 處理
-                if (data.userWorldBloomChapterRankings || data.userWorldBloomChapterRankingBorders) {
+                // Chapter 處理：優先使用新 API chapters 格式（含時間戳）
+                if (data.chapters && data.chapters.length > 0) {
+                    const timingsMap: Record<string, { startAt: string; aggregateAt: string; closedAt: string }> = {};
+                    data.chapters.forEach((ch: any) => {
+                        const charId = String(ch.gameCharacterId);
+                        const top = ch.rankings || [];
+                        const bdr = (data.chapterBorders || [])
+                            .find((b: any) => b.gameCharacterId === ch.gameCharacterId)
+                            ?.borderRankings || [];
+                        const merged = transformRankingsData([...top, ...bdr]);
+                        chapterMap[charId] = Array.from(
+                            new Map(merged.map(r => [r.rank, r])).values()
+                        ).sort((a, b) => a.rank - b.rank);
+                        timingsMap[charId] = {
+                            startAt: ch.startAt,
+                            aggregateAt: ch.aggregateAt,
+                            closedAt: ch.closedAt,
+                        };
+                    });
+                    setWorldLinkChapterTimings(timingsMap);
+                }
+                // Fallback：舊 API 格式 (userWorldBloomChapter*)
+                else if (data.userWorldBloomChapterRankings || data.userWorldBloomChapterRankingBorders) {
                     const rawChapters = data.userWorldBloomChapterRankings || [];
                     const rawBorders = data.userWorldBloomChapterRankingBorders || [];
                     const chapterIds = new Set([
@@ -162,7 +185,7 @@ export const useRankings = (): UseRankingsReturn => {
     }, [setRankings, setWorldLinkChapters, setCachedLiveRankings, setCachedPastRankings, setIsLoading, setError, setEventName, setLiveEventId, setLastUpdated, setLiveEventTiming]);
 
     return {
-        rankings, setRankings, worldLinkChapters, isLoading, error, eventName, liveEventId, liveEventTiming, lastUpdated,
+        rankings, setRankings, worldLinkChapters, worldLinkChapterTimings, isLoading, error, eventName, liveEventId, liveEventTiming, lastUpdated,
         cachedLiveRankings, cachedPastRankings, fetchRankings, setEventName
     };
 };

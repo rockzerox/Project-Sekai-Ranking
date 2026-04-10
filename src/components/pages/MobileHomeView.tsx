@@ -3,6 +3,7 @@ import { useRankings } from '../../hooks/useRankings';
 import { useConfig } from '../../contexts/ConfigContext';
 import { getAssetUrl } from '../../utils/gameUtils';
 import { getWlChapterTimings, WlChapterTiming } from '../../utils/timeUtils';
+import { CHARACTERS } from '../../config/constants';
 import EventHeaderCountdown from '../ui/EventHeaderCountdown';
 import CountdownTimer from '../ui/CountdownTimer';
 import LoadingSpinner from '../ui/LoadingSpinner';
@@ -27,6 +28,7 @@ const MobileHomeView: React.FC = () => {
     const {
         rankings,
         worldLinkChapters,
+        worldLinkChapterTimings,
         isLoading,
         eventName,
         liveEventId,
@@ -35,7 +37,7 @@ const MobileHomeView: React.FC = () => {
         fetchRankings,
     } = useRankings();
 
-    const { getEventColor, isWorldLink, getWlDetail } = useConfig();
+    const { getEventColor, isWorldLink, getWlDetail, getPrevRoundWlChapterScore } = useConfig();
 
     const [activeChapter, setActiveChapter] = useState<string>('all');
 
@@ -68,10 +70,50 @@ const MobileHomeView: React.FC = () => {
 
     const chapterTimings: WlChapterTiming[] = useMemo(() => {
         if (!isWl || !liveEventId || !liveEventTiming) return [];
+        let timings: WlChapterTiming[] = [];
+
+        // 優先：API 回傳的真實章節時間戳
+        if (Object.keys(worldLinkChapterTimings).length > 0) {
+            timings = Object.entries(worldLinkChapterTimings).map(([charId, timing]) => {
+                const start = new Date(timing.startAt).getTime();
+                const end = new Date(timing.aggregateAt).getTime();
+                const announce = end + 10 * 60 * 1000;
+                let status: WlChapterTiming['status'];
+                if (now < start) status = 'not_started';
+                else if (now < start + 3 * 60 * 1000) status = 'warming';
+                else if (now < end) status = 'active';
+                else if (now < announce) status = 'calculating';
+                else status = 'ended';
+                return {
+                    charId,
+                    startAt: timing.startAt,
+                    aggregateAt: timing.aggregateAt,
+                    rankingAnnounceAt: new Date(announce).toISOString(),
+                    status
+                };
+            });
+        } else {
+            // Fallback：WorldLinkDetail.json 靜態計算
+            const wlInfo = getWlDetail(liveEventId);
+            if (wlInfo) {
+                timings = getWlChapterTimings(wlInfo, liveEventTiming.startAt, now);
+            }
+        }
+
+        // Apply official chapter order
         const wlInfo = getWlDetail(liveEventId);
-        if (!wlInfo) return [];
-        return getWlChapterTimings(wlInfo, liveEventTiming.startAt, now);
-    }, [isWl, liveEventId, liveEventTiming, getWlDetail, now]);
+        if (wlInfo && wlInfo.chorder) {
+            timings.sort((a, b) => {
+                const idxA = wlInfo.chorder.indexOf(a.charId);
+                const idxB = wlInfo.chorder.indexOf(b.charId);
+                if (idxA === -1 && idxB === -1) return 0;
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+            });
+        }
+        return timings;
+    }, [isWl, liveEventId, liveEventTiming, getWlDetail, now, worldLinkChapterTimings]);
 
     // 切換章節時重置
     const handleChapterChange = (charId: string) => {
@@ -88,6 +130,20 @@ const MobileHomeView: React.FC = () => {
 
     const bannerUrl = liveEventId ? getAssetUrl(liveEventId.toString(), 'event') : null;
     const eventColor = liveEventId ? getEventColor(liveEventId) : '#06b6d4';
+
+    // 取得上一輪的 WL 數據 (如果有)
+    const prevRoundScores = useMemo(() => {
+        if (!isWl || !liveEventId || activeChapter === 'all') return null;
+        return getPrevRoundWlChapterScore(liveEventId, activeChapter);
+    }, [isWl, liveEventId, activeChapter, getPrevRoundWlChapterScore]);
+
+    // 取得角色主題色
+    const activeCharColor = useMemo(() => {
+        if (activeChapter && activeChapter !== 'all') {
+            return CHARACTERS[activeChapter]?.color || '#999999';
+        }
+        return undefined;
+    }, [activeChapter]);
 
     // ── 結算中畫面 ──────────────────────────────────────────────────────────
     if (isCalculating && liveEventTiming) {
@@ -210,6 +266,26 @@ const MobileHomeView: React.FC = () => {
                                             {entry.user.display_name}
                                         </p>
                                     </div>
+                                    
+                                    {/* 上一輪 WL 數據 (靠右對齊) */}
+                                    {prevRoundScores && activeCharColor && prevRoundScores[`top${rank}` as keyof typeof prevRoundScores] !== undefined && (
+                                        <div className="flex flex-col items-end justify-center ml-2 border-l border-slate-100 dark:border-slate-700 pl-3">
+                                            <span 
+                                                className="text-[9px] font-black uppercase tracking-widest opacity-80 mb-0.5"
+                                                style={{ color: activeCharColor }}
+                                            >
+                                                上輪 {label}
+                                            </span>
+                                            <span 
+                                                className="text-sm font-mono font-black"
+                                                style={{ color: activeCharColor }}
+                                            >
+                                                {prevRoundScores[`top${rank}` as keyof typeof prevRoundScores] > 0 
+                                                    ? prevRoundScores[`top${rank}` as keyof typeof prevRoundScores].toLocaleString() 
+                                                    : '—'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })

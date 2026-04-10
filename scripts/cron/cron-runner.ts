@@ -92,15 +92,35 @@ async function ingestEventRankings(ev: any) {
     });
   };
 
-  const rawT100 = parsedT100.rankings || parsedT100.top_100_player_rankings || [];
+  // 總榜：山容新舊欄位名 (新: player_top_100_rankings, 舊: top_100_player_rankings)
+  const rawT100 = parsedT100.rankings || parsedT100.player_top_100_rankings || parsedT100.top_100_player_rankings || [];
   rawT100.forEach((r: any) => addRanking(r, -1));
 
-  const rawBorder = parsedBorder.borderRankings || parsedBorder.border_player_rankings || [];
+  // 總榜 border：山容新舊欄位名 (新: player_border_rankings, 舊: border_player_rankings)
+  const rawBorder = parsedBorder.borderRankings || parsedBorder.player_border_rankings || parsedBorder.border_player_rankings || [];
   rawBorder.forEach((r: any) => {
     if (!allRankings.find(x => x.rank === r.rank && x.chapter_char_id === -1)) {
       addRanking(r, -1);
     }
   });
+
+  // WL 章節：新 API 格式 (world_link_top_100_rankings)
+  if (parsedT100.world_link_top_100_rankings) {
+    parsedT100.world_link_top_100_rankings.forEach((ch: any) => {
+      (ch.player_rankings || []).forEach((r: any) => addRanking(r, ch.character));
+    });
+  }
+
+  // WL 章節：新 API 格式 (world_link_border_rankings)
+  if (parsedBorder.world_link_border_rankings) {
+    parsedBorder.world_link_border_rankings.forEach((ch: any) => {
+      (ch.player_borders || []).forEach((r: any) => {
+        if (!allRankings.find(x => x.rank === r.rank && x.chapter_char_id === ch.character)) {
+          addRanking(r, ch.character);
+        }
+      });
+    });
+  }
 
   if (parsedBorder.userWorldBloomChapterRankingBorders) {
     parsedBorder.userWorldBloomChapterRankingBorders.forEach((ch: any) => {

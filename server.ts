@@ -76,9 +76,11 @@ async function startServer() {
 
   app.get("/api/event/live/rankings", async (_req, res) => {
     try {
+      console.log("[Server] HIT /api/event/live/rankings");
       const rankings = await getUnifiedRankings("live", true);
       res.type('json').send(rankings);
-    } catch {
+    } catch (e) {
+      console.error("[Server] Unified rankings error:", e);
       res.status(500).json({ error: "Failed to fetch unified live rankings" });
     }
   });

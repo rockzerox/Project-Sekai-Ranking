@@ -152,6 +152,18 @@ export interface WorldBloomChapterBorder {
   borderRankings: RankingEntry[];
 }
 
+/** Hisekai API 新格式：Live WL 章節 (world_link_top_100_rankings / world_link_border_rankings) */
+export interface WorldLinkChapterLive {
+  id: number;          // e.g. 16301 (event 163, chapter 01)
+  event: number;       // e.g. 163
+  character: number;   // e.g. 12 (青柳冬彌)
+  start_at: string;    // ISO8601
+  closed_at: string;   // ISO8601
+  aggregate_at: string;// ISO8601
+  player_rankings?: RankingEntry[];  // T100 用
+  player_borders?: RankingEntry[];   // Border 用
+}
+
 export interface UnifiedRankingsResponse {
   id: number;
   name?: string;

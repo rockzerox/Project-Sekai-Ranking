@@ -1,7 +1,19 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.7.3
-> **Date**: 2026-04-05
+> **Version**: v1.8.0
+> **Date**: 2026-04-10
+
+## [v1.8.0] - 2026-04-10
+### 🌐 World Link Live API 整合與 UI 優化 (WL Live API Integration & UI Polish)
+- **Hisekai API 新格式支援**：
+  - **`rankingsService.ts`**：對應 Hisekai Live API 的欄位升級，新增 `player_top_100_rankings` 與 `world_link_top_100_rankings` 轉譯邏輯，並保留對舊活動格式的 Fallback 相容性。
+  - **`useRankings.ts`**：前端 Hook 支援 `worldLinkChapterTimings` 狀態，直接從 API 獲取各章節真實開關時間，取代靜態推估。
+- **WL 章節排序修正 (UX Fix)**：
+  - **`LiveEventView.tsx`** & **`MobileHomeView.tsx`**：修正章節標籤僅依 ID 排序的問題。現在透過引用 `WorldLinkDetail.json` 中的 `chorder` 指定排序，確保 Event 163 等活動的章節順序與官方排程完全一致。
+- **手機版首頁強化 (Mobile Polish)**：
+  - **`MobileHomeView.tsx`**：在每個名次分數卡片右側新增「上一輪 WL 對應分數」顯示。
+  - **主題色應用**：自動識別章節角色主題色，並套用於比較標籤與數值，搭配微縮字型與右對齊設計，在極限空間內提供高密度參考資訊。
+- **型別安全**：更新 `types.ts` 新增 `WorldLinkChapterLive` 介面，並完成全專案 `npm run build` 驗證。
 
 ## [v1.7.3] - 2026-04-05
 ### ✨ 圖表分析優化與 Bug 修復 (ChartAnalysis Improvements & Bug Fixes)

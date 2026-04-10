@@ -1,26 +1,15 @@
-# 🕒 Session Context (上次更新: 2026-04-05)
+# 🔄 Session Wrapped (Session: 2026-04-10)
 
-## 🏁 目前狀態摘要 (Status Summary)
-完成 `ChartAnalysis` 功能優化與 Bug 修復（v1.7.3）。包含新增多名次分析選擇器、簡化顯示文字、修復精彩片段與即時榜單 T100 剩餘席位不一致的問題。修改已提交。
+## 🏁 Current Achievements
+1. **[WL Integration] Hisekai API 整合完成**: 已成功對接新的 `player_top_100_rankings` 與 `world_link_top_100_rankings` 欄位，支援 Event 163 (WL)。
+2. **[UX] WL 章節排序修正**: 修正了章節標籤僅依角色 ID 排序的邏輯，現在統一透過 `WorldLinkDetail.json` 中的 `chorder` 驅動，順序與官方一致。
+3. **[Mobile] 首頁功能強化**: 手機首頁榜單現已支援「上一輪 WL 對應分數」顯示，具備角色主題色識別度。
+4. **[Validation] 驗證通過**: 經使用者手動驗證、`npm run build` 確認編譯通過，代碼已 PUSH。
 
-## ✅ 已完成事項 (Done)
-詳細改動內容見 `docs_change_log.md` (v1.7.1 ~ v1.7.3)。
+## 💡 Next Action
+- 監控 Event 163 剩餘章節的狀態切換。
+- 準備 Phase 1 其他剩餘任務 (如 `UnitAnalysis` 復活)。
 
-- **ChartAnalysis 改動**：
-  - 統一 T100 剩餘席位計算方法，消除模式切換間的差異
-  - 加入 T3/T10/T50/T100 分析選擇器
-  - 優化字詞顯示、剩餘席位為 0 時的處理
-  - 限定 T3/T10/T50 死心線為 100 名內
-- **手機版 Design Token 重構**：
-  - 引入 `mobileTokens.ts` 並重構 5 個共用元件的響應式樣式
-
-## 🚩 下次開始建議 (Next Action)
-- Phase 1 剩餘任務：接回 `UnitAnalysis` 與 `CharacterAnalysis` 路由
-- 社群夥伴引流區塊
-
-
-## 💡 關鍵備忘 (Critical Notes)
-- `useMobile` 使用 640px（`sm` 斷點）；App.tsx 框架層繼續使用 768px（`md`）不動
-- 月亮 icon path: `M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z`（與 MobileHeader 同款）
-- 休息條：進度條反映「離線時長」，不是「剩餘時間」，越滿代表越久未上線
-- 品牌定位：`PJSK TW Observatory`（觀測站），資料來源 `Hi Sekai API`（合作方）
+## 📝 備忘
+- Supabase 大數據查詢仍需注意分頁限制。
+- 雙源時間邏輯 (Live API vs Detail JSON) 已穩定，暫不進行過早重構。

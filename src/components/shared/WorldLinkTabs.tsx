@@ -7,6 +7,7 @@ export interface WorldLinkChapterTab {
     charId: string;
     status?: WlChapterStatus;
     startAt?: string;
+    chapterOrder?: number;
 }
 
 interface WorldLinkTabsProps {
@@ -72,6 +73,11 @@ const WorldLinkTabs: React.FC<WorldLinkTabsProps> = ({
                                     alt=""
                                     className="w-4 h-4 rounded-full border border-white/30"
                                 />
+                            )}
+                            {ct.chapterOrder !== undefined && (
+                                <span className="text-[10px] font-mono tracking-tighter opacity-90 -mr-0.5">
+                                    Ch.{ct.chapterOrder}
+                                </span>
                             )}
                             <span className="hidden sm:inline">{char?.name || ct.charId}</span>
                         </button>

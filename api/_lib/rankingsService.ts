@@ -38,6 +38,7 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
         // WL 章節：新 API 格式 (含 start_at / closed_at / aggregate_at 時間戳)
         chapters: (topData.world_link_top_100_rankings || []).map((ch: any) => ({
           gameCharacterId: ch.character,
+          chapterOrder: ch.chapter,
           chapterId: ch.id,
           startAt: ch.start_at,
           closedAt: ch.closed_at,

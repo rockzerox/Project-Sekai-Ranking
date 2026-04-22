@@ -89,7 +89,8 @@ const MobileHomeView: React.FC = () => {
                     startAt: timing.startAt,
                     aggregateAt: timing.aggregateAt,
                     rankingAnnounceAt: new Date(announce).toISOString(),
-                    status
+                    status,
+                    chapterOrder: timing.chapterOrder
                 };
             });
         } else {
@@ -101,16 +102,20 @@ const MobileHomeView: React.FC = () => {
         }
 
         // Apply official chapter order
-        const wlInfo = getWlDetail(liveEventId);
-        if (wlInfo && wlInfo.chorder) {
-            timings.sort((a, b) => {
-                const idxA = wlInfo.chorder.indexOf(a.charId);
-                const idxB = wlInfo.chorder.indexOf(b.charId);
-                if (idxA === -1 && idxB === -1) return 0;
-                if (idxA === -1) return 1;
-                if (idxB === -1) return -1;
-                return idxA - idxB;
-            });
+        if (timings.some(t => t.chapterOrder !== undefined)) {
+            timings.sort((a, b) => (a.chapterOrder || 0) - (b.chapterOrder || 0));
+        } else {
+            const wlInfo = getWlDetail(liveEventId);
+            if (wlInfo && wlInfo.chorder) {
+                timings.sort((a, b) => {
+                    const idxA = wlInfo.chorder.indexOf(a.charId);
+                    const idxB = wlInfo.chorder.indexOf(b.charId);
+                    if (idxA === -1 && idxB === -1) return 0;
+                    if (idxA === -1) return 1;
+                    if (idxB === -1) return -1;
+                    return idxA - idxB;
+                });
+            }
         }
         return timings;
     }, [isWl, liveEventId, liveEventTiming, getWlDetail, now, worldLinkChapterTimings]);
@@ -244,7 +249,7 @@ const MobileHomeView: React.FC = () => {
                             return (
                                 <div
                                     key={rank}
-                                    className="relative bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center px-4 py-3 gap-4 overflow-hidden"
+                                    className="relative bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-[52px_1fr_auto] items-center px-4 py-3 gap-3 overflow-hidden"
                                 >
                                     {/* 左側色條 */}
                                     <div
@@ -253,13 +258,15 @@ const MobileHomeView: React.FC = () => {
                                     />
 
                                     {/* 名次徽章 */}
-                                    <span className={`flex-shrink-0 text-[11px] font-black px-2 py-0.5 rounded-full border ${badgeClass}`}>
-                                        {label}
-                                    </span>
+                                    <div className="flex justify-start">
+                                        <span className={`w-[48px] text-center text-[11px] font-black px-1 py-0.5 rounded-full border ${badgeClass}`}>
+                                            {label}
+                                        </span>
+                                    </div>
 
                                     {/* 分數 + 玩家名稱 */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-black text-xl font-mono text-slate-900 dark:text-white leading-none tracking-tight">
+                                    <div className="min-w-0 flex flex-col justify-center">
+                                        <p className="font-black text-xl font-mono text-slate-900 dark:text-white leading-none tracking-tight truncate">
                                             {entry.score.toLocaleString()}
                                         </p>
                                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">
@@ -269,7 +276,7 @@ const MobileHomeView: React.FC = () => {
                                     
                                     {/* 上一輪 WL 數據 (靠右對齊) */}
                                     {prevRoundScores && activeCharColor && prevRoundScores[`top${rank}` as keyof typeof prevRoundScores] !== undefined && (
-                                        <div className="flex flex-col items-end justify-center ml-2 border-l border-slate-100 dark:border-slate-700 pl-3">
+                                        <div className="flex flex-col items-end justify-center border-l border-slate-100 dark:border-slate-700 pl-3 w-[90px] flex-shrink-0">
                                             <span 
                                                 className="text-[9px] font-black uppercase tracking-widest opacity-80 mb-0.5"
                                                 style={{ color: activeCharColor }}

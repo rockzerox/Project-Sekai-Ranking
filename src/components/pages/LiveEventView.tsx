@@ -92,7 +92,8 @@ const LiveEventView: React.FC = () => {
                     startAt: timing.startAt,
                     aggregateAt: timing.aggregateAt,
                     rankingAnnounceAt: new Date(announce).toISOString(),
-                    status
+                    status,
+                    chapterOrder: timing.chapterOrder
                 };
             });
         } else {
@@ -104,16 +105,20 @@ const LiveEventView: React.FC = () => {
         }
 
         // Apply official chapter order
-        const wlInfo = getWlDetail(liveEventId);
-        if (wlInfo && wlInfo.chorder) {
-            timings.sort((a, b) => {
-                const idxA = wlInfo.chorder.indexOf(a.charId);
-                const idxB = wlInfo.chorder.indexOf(b.charId);
-                if (idxA === -1 && idxB === -1) return 0;
-                if (idxA === -1) return 1;
-                if (idxB === -1) return -1;
-                return idxA - idxB;
-            });
+        if (timings.some(t => t.chapterOrder !== undefined)) {
+            timings.sort((a, b) => (a.chapterOrder || 0) - (b.chapterOrder || 0));
+        } else {
+            const wlInfo = getWlDetail(liveEventId);
+            if (wlInfo && wlInfo.chorder) {
+                timings.sort((a, b) => {
+                    const idxA = wlInfo.chorder.indexOf(a.charId);
+                    const idxB = wlInfo.chorder.indexOf(b.charId);
+                    if (idxA === -1 && idxB === -1) return 0;
+                    if (idxA === -1) return 1;
+                    if (idxB === -1) return -1;
+                    return idxA - idxB;
+                });
+            }
         }
         return timings;
     }, [isWl, liveEventId, liveEventTiming, getWlDetail, now, worldLinkChapterTimings]);

@@ -1,7 +1,20 @@
 # Project Sekai Ranking Documentation Change Log
 > **Document Name**: docs_change_log.md
-> **Version**: v1.8.1
-> **Date**: 2026-04-11
+> **Version**: v1.8.3
+> **Date**: 2026-04-22
+
+## [v1.8.3] - 2026-04-22
+### 🚀 World Link Chapter API 解耦與 UI 排版優化 (WL API Decoupling & UI Polish)
+- **架構解耦 (Frontend Zero-config)**: 利用 Hisekai 新 API 提供的 `chapter` 順序索引，移除 `LiveEventView` 與 `MobileHomeView` 對本地端 `WorldLinkDetail.json` 的強制依賴。現在 Live WL 活動可達成 100% 由後端資料驅動。
+- **手機版排名卡片重構 (CSS Grid)**: `MobileHomeView` 從 Flexbox 轉移至 CSS Grid (`grid-cols-[52px_1fr_auto]`)，解決了字元寬度差異造成的排版不對齊問題，確保「名次徽章」、「分數/名稱」與「上輪數據」呈現完美的欄位對齊。
+- **UI 資訊增強**: `WorldLinkTabs` 加入了 `Ch.N` 的字樣標籤，提升導覽體驗。
+
+## [v1.8.2] - 2026-04-22
+### 🐛 自動歸檔腳本 Unique Constraint 修復 (Cron Archival Bug Fix)
+- **`cron-runner.ts`**: 修復因 Hisekai API 欄位重複（同時存在新舊格式）導致同名次（如 rank 100）被重複寫入 `event_rankings` 觸發資料庫唯一鍵衝突的問題。
+  - **集中去重邏輯**：於 `addRanking` 函式內部新增基於 `(rank, chapterCharId)` 的唯一性檢查，確保同一個名次在同一個活動/章節中只會被塞入一次。
+  - **解析優先權重組**：調整腳本解析順序，一律優先讀取 Top 100 API（含完整玩家 profile），再讀取 Border API，確保在去重時能優先保留資訊最豐富的紀錄。
+- **緊急修復同步**：已於本地手動補執行 Event 163 的歸檔任務，確保資料庫數據已與 API 對齊。
 
 ## [v1.8.1] - 2026-04-11
 ### 🐛 WL 上一輪分數取值修復 (WL Prev-Round Score Bug Fix)

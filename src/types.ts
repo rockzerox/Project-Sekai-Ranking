@@ -144,6 +144,11 @@ export interface PastEventBorderApiResponse {
 
 export interface WorldBloomChapter {
   gameCharacterId: number;
+  chapterOrder?: number;
+  chapterId?: number;
+  startAt?: string;
+  closedAt?: string;
+  aggregateAt?: string;
   rankings: RankingEntry[];
 }
 

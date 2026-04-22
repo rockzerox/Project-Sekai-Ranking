@@ -33,7 +33,7 @@ interface UseRankingsReturn {
     rankings: RankEntry[];
     setRankings: React.Dispatch<React.SetStateAction<RankEntry[]>>;
     worldLinkChapters: Record<string, RankEntry[]>;
-    worldLinkChapterTimings: Record<string, { startAt: string; aggregateAt: string; closedAt: string }>;
+    worldLinkChapterTimings: Record<string, { startAt: string; aggregateAt: string; closedAt: string; chapterOrder?: number }>;
     isLoading: boolean;
     error: string | null;
     eventName: string;
@@ -86,7 +86,7 @@ export const useRankings = (): UseRankingsReturn => {
     const [cachedLiveRankings, setCachedLiveRankings] = useState<RankEntry[]>([]);
     const [cachedPastRankings, setCachedPastRankings] = useState<RankEntry[]>([]);
     const [worldLinkChapters, setWorldLinkChapters] = useState<Record<string, RankEntry[]>>({});
-    const [worldLinkChapterTimings, setWorldLinkChapterTimings] = useState<Record<string, { startAt: string; aggregateAt: string; closedAt: string }>>({});
+    const [worldLinkChapterTimings, setWorldLinkChapterTimings] = useState<Record<string, { startAt: string; aggregateAt: string; closedAt: string; chapterOrder?: number }>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -129,7 +129,7 @@ export const useRankings = (): UseRankingsReturn => {
                 
                 // Chapter 處理：優先使用新 API chapters 格式（含時間戳）
                 if (data.chapters && data.chapters.length > 0) {
-                    const timingsMap: Record<string, { startAt: string; aggregateAt: string; closedAt: string }> = {};
+                    const timingsMap: Record<string, { startAt: string; aggregateAt: string; closedAt: string; chapterOrder?: number }> = {};
                     data.chapters.forEach((ch: any) => {
                         const charId = String(ch.gameCharacterId);
                         const top = ch.rankings || [];
@@ -144,6 +144,7 @@ export const useRankings = (): UseRankingsReturn => {
                             startAt: ch.startAt,
                             aggregateAt: ch.aggregateAt,
                             closedAt: ch.closedAt,
+                            chapterOrder: ch.chapterOrder,
                         };
                     });
                     setWorldLinkChapterTimings(timingsMap);

@@ -6,14 +6,14 @@
 ## [v1.9.0] - 2026-06-26
 ### 👑 隊長統計與應援貼紙牆實作與手機版首頁 Tab 整合 (Leader Statistics, Sticker Wall & Mobile Home Integration)
 - **現時活動隊長應援貼紙牆 (Leader Sticker Panel)**: 
-  * 實作了響應式貼紙牆 [LeaderStickerPanel.tsx](file:///e:/Project-Sekai-Ranking/src/components/shared/LeaderStickerPanel.tsx)。桌機版為 $5 \times 20$ 貼紙牆（帶隨機旋轉傾斜與相鄰同隊長邊框合併），行動端為 $10 \times 10$ 發光小圓點（類似螢光棒海），右側併排 Top 5 頭像，無名字以限制縱向高度。
+  * 實作了響應式貼紙牆 `LeaderStickerPanel.tsx`。桌機版為 $5 \times 20$ 貼紙牆（帶隨機旋轉傾斜與相鄰同隊長邊框合併），行動端為 $10 \times 10$ 發光小圓點（類似螢光棒海），右側併排 Top 5 頭像，無名字以限制縱向高度。
   * 於 `LiveEventView` 中的圖表分析區以 Tab 標籤頁面形式整合此貼紙牆。
 - **手機版首頁零滑動熱門隊長 Tab 整合**:
   * 重構了 `MobileHomeView`，在 5 張卡片的限制下（零滑動一屏設計）加入「即時榜線分數 / 即時熱門隊長」Tab 切換，並與 World Link 章節切換完全連動。
   * 實作了雙重色彩發光邊線映射系統：卡片左側發光邊飾條套用所屬團體代表色（來自 `UNITS`），右側名字與頭像外框套用角色個人代表色（來自 `CHARACTERS`）。
 - **文件與規範更新**:
-  * 更新 [PAGE_MOBILE_HOME.md](file:///e:/Project-Sekai-Ranking/docs/pages/PAGE_MOBILE_HOME.md) (v1.2.0) 與 [PAGE_LIVE_EVENT.md](file:///e:/Project-Sekai-Ranking/docs/pages/PAGE_LIVE_EVENT.md) (v1.4.0) 的撰寫日期與版本號。
-  * 新增組件規格書 [COMPONENT_LEADER_STICKER_PANEL.md](file:///e:/Project-Sekai-Ranking/docs/components/COMPONENT_LEADER_STICKER_PANEL.md) (v1.0.0)。
+  * 更新 [PAGE_MOBILE_HOME.md](../docs/pages/PAGE_MOBILE_HOME.md) (v1.2.0) 與 [PAGE_LIVE_EVENT.md](../docs/pages/PAGE_LIVE_EVENT.md) (v1.4.0) 的撰寫日期與版本號。
+  * 新增組件規格書 [COMPONENT_LEADER_STICKER_PANEL.md](../docs/components/COMPONENT_LEADER_STICKER_PANEL.md) (v1.0.0)。
 
 ## [v1.8.3] - 2026-04-22
 ### 🚀 World Link Chapter API 解耦與 UI 排版優化 (WL API Decoupling & UI Polish)

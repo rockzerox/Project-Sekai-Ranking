@@ -127,7 +127,7 @@ const giveUpThreshold = targetScore - maxGain;
     *   **輔助線**: 繪製「安全區 (綠色背景)」與「死心區 (紅色背景)」。
     *   **互動**: 懸停於圖表點可查看該名次的具體分數與玩家名稱。
 *   **貼紙牆視覺**：
-    *   展示前百玩家的隊長代表色貼紙與應援關係。詳細說明請見 [COMPONENT_LEADER_STICKER_PANEL.md](file:///e:/Project-Sekai-Ranking/docs/components/COMPONENT_LEADER_STICKER_PANEL.md)。
+    *   展示前百玩家的隊長代表色貼紙與應援關係。詳細說明請見 [COMPONENT_LEADER_STICKER_PANEL.md](../components/COMPONENT_LEADER_STICKER_PANEL.md)。
 
 ### 3.3 排行榜列表區 (Ranking List Section) - 可折疊
 *   使用 `CollapsibleSection` 包覆，標題依狀態動態變更。

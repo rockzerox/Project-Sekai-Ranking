@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 現時活動 (Live Event)
 
-**撰寫日期**: 2026-04-03
-**版本號**: 1.3.0
+**撰寫日期**: 2026-06-26
+**版本號**: 1.4.0
 
 **文件代號**: `PAGE_LIVE_EVENT`
 **對應視圖**: `currentView === 'live'` (src/components/pages/LiveEventView.tsx)
@@ -24,6 +24,9 @@
 *   **角色頭像顯示**: 顯示玩家隊長卡片的 Q 版角色頭像。
 *   **精彩片段 (Highlights)**: 切換模式查看特定邊線名次（T200, T500, T1000…）分數。
 *   **倒數計時**: 顯示距離結算的剩餘時間；WL 章節會動態切換為章節自身的結束時間。
+*   **隊長應援貼紙牆 (Leader Sticker Panel)**:
+    *   統計當前 Top 100 玩家的隊長卡片使用率，並以精美視覺化網格呈現。
+    *   **雙端自適應**：桌機版顯示 $5 \times 20$ 的頭像貼紙牆（隨機旋轉與相鄰合併外框）；行動端顯示 $10 \times 10$ 螢光棒發光點，右側併排 Top 5 頭像，維持零滑動高度限制。
 *   **競爭數據儀表板**: 自動計算區間倍率、差值與 T50-T100 CV。
 *   **玩家活躍狀態指示器** *(新增，僅限現時活動)*:
     *   **綠點 (Online)**: 若玩家最後上線時間距今 ≤ 2 分鐘，在頭像右下角顯示 `animate-pulse` 綠點。
@@ -117,12 +120,14 @@ const giveUpThreshold = targetScore - maxGain;
 
 ### 3.2 圖表分析區 (Chart Section) - 可折疊
 *   使用 `CollapsibleSection` 包覆。
-*   **組件**: `ChartAnalysis.tsx` -> `LineChart.tsx`。
-*   **視覺**:
+*   **分頁切換**: 提供「趨勢圖表 (LineChart)」與「👑 隊長應援貼紙牆 (LeaderStickerPanel)」兩個分頁標籤切換。
+*   **圖表視覺**:
     *   **X軸**: 排名 (Rank)。
     *   **Y軸**: 分數 (Score)。
     *   **輔助線**: 繪製「安全區 (綠色背景)」與「死心區 (紅色背景)」。
     *   **互動**: 懸停於圖表點可查看該名次的具體分數與玩家名稱。
+*   **貼紙牆視覺**：
+    *   展示前百玩家的隊長代表色貼紙與應援關係。詳細說明請見 [COMPONENT_LEADER_STICKER_PANEL.md](file:///e:/Project-Sekai-Ranking/docs/components/COMPONENT_LEADER_STICKER_PANEL.md)。
 
 ### 3.3 排行榜列表區 (Ranking List Section) - 可折疊
 *   使用 `CollapsibleSection` 包覆，標題依狀態動態變更。
@@ -132,7 +137,7 @@ const giveUpThreshold = targetScore - maxGain;
     *   **桌面端**：標題欄為純文字，切換功能由下方 `Pagination` 的「精彩片段」按鈕負責。
 *   **控制列**:
     *   **手機端**: 完全省略 `Pagination` 元件，僅顯示 `SortSelector`（下拉排序）。切換由標題欄按鈕控制。
-    *   **桌面端**: 保留 `Pagination`（數字分頁 + 精彩片段按鈕）與 `SortSelector`。
+    *   **桌面端**: 保留 `Pagination`（數字分頁 +精彩片段按鈕）與 `SortSelector`。
 *   **列表捲動行為**:
     *   **手機端**: 取消分頁，一次顯示最多 100 筆（`slice(0, 100)` 避免 border entries 混入）。使用者直接垂直滾動瀏覽。
     *   **桌面端**: 保留分頁，每頁 20 筆。
@@ -157,13 +162,14 @@ const giveUpThreshold = targetScore - maxGain;
 
 ### 4.2 狀態管理
 *   **`useRankings`**: 管理榜單數據與快取。
-*   **`useMobile`** *(新增)*: 統一 640px 斷點偵測 Hook，控制分頁顯隱、資料切片、手機端 Header 版本。
+*   **`useMobile`** *(新增)*: 統一 640px 斷點偵測 Hook，控制分頁顯隱、資料切片、手機端 Header版本。
 *   **`cardService`**: 管理卡片資料的獲取與快取 (`useCardData`)。
 
 *   `src/components/pages/LiveEventView.tsx` (主容器)
 *   `src/components/shared/RankingList.tsx`
 *   `src/components/shared/RankingItem.tsx`
 *   `src/components/shared/StatsDisplay.tsx`
+*   `src/components/shared/LeaderStickerPanel.tsx` *(新增)*
 *   `src/components/charts/ChartAnalysis.tsx`
 *   `src/components/charts/LineChart.tsx`
 *   `src/components/ui/Pagination.tsx`

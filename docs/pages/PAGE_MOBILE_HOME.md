@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 手機版 UI 與首頁 (Mobile UI & Home)
 
-**撰寫日期**: 2026-03-29
-**版本號**: 1.1.0
+**撰寫日期**: 2026-06-26
+**版本號**: 1.2.0
 
 **文件代號**: `PAGE_MOBILE_HOME`
 **對應視圖**: `isMobile === true` (src/App.tsx)
@@ -17,6 +17,9 @@
 *   **即時活動摘要**: 顯示當前活動 Banner、活動名稱。為提升資訊密度，將倒數計時與最後更新時間合併於同一行顯示。
 *   **World Link 章節感知**: 若為 WL 活動，會顯示精簡版章節切換 Tabs（僅顯示角色頭像），下方排名卡片區域會隨之切換為所選章節的即時榜線。
 *   **關鍵榜位卡片**: 顯示 T1、T10、T100、T500、T1000 的即時分數與玩家名稱（WL 章節期間自動隱藏 T500/T1000 等無資料卡片）。
+*   **熱門隊長統計 (零滑動 Tab)**:
+    *   **分頁切換**: 提供「即時榜線分數」與「即時熱門隊長」的 Tab 切換，維持單屏高度設計。
+    *   **雙重色彩映射系統**: 卡片左側發光飾條套用角色所屬團體代表色（來自 `UNITS` 常數）；卡片右側的角色名字與頭像外框則套用角色自身的代表色（來自 `CHARACTERS` 常數）。
 *   **結算等待模式**: 在活動結束至結果公佈的空窗期，自動切換至統計中提示畫面。
 
 ### 1.2 全域導覽架構
@@ -38,6 +41,7 @@
 
 ### 2.3 數據對接
 *   `MobileHomeView` 引用 `useRankings('live')` Hook。
+*   **熱門隊長數據**：引用 `src/services/cardService.ts` 的 `useCardData` 載入卡片資料。並使用 `useMemo` 過濾並統計 Top 100 榜單中各角色的隊長卡片使用次數與佔比，生成前五名榜單。
 *   自動偵測時間戳：
     *   `isEventActive`: 當前時間 < `aggregateAt`。
     *   `isCalculating`: `aggregateAt` < 當前時間 < `rankingAnnounceAt`。
@@ -61,6 +65,12 @@
 4.  **T500**: `orange-500` (Wonderlands × Showtime)
 5.  **T1000**: `purple-500` (25ji)
 
+### 3.3 熱門隊長卡片 (Leader Cards)
+*   **雙重色彩樣式**：
+    *   左側邊發光條套用所屬團體代表色（例如宵崎奏屬於 25ji，顯示深紫色）。
+    *   右側的角色名字與頭像外框套用角色個人代表色（例如宵崎奏顯示紅棕色）。
+*   **排列與高度**：限制為前 5 名。在 RWD 下維持與分數卡片一致的高度，確保整體介面符合「零滑動」的設計原則。
+
 ---
 
 ## 4. 模組依賴 (Module Dependencies)
@@ -70,6 +80,7 @@
 *   `src/components/layout/MobileTabBar.tsx`: 底部導覽與子面板。
 *   `src/components/pages/MobileHomeView.tsx`: 手機首頁主內容。
 *   `src/config/navConfig.tsx`: 導覽與色彩元數據。
+*   `src/services/cardService.ts`: 提供卡片元數據查詢 (`useCardData`)。
 *   `src/hooks/useRankings.ts`: 串接排名與活動時間數據。
 
 ---

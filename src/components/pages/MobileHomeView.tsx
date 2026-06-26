@@ -3,11 +3,12 @@ import { useRankings } from '../../hooks/useRankings';
 import { useConfig } from '../../contexts/ConfigContext';
 import { getAssetUrl } from '../../utils/gameUtils';
 import { getWlChapterTimings, WlChapterTiming } from '../../utils/timeUtils';
-import { CHARACTERS } from '../../config/constants';
+import { CHARACTERS, UNITS } from '../../config/constants';
 import EventHeaderCountdown from '../ui/EventHeaderCountdown';
 import CountdownTimer from '../ui/CountdownTimer';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import WorldLinkTabs from '../shared/WorldLinkTabs';
+import { useCardData } from '../../services/cardService';
 
 interface RankCardConfig {
     rank: number;
@@ -38,8 +39,10 @@ const MobileHomeView: React.FC = () => {
     } = useRankings();
 
     const { getEventColor, isWorldLink, getWlDetail, getPrevRoundWlChapterScore } = useConfig();
+    const { cards } = useCardData();
 
     const [activeChapter, setActiveChapter] = useState<string>('all');
+    const [activeTab, setActiveTab] = useState<'thresholds' | 'leaders'>('thresholds');
 
     // 心跳計時：每 2 分鐘更新 now，供 WL 章節狀態計算使用
     const [now, setNow] = useState(() => Date.now());
@@ -132,6 +135,54 @@ const MobileHomeView: React.FC = () => {
     }, [isWl, activeChapter, rankings, worldLinkChapters]);
 
     const getEntry = (rank: number) => displayRankings.find(r => r.rank === rank);
+
+    // 統計 Top 5 熱門隊長
+    const top5Leaders = useMemo(() => {
+        const top100 = displayRankings.filter(r => r.rank >= 1 && r.rank <= 100);
+        const total = top100.length;
+        if (total === 0) return [];
+
+        const counts: Record<string, number> = {};
+        let unknownCount = 0;
+
+        top100.forEach(entry => {
+            const cardId = entry.last_player_info?.card?.id;
+            const card = (cardId && cards) ? cards[cardId.toString()] : null;
+            if (card?.characterId) {
+                const charId = String(card.characterId);
+                counts[charId] = (counts[charId] || 0) + 1;
+            } else {
+                unknownCount++;
+            }
+        });
+
+        const stats = Object.entries(counts).map(([charId, count]) => {
+            const charInfo = CHARACTERS[charId];
+            const unitId = charInfo?.unit;
+            const unitColor = (unitId && UNITS[unitId]) ? UNITS[unitId].color : '#64748b';
+            return {
+                charId,
+                name: charInfo ? charInfo.name : `未知 (${charId})`,
+                color: charInfo ? charInfo.color : '#64748b',
+                unitColor,
+                count,
+                percentage: total > 0 ? (count / total) * 100 : 0
+            };
+        }).sort((a, b) => b.count - a.count);
+
+        if (unknownCount > 0) {
+            stats.push({
+                charId: 'unknown',
+                name: '未知/未載入',
+                color: '#475569',
+                unitColor: '#475569',
+                count: unknownCount,
+                percentage: total > 0 ? (unknownCount / total) * 100 : 0
+            });
+        }
+
+        return stats.slice(0, 5);
+    }, [displayRankings, cards]);
 
     const bannerUrl = liveEventId ? getAssetUrl(liveEventId.toString(), 'event') : null;
     const eventColor = liveEventId ? getEventColor(liveEventId) : '#06b6d4';
@@ -234,22 +285,42 @@ const MobileHomeView: React.FC = () => {
             {/* 榜線分數卡片 — 結算期間隱藏 */}
             {!isCalculating && (
                 <div className="flex flex-col gap-2.5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-1">
-                        {isWl && activeChapter !== 'all' ? '章節即時榜線' : '即時榜線分數'}
-                    </p>
+                    {/* 零滑動分頁切換 Tabs */}
+                    <div className="flex border-b border-slate-200 dark:border-slate-800 mb-2 gap-4 px-1">
+                        <button
+                            onClick={() => setActiveTab('thresholds')}
+                            className={`pb-1.5 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
+                                activeTab === 'thresholds'
+                                    ? 'border-cyan-500 text-slate-850 dark:text-white'
+                                    : 'border-transparent text-slate-400 dark:text-slate-500'
+                            }`}
+                        >
+                            {isWl && activeChapter !== 'all' ? '章節即時榜線' : '即時榜線分數'}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('leaders')}
+                            className={`pb-1.5 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
+                                activeTab === 'leaders'
+                                    ? 'border-cyan-500 text-slate-850 dark:text-white'
+                                    : 'border-transparent text-slate-400 dark:text-slate-500'
+                            }`}
+                        >
+                            {isWl && activeChapter !== 'all' ? '章節熱門隊長' : '即時熱門隊長'}
+                        </button>
+                    </div>
 
                     {isLoading ? (
                         <div className="flex justify-center py-8">
                             <LoadingSpinner />
                         </div>
-                    ) : (
+                    ) : activeTab === 'thresholds' ? (
                         RANK_CARDS.map(({ rank, label, badgeClass, accentColor }) => {
                             const entry = getEntry(rank);
                             if (!entry) return null;
                             return (
                                 <div
                                     key={rank}
-                                    className="relative bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-[52px_1fr_auto] items-center px-4 py-3 gap-3 overflow-hidden"
+                                    className="relative bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-[52px_1fr_auto] items-center px-4 py-3 gap-3 overflow-hidden animate-fadeIn"
                                 >
                                     {/* 左側色條 */}
                                     <div
@@ -293,6 +364,65 @@ const MobileHomeView: React.FC = () => {
                                             </span>
                                         </div>
                                     )}
+                                </div>
+                            );
+                        })
+                    ) : (
+                        top5Leaders.map((item, idx) => {
+                            const avatar = item.charId !== 'unknown' ? getAssetUrl(item.charId, 'character') : undefined;
+                            const medals = ['🥇', '🥈', '🥉', '4.', '5.'];
+                            const badge = medals[idx];
+                            return (
+                                <div
+                                    key={item.charId}
+                                    className="relative bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-[36px_36px_1fr_auto] items-center px-4 py-2.5 gap-3 overflow-hidden animate-fadeIn"
+                                >
+                                    {/* 左側發光色條 - 套用團體色 (unitColor) */}
+                                    <div
+                                        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-sm"
+                                        style={{ backgroundColor: item.unitColor, boxShadow: `0 0 8px ${item.unitColor}` }}
+                                    />
+                                    
+                                    {/* 名次徽章 */}
+                                    <div className="text-sm font-black text-slate-400 text-center flex items-center justify-center">
+                                        {badge}
+                                    </div>
+                                    
+                                    {/* 頭像貼紙 - 外框套用角色色 (charColor) */}
+                                    <div className="flex items-center justify-center">
+                                        {avatar ? (
+                                            <img
+                                                src={avatar}
+                                                alt={item.name}
+                                                className="w-7 h-7 rounded-full object-cover border-2 bg-slate-800"
+                                                style={{ borderColor: item.color, boxShadow: `0 0 5px ${item.color}50` }}
+                                            />
+                                        ) : (
+                                            <div 
+                                                className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold border-2 text-white"
+                                                style={{ borderColor: item.color }}
+                                            >
+                                                ?
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* 角色名字 - 套用角色色 */}
+                                    <div className="min-w-0 flex items-center">
+                                        <span className="font-bold text-sm truncate" style={{ color: item.color }}>
+                                            {item.name}
+                                        </span>
+                                    </div>
+                                    
+                                    {/* 人數統計 */}
+                                    <div className="text-right pl-1">
+                                        <span className="text-sm font-mono font-bold text-slate-750 dark:text-slate-200 block leading-tight">
+                                            {item.count} 人
+                                        </span>
+                                        <span className="text-[10px] font-mono text-slate-400">
+                                            {item.percentage.toFixed(0)}%
+                                        </span>
+                                    </div>
                                 </div>
                             );
                         })

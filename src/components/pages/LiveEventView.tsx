@@ -19,6 +19,7 @@ import SortSelector from '../ui/SortSelector';
 import RankingList from '../shared/RankingList';
 import WorldLinkTabs from '../shared/WorldLinkTabs';
 import { useCardData } from '../../services/cardService';
+import LeaderStickerPanel from '../shared/LeaderStickerPanel';
 
 const ITEMS_PER_PAGE = 20;
 const NOW_REFRESH_MS = 2 * 60 * 1000; // 2-minute heartbeat (frontend only)
@@ -39,6 +40,7 @@ const LiveEventView: React.FC = () => {
     const [isRankingsOpen, setIsRankingsOpen] = useState(true);
     const [isChartsOpen, setIsChartsOpen] = useState(true);
     const [currentPage, setCurrentPage] = useState<number | 'highlights'>(1);
+    const [activeChartTab, setActiveChartTab] = useState<'chart' | 'leaders'>('chart');
 
     // ── Heartbeat: update `now` every 2 minutes (pure frontend, no API calls) ──
     const [now, setNow] = useState(() => Date.now());
@@ -447,16 +449,45 @@ const LiveEventView: React.FC = () => {
                     {ChapterCalculatingBlock ?? (
                         <>
                             <CollapsibleSection title="圖表分析 (Chart Analysis)" isOpen={isChartsOpen} onToggle={() => setIsChartsOpen(!isChartsOpen)}>
-                                <ChartAnalysis
-                                    rankings={chartRankings}
-                                    sortOption={sortOption}
-                                    isHighlights={isHighlights}
-                                    eventId={liveEventId || undefined}
-                                    cards={cards || undefined}
-                                    isLiveEvent={true}
-                                    aggregateAt={chartAggregateAt}
-                                    activeChapterId={activeChapter}
-                                />
+                                <div className="flex border-b border-slate-200 dark:border-slate-800 mb-4 gap-4">
+                                    <button
+                                        onClick={() => setActiveChartTab('chart')}
+                                        className={`pb-2 text-sm font-bold transition-all border-b-2 px-1 ${
+                                            activeChartTab === 'chart'
+                                                ? 'border-cyan-500 text-cyan-500'
+                                                : 'border-transparent text-slate-500 hover:text-slate-400'
+                                        }`}
+                                    >
+                                        📊 趨勢與分佈圖
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveChartTab('leaders')}
+                                        className={`pb-2 text-sm font-bold transition-all border-b-2 px-1 ${
+                                            activeChartTab === 'leaders'
+                                                ? 'border-cyan-500 text-cyan-500'
+                                                : 'border-transparent text-slate-500 hover:text-slate-400'
+                                        }`}
+                                    >
+                                        👑 隊長應援貼紙牆
+                                    </button>
+                                </div>
+                                {activeChartTab === 'chart' ? (
+                                    <ChartAnalysis
+                                        rankings={chartRankings}
+                                        sortOption={sortOption}
+                                        isHighlights={isHighlights}
+                                        eventId={liveEventId || undefined}
+                                        cards={cards || undefined}
+                                        isLiveEvent={true}
+                                        aggregateAt={chartAggregateAt}
+                                        activeChapterId={activeChapter}
+                                    />
+                                ) : (
+                                    <LeaderStickerPanel
+                                        rankings={chartRankings}
+                                        cardsMap={cards || undefined}
+                                    />
+                                )}
                             </CollapsibleSection>
                             <CollapsibleSection title={rankingsTitle} isOpen={isRankingsOpen} onToggle={() => setIsRankingsOpen(!isRankingsOpen)}>
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -468,7 +499,7 @@ const LiveEventView: React.FC = () => {
                                     rankings={paginatedRankings}
                                     sortOption={sortOption}
                                     hideStats={shouldHideStats}
-                                    aggregateAt={liveEventTiming?.aggregateAt}
+                                    aggregateAt={chartAggregateAt}
                                     eventDuration={currentEventDuration}
                                     cardsMap={cards || undefined}
                                     isLiveEvent={true}

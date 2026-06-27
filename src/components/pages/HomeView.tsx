@@ -1,10 +1,9 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import TrophyIcon from '../../components/icons/TrophyIcon';
 import { CHARACTERS } from '../../config/constants';
 import { UI_TEXT } from '../../config/uiText';
-
 import { ViewType } from '../../types';
+import SekaiHomeView from './SekaiHomeView';
 
 interface HomeViewProps {
     setCurrentView: (view: ViewType) => void;
@@ -16,6 +15,7 @@ interface Feature {
     description: string;
     icon: React.ReactNode;
     charColor: string;
+    charId?: string; // 角色 ID
 }
 
 interface FeatureSection {
@@ -25,56 +25,79 @@ interface FeatureSection {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ setCurrentView }) => {
+    const [viewStyle, setViewStyle] = useState<'sekai' | 'classic'>('sekai');
+
     const sections: FeatureSection[] = [
         {
-            category: UI_TEXT.sidebar.categories.ranking,
+            category: "查榜SEKAI",
             color: "#4455DD",
             features: [
-                { id: 'live', title: UI_TEXT.home.features.live.title, description: UI_TEXT.home.features.live.desc, charColor: CHARACTERS['1'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
-                { id: 'past', title: UI_TEXT.home.features.past.title, description: UI_TEXT.home.features.past.desc, charColor: CHARACTERS['2'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-                { id: 'distribution', title: UI_TEXT.home.features.distribution.title, description: UI_TEXT.home.features.distribution.desc, charColor: CHARACTERS['3'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" /></svg> }
+                { id: 'live', title: UI_TEXT.home.features.live.title, description: UI_TEXT.home.features.live.desc, charColor: CHARACTERS['1'].color, charId: '1', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
+                { id: 'past', title: UI_TEXT.home.features.past.title, description: UI_TEXT.home.features.past.desc, charColor: CHARACTERS['2'].color, charId: '2', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+                { id: 'distribution', title: UI_TEXT.home.features.distribution.title, description: UI_TEXT.home.features.distribution.desc, charColor: CHARACTERS['3'].color, charId: '3', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z" /></svg> }
             ]
         },
         {
-            category: UI_TEXT.sidebar.categories.analysis,
+            category: "分析SEKAI",
             color: "#88DD44",
             features: [
-                { id: 'comparison', title: UI_TEXT.home.features.comparison.title, description: UI_TEXT.home.features.comparison.desc, charColor: CHARACTERS['5'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 18l4-6 4 4 10-10 M3 14l4-6 4 4 10-10" /></svg> },
-                { id: 'analysis', title: UI_TEXT.home.features.analysis.title, description: UI_TEXT.home.features.analysis.desc, charColor: CHARACTERS['6'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 20v-4h3v4M11 20v-8h3v8M16 20v-13h3v13" /></svg> },
-                { id: 'trend', title: UI_TEXT.home.features.trend.title, description: UI_TEXT.home.features.trend.desc, charColor: CHARACTERS['7'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> }
+                { id: 'comparison', title: UI_TEXT.home.features.comparison.title, description: UI_TEXT.home.features.comparison.desc, charColor: CHARACTERS['5'].color, charId: '5', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 18l4-6 4 4 10-10 M3 14l4-6 4 4 10-10" /></svg> },
+                { id: 'analysis', title: UI_TEXT.home.features.analysis.title, description: UI_TEXT.home.features.analysis.desc, charColor: CHARACTERS['6'].color, charId: '6', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16M6 20v-4h3v4M11 20v-8h3v8M16 20v-13h3v13" /></svg> },
+                { id: 'trend', title: UI_TEXT.home.features.trend.title, description: UI_TEXT.home.features.trend.desc, charColor: CHARACTERS['7'].color, charId: '7', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg> }
             ]
         },
         {
-            category: UI_TEXT.sidebar.categories.character,
+            category: "角色SEKAI",
             color: "#EE1166",
             features: [
-                { id: 'worldLink', title: UI_TEXT.home.features.worldLink.title, description: UI_TEXT.home.features.worldLink.desc, charColor: CHARACTERS['9'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-                { id: 'unitAnalysis', title: UI_TEXT.home.features.unitAnalysis.title, description: UI_TEXT.home.features.unitAnalysis.desc, charColor: '#00BBDD', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
-                { id: 'characterAnalysis', title: UI_TEXT.home.features.characterAnalysis.title, description: UI_TEXT.home.features.characterAnalysis.desc, charColor: '#FF7722', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> }
+                { id: 'worldLink', title: UI_TEXT.home.features.worldLink.title, description: UI_TEXT.home.features.worldLink.desc, charColor: CHARACTERS['9'].color, charId: '9', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+                { id: 'unitAnalysis', title: UI_TEXT.home.features.unitAnalysis.title, description: UI_TEXT.home.features.unitAnalysis.desc, charColor: '#00BBDD', charId: '10', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> },
+                { id: 'characterAnalysis', title: UI_TEXT.home.features.characterAnalysis.title, description: UI_TEXT.home.features.characterAnalysis.desc, charColor: '#FF7722', charId: '11', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> }
             ]
         },
         {
-            category: UI_TEXT.sidebar.categories.player,
+            category: "玩家SEKAI",
             color: "#FF9900",
             features: [
-                { id: 'playerAnalysis', title: UI_TEXT.home.features.playerAnalysis.title, description: UI_TEXT.home.features.playerAnalysis.desc, charColor: CHARACTERS['13'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> },
-                { id: 'playerStructure', title: UI_TEXT.home.features.playerStructure.title, description: UI_TEXT.home.features.playerStructure.desc, charColor: CHARACTERS['14'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> },
-                { id: 'playerProfile', title: UI_TEXT.home.features.playerProfile.title, description: UI_TEXT.home.features.playerProfile.desc, charColor: CHARACTERS['15'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> }
+                { id: 'playerAnalysis', title: UI_TEXT.home.features.playerAnalysis.title, description: UI_TEXT.home.features.playerAnalysis.desc, charColor: CHARACTERS['13'].color, charId: '13', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1m0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg> },
+                { id: 'playerStructure', title: UI_TEXT.home.features.playerStructure.title, description: UI_TEXT.home.features.playerStructure.desc, charColor: CHARACTERS['14'].color, charId: '14', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg> },
+                { id: 'playerProfile', title: UI_TEXT.home.features.playerProfile.title, description: UI_TEXT.home.features.playerProfile.desc, charColor: CHARACTERS['15'].color, charId: '15', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z M7 10h2 M7 14h6" /></svg> }
             ]
         },
         {
-            category: UI_TEXT.sidebar.categories.tools,
+            category: "工具SEKAI",
             color: "#884499",
             features: [
-                { id: 'resourceEstimator', title: UI_TEXT.home.features.resourceEstimator.title, description: UI_TEXT.home.features.resourceEstimator.desc, charColor: CHARACTERS['17'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> },
-                { id: 'mySekaiMining', title: UI_TEXT.home.features.mySekaiMining.title, description: UI_TEXT.home.features.mySekaiMining.desc, charColor: '#8888CC', icon: <svg className="w-7 h-7" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M10 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
-                { id: 'eventSongs', title: UI_TEXT.eventSongs.title, description: UI_TEXT.eventSongs.description, charColor: CHARACTERS['20'].color, icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg> },
+                { id: 'resourceEstimator', title: UI_TEXT.home.features.resourceEstimator.title, description: UI_TEXT.home.features.resourceEstimator.desc, charColor: CHARACTERS['17'].color, charId: '17', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> },
+                { id: 'mySekaiMining', title: UI_TEXT.home.features.mySekaiMining.title, description: UI_TEXT.home.features.mySekaiMining.desc, charColor: '#8888CC', charId: '18', icon: <svg className="w-7 h-7" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M10 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
+                { id: 'eventSongs', title: UI_TEXT.eventSongs.title, description: UI_TEXT.eventSongs.description, charColor: CHARACTERS['20'].color, charId: '20', icon: <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg> },
             ]
         }
     ];
 
+    if (viewStyle === 'sekai') {
+        return (
+            <SekaiHomeView
+                setCurrentView={setCurrentView}
+                sections={sections}
+                setViewStyle={setViewStyle}
+            />
+        );
+    }
+
     return (
-        <div className="w-full animate-fadeIn py-6 px-4 max-w-[1800px] mx-auto">
+        <div className="w-full animate-fadeIn py-6 px-4 max-w-[1800px] mx-auto relative select-none">
+            {/* 右上角切回世界互動版 */}
+            <div className="absolute top-2 right-4 z-40">
+                <button
+                    onClick={() => setViewStyle('sekai')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/60 dark:bg-slate-900/90 text-[11px] font-bold text-slate-300 dark:text-slate-300 rounded-full border border-slate-700/60 hover:bg-slate-800 transition-colors shadow-lg backdrop-blur-md"
+                >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 5a7 7 0 100 14 7 7 0 000-14z" /></svg>
+                    世界 Select 互動風格
+                </button>
+            </div>
+
             <div className="text-center mb-10">
                 {/* 標題列：[ICON][站名][ICON] 佈局 */}
                 <div className="flex items-center justify-center gap-4 mb-4">

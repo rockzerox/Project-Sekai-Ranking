@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 玩家狀態查詢 (Player Profile)
 
-**撰寫日期**: 2026-03-16
-**版本號**: 2.0.0
+**撰寫日期**: 2026-06-27
+**版本號**: 2.1.0
 
 **文件代號**: `PAGE_PLAYER_PROFILE`
 **對應視圖**: `currentView === 'playerProfile'` (src/App.tsx)
@@ -18,6 +18,7 @@
 *   **綜合力分析**: 拆解 Total Power 的來源（卡片基礎、區域道具、角色等級、稱號加成等）。
 *   **榮耀里程碑 (Glory Milestone)**: 
     *   **全期數掃描**: 按下掃描鈕後，系統會從 Supabase 資料庫中快速查詢該玩家曾經進入 Top 100 的所有紀錄。
+    *   **榜單類型切換 Tab**: 實裝「一般榜」與「WL章節榜」切換按鈕，支援毫秒級快速分類篩選。
     *   **排序與分頁**: 支援依「期數」或「分數」排序掃描結果。
 *   **角色等級檢視**: 顯示玩家持有的各角色等級 (Character Rank)。
 *   **歌曲進度**: 顯示各難度 (Easy ~ Append) 的 Clear / FC / AP 數量。
@@ -29,11 +30,13 @@
 ### 2.1 資料來源
 *   **個人檔案**: `/user/{userId}/profile` (Hi Sekai API)。
 *   **歷史戰績**: `event_rankings` (Supabase)。
-    *   **實作方式**: 前端發起單次 Supabase 查詢，直接篩選 `user_id` 符合目標玩家的紀錄。
-    *   **過濾**: 透過 `.is('chapter_char_id', null)` 確保只抓取活動總榜分數。
+*   **過濾與分類**:
+    *   **一般榜**: 透過 `chapter_char_id` 為空的邏輯（`.is('chapter_char_id', null)`）篩選出一般的 Top 100 活動總榜紀錄。
+    *   **WL章節榜**: 透過 `chapter_char_id` 不為空的邏輯（`.not('chapter_char_id', 'is', null)`）篩選出 World Link 各章節個人角色的排名紀錄。
     *   **狀態**: 使用 `isScanning` 呈現掃描進度（由於改用 Supabase，掃描過程通常在毫秒級完成）。
 
 ### 2.2 視覺化呈現
+*   **RWD 表格防截斷**: 重新調整榮耀里程碑表格欄位比重，釋放寬度給活動名稱，徹底解決了長活動名稱在行動端/小螢幕上被無情截斷的排版問題。
 *   **Clamp Font Size**: 針對玩家名稱過長的情況，使用 CSS `clamp()` 動態縮小字體，確保不跑版。
 *   **Grid Layout**: 使用 CSS Grid 排列角色等級與歌曲數據，確保 RWD 適應性。
 

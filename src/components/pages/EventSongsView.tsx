@@ -41,18 +41,24 @@ const EventSongsView: React.FC<EventSongsViewProps> = ({ allEvents }) => {
     const t = UI_TEXT.eventSongs;
 
     const mergedData = useMemo(() => {
+        const now = new Date();
         const data = Object.entries(songData).map(([songId, song]) => {
             const eventInfo = allEvents.find(e => e.id === song.eventId);
             const detail = eventDetails[song.eventId];
+            const isReleased = eventInfo 
+                ? now >= new Date(eventInfo.start_at)
+                : false;
             return {
                 ...song,
                 songId,
                 eventName: eventInfo?.name || `第 ${song.eventId} 期活動`,
                 unit: detail?.unit || '99',
                 banner: detail?.banner || '-',
+                isReleased
             };
         });
-        return data.sort((a, b) => sortOrder === 'asc' ? a.eventId - b.eventId : b.eventId - a.eventId);
+        const releasedData = data.filter(item => item.isReleased);
+        return releasedData.sort((a, b) => sortOrder === 'asc' ? a.eventId - b.eventId : b.eventId - a.eventId);
     }, [allEvents, eventDetails, sortOrder]);
 
     const filteredData = useMemo(() => {

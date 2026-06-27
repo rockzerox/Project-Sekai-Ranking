@@ -54,11 +54,12 @@ interface HonorRecord {
     eventName: string;
     rank: number;
     score: number;
+    chapterCharId: number; // -1 for general/total, > 0 for WL chapter
 }
 
 const PlayerProfileView: React.FC = () => {
     const { events: allEvents } = useEventList();
-    const { eventDetails } = useConfig();
+    const { eventDetails, wlDetails } = useConfig(); // Structuring wlDetails as well
     const [userIdInput, setUserIdInput] = useState('');
     const [profileData, setProfileData] = useState<UserProfileResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +70,9 @@ const PlayerProfileView: React.FC = () => {
     const [hasScanned, setHasScanned] = useState(false);
     const [honorPage, setHonorPage] = useState(1);
     
+    // Tab 控制：'normal' = 一般活動與綜合排行, 'wlChapter' = WL 個人章節排行
+    const [activeHonorTab, setActiveHonorTab] = useState<'normal' | 'wlChapter'>('normal');
+
     // 排序狀態
     const [sortKey, setSortKey] = useState<'eventId' | 'score'>('eventId');
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -121,11 +125,11 @@ const PlayerProfileView: React.FC = () => {
         const targetUserId = profileData.user.userId;
         
         try {
+            // 放寬 chapter_char_id 限制，並選取該欄位
             const { data, error } = await supabase
                 .from('event_rankings')
-                .select('event_id, rank, score')
-                .eq('user_id', targetUserId)
-                .eq('chapter_char_id', -1);
+                .select('event_id, rank, score, chapter_char_id')
+                .eq('user_id', targetUserId);
 
             if (error) throw error;
 
@@ -136,7 +140,8 @@ const PlayerProfileView: React.FC = () => {
                         eventId: row.event_id,
                         eventName: eventInfo ? eventInfo.name : `Event ${row.event_id}`,
                         rank: row.rank,
-                        score: row.score
+                        score: row.score,
+                        chapterCharId: row.chapter_char_id ?? -1
                     };
                 });
                 setHonorRecords(results);
@@ -149,22 +154,31 @@ const PlayerProfileView: React.FC = () => {
         }
     };
 
-    // 處理排序後的紀錄
+    // 先依據選取的 Tab 進行過濾
+    const filteredHonors = useMemo(() => {
+        return honorRecords.filter(record => 
+            activeHonorTab === 'normal' 
+                ? record.chapterCharId === -1 
+                : record.chapterCharId > 0
+        );
+    }, [honorRecords, activeHonorTab]);
+
+    // 處理排序後的紀錄 (改為排序過濾後的結果)
     const sortedHonorRecords = useMemo(() => {
-        return [...honorRecords].sort((a, b) => {
+        return [...filteredHonors].sort((a, b) => {
             const valA = a[sortKey];
             const valB = b[sortKey];
             if (sortOrder === 'desc') return valB - valA;
             return valA - valB;
         });
-    }, [honorRecords, sortKey, sortOrder]);
+    }, [filteredHonors, sortKey, sortOrder]);
 
     const paginatedHonors = useMemo(() => {
         const start = (honorPage - 1) * RECORDS_PER_PAGE;
         return sortedHonorRecords.slice(start, start + RECORDS_PER_PAGE);
     }, [sortedHonorRecords, honorPage]);
 
-    const totalHonorPages = Math.ceil(honorRecords.length / RECORDS_PER_PAGE);
+    const totalHonorPages = Math.ceil(filteredHonors.length / RECORDS_PER_PAGE); // 改為依據過濾後的長度
 
     const toggleSortKey = (key: 'eventId' | 'score') => {
         if (sortKey === key) {
@@ -248,7 +262,39 @@ const PlayerProfileView: React.FC = () => {
                     </Card>
 
                     {/* 榮耀里程碑 */}
-                    <Card title={<div className="flex items-center gap-2 text-sm font-black"><svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{UI_TEXT.playerProfile.sectionGlory}</div>} className="shadow-md">
+                    <Card title={
+                        <div className="flex items-center justify-between w-full text-sm font-black">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                {UI_TEXT.playerProfile.sectionGlory}
+                            </div>
+                            {/* Tab 切換按鈕 */}
+                            {hasScanned && (
+                                <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] scale-90 sm:scale-95 origin-right">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setActiveHonorTab('normal'); setHonorPage(1); }}
+                                        className={`px-2.5 py-0.5 rounded-md font-black transition-all ${
+                                            activeHonorTab === 'normal'
+                                                ? 'bg-white dark:bg-slate-600 text-cyan-600 dark:text-white shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        }`}
+                                    >
+                                        一般榜
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setActiveHonorTab('wlChapter'); setHonorPage(1); }}
+                                        className={`px-2.5 py-0.5 rounded-md font-black transition-all ${
+                                            activeHonorTab === 'wlChapter'
+                                                ? 'bg-white dark:bg-slate-600 text-cyan-600 dark:text-white shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        }`}
+                                    >
+                                        WL章節榜
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    } className="shadow-md">
                         {!profileData ? (
                             <div className="py-6 text-center px-4 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl"><p className="text-slate-400 text-[10px] font-black italic uppercase tracking-widest leading-relaxed">{UI_TEXT.playerProfile.gloryPlaceholder}</p></div>
                         ) : !hasScanned && !isScanning ? (
@@ -260,7 +306,7 @@ const PlayerProfileView: React.FC = () => {
                                 <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                                 <p className="text-cyan-600 dark:text-cyan-400 font-black text-sm">{UI_TEXT.playerProfile.processing}</p>
                             </div>
-                        ) : honorRecords.length === 0 ? (
+                        ) : filteredHonors.length === 0 ? ( // 改成依據過濾後的長度判斷
                             <div className="py-4 text-center text-slate-400 font-bold text-xs italic">{UI_TEXT.playerProfile.noRecord}</div>
                         ) : (
                             <div className="space-y-4">
@@ -296,31 +342,87 @@ const PlayerProfileView: React.FC = () => {
                                                 const bannerChar = details ? getChar(details.banner) : null;
                                                 const bannerColor = bannerChar?.color || '#94a3b8';
                                                 return (
-                                                    <tr key={record.eventId} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                    <tr key={`${record.eventId}-${record.chapterCharId}`} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
                                                         <td className="px-3 py-3 w-16 md:w-20">
-                                                            <span className="font-mono font-black text-[10px] md:text-slate-400 whitespace-nowrap" style={{ color: window.innerWidth < 768 ? bannerColor : undefined }}>
-                                                                第 {record.eventId} 期
-                                                            </span>
+                                                            <div className="flex flex-col justify-center">
+                                                                <span className="font-mono font-black text-[10px] md:text-slate-400 whitespace-nowrap" style={{ color: window.innerWidth < 768 ? bannerColor : undefined }}>
+                                                                    第 {record.eventId} 期
+                                                                </span>
+                                                                {/* 手機版 WL 章節小徽章 */}
+                                                                {activeHonorTab === 'wlChapter' && (
+                                                                    <div className="flex items-center gap-1 mt-0.5 md:hidden">
+                                                                        <img
+                                                                            src={getAssetUrl(String(record.chapterCharId), 'character')}
+                                                                            alt=""
+                                                                            className="w-3.5 h-3.5 rounded-full border border-slate-200 dark:border-slate-700"
+                                                                        />
+                                                                        <span className="font-mono text-[9px] font-black text-slate-500">
+                                                                            Ch.{wlDetails[record.eventId]?.chorder ? wlDetails[record.eventId].chorder.indexOf(String(record.chapterCharId)) + 1 : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-2 py-3 w-20 md:w-24">
                                                             <div className="w-16 h-8 md:w-20 md:h-10 bg-black/10 rounded overflow-hidden flex items-center justify-center">
                                                                 <img src={getAssetUrl(record.eventId.toString(), 'event')} alt="logo" className="w-full h-full object-contain scale-110" />
                                                             </div>
                                                         </td>
-                                                        <td className="px-2 py-3 hidden md:table-cell max-w-[100px] lg:max-w-[140px]">
-                                                            {/* 桌機版活動名稱：微調 clamp 縮小並確保 leading 防止小寫字母切斷 */}
-                                                            <span 
-                                                                className="font-bold whitespace-nowrap overflow-hidden block transition-all leading-normal" 
-                                                                style={{ 
-                                                                    color: bannerColor,
-                                                                    fontSize: 'clamp(9px, 1vw, 12px)',
-                                                                    textOverflow: 'ellipsis'
-                                                                }}
-                                                            >
-                                                                {record.eventName}
-                                                            </span>
+                                                        <td className="px-2 py-3 hidden md:table-cell max-w-[180px] lg:max-w-[260px]">
+                                                            {activeHonorTab === 'normal' ? (
+                                                                /* 桌機版活動名稱：一般活動單行顯示 */
+                                                                <span 
+                                                                    className="font-bold whitespace-nowrap overflow-hidden block transition-all leading-normal" 
+                                                                    style={{ 
+                                                                        color: bannerColor,
+                                                                        fontSize: 'clamp(9px, 1vw, 12px)',
+                                                                        textOverflow: 'ellipsis'
+                                                                    }}
+                                                                >
+                                                                    {record.eventName}
+                                                                </span>
+                                                            ) : (
+                                                                /* 桌機版活動名稱：WL章節雙行顯示 */
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span 
+                                                                        className="whitespace-nowrap overflow-hidden block transition-all leading-normal text-slate-400 dark:text-slate-500 font-bold" 
+                                                                        style={{ 
+                                                                            fontSize: '10px',
+                                                                            textOverflow: 'ellipsis'
+                                                                        }}
+                                                                    >
+                                                                        {record.eventName}
+                                                                    </span>
+                                                                    {(() => {
+                                                                        const wlInfo = wlDetails[record.eventId];
+                                                                        const charIdStr = String(record.chapterCharId);
+                                                                        const char = getChar(charIdStr);
+                                                                        const chapterOrder = wlInfo?.chorder 
+                                                                            ? wlInfo.chorder.indexOf(charIdStr) + 1 
+                                                                            : undefined;
+                                                                        return char ? (
+                                                                            <div 
+                                                                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black text-white w-fit shadow-sm border border-white/10"
+                                                                                style={{ backgroundColor: char.color }}
+                                                                            >
+                                                                                <img
+                                                                                    src={getAssetUrl(charIdStr, 'character')}
+                                                                                    alt=""
+                                                                                    className="w-3.5 h-3.5 rounded-full border border-white/20"
+                                                                                />
+                                                                                {chapterOrder !== undefined && (
+                                                                                    <span className="font-mono tracking-tighter opacity-90">
+                                                                                        Ch.{chapterOrder}
+                                                                                    </span>
+                                                                                )}
+                                                                                <span>{char.name}</span>
+                                                                            </div>
+                                                                        ) : null;
+                                                                    })()}
+                                                                </div>
+                                                            )}
                                                         </td>
-                                                        <td className="px-2 py-3">
+                                                        <td className="px-2 py-3 w-20 md:w-24">
                                                             {/* 名次顯示：微調桌機版大小 */}
                                                             <span 
                                                                 className={`font-black font-mono whitespace-nowrap leading-normal ${record.rank <= 3 ? 'text-yellow-500' : 'text-cyan-600'}`}
@@ -329,7 +431,7 @@ const PlayerProfileView: React.FC = () => {
                                                                 {UI_TEXT.playerProfile.tableHeaders.rank.replace('{rank}', record.rank.toString())}
                                                             </span>
                                                         </td>
-                                                        <td className="px-3 py-3 text-right">
+                                                        <td className="px-3 py-3 text-right w-24 md:w-28">
                                                             <span className="font-mono font-black text-[10px] md:text-[12px] text-slate-500 dark:text-slate-400">
                                                                 {record.score.toLocaleString()}
                                                             </span>

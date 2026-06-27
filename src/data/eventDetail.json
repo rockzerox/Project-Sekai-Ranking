@@ -179,7 +179,7 @@
   "178": {"unit":"3","type":"marathon","banner":"13","4starcard":"13,14,16","storyType":"unit_event","cardType":"permanent","tag":"-"},
   "179": {"unit":"0","type":"world_link","banner":"-","4starcard":"23,21,24,25,26,22","storyType":"world_link","cardType":"special_limited","tag":"-"},
   "180": {"unit":"99","type":"world_link","banner":"-","4starcard":"-","storyType":"world_link","cardType":"-","tag":"-"},
-  "181": {"unit":"99","type":"marathon","banner":"5","4starcard":"5,11,10,2,6,20","storyType":"mixed_event","cardType":"permanent","tag":"-"},
+  "181": {"unit":"99","type":"marathon","banner":"10","4starcard":"10,2,6,20","storyType":"mixed_event","cardType":"permanent","tag":"-"},
   "182": {"unit":"1","type":"marathon","banner":"1","4starcard":"1,3,4","storyType":"unit_event","cardType":"permanent","tag":"-"},
   "183": {"unit":"2","type":"marathon","banner":"8","4starcard":"8,7,25-2","storyType":"unit_event","cardType":"permanent","tag":"-"},
   "184": {"unit":"5","type":"marathon","banner":"19","4starcard":"19,17,26-5","storyType":"unit_event","cardType":"permanent","tag":"-"},

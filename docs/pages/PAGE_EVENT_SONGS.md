@@ -1,7 +1,7 @@
 # 活動曲目及MV (Event Songs and MVs) 頁面規格書
 
-**撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**撰寫日期**: 2026-06-27
+**版本號**: 1.2.0
 
 ## 1. 功能概述
 「活動曲目及MV」頁面位於「工具 SEKAI」分類下，主要提供 Project Sekai 台服各期活動的關聯歌曲資訊。
@@ -11,7 +11,8 @@
 此頁面整合了多個資料來源：
 *   **`src/data/song.json`**: 提供核心的歌曲資訊，包含 `songId`, `title`, `lyricist`, `composer`, `arranger`, `mv2d`, `mv3d`, `publishedAt`, `duration`, `bpm` 等。
 *   **`src/data/eventDetail.json`**: 透過 `eventId` 關聯，取得該活動的所屬團體 (`unit`) 與 Banner 角色 (`banner`)。
-*   **API `/event/list`**: 取得活動名稱與時間資訊。
+*   **API `/event/list`**: 取得活動名稱與開播時間資訊 (`start_at`)。
+*   **未來期數曲目動態隱藏過濾**: 透過比對各活動的 `start_at` 時間與當前本地系統時間 `now`，動態計算該活動是否已發布 (`isReleased`)。未上線的未來活動曲目資料會被自動過濾，確保資料同步且防止劇透外洩。
 
 ## 3. UI/UX 排版與設計
 *   **主題色**: 採用深色系 (Slate/Cyan) 風格，營造沉浸式體驗。
@@ -27,6 +28,7 @@
 2.  **角色 (Character)**: 篩選特定角色參與的歌曲。
 3.  **屬性 (Attribute)**: 篩選特定屬性（如 Cute, Cool 等）的歌曲。
 4.  **類型 (Type)**: 篩選歌曲類型（如書下曲、翻唱曲等）。
+5.  **開播狀態過濾 (Release Filtering)**: 系統預先過濾未開播活動的關聯曲目，只顯示已開播的有效歌曲，保障資料安全。
 
 **排序功能**:
 *   支援多種排序依據：上線時間 (預設)、BPM、時長、Note數 (Easy/Normal/Hard/Expert/Master)。

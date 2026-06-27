@@ -6,3 +6,5 @@ dist
 .agent/
 scripts/archived/
 plan/
+record.json
+gitlog.txt

@@ -4,6 +4,7 @@ dist
 *.log
 .DS_Store
 .agent/
+CLAUDE.md
 scripts/archived/
 plan/
 record.json

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { CHARACTER_MASTER, UNIT_MASTER, API_BASE_URL, UNIT_ORDER } from '../../config/constants';
+import { CHARACTER_MASTER, PLAYABLE_CHARACTERS, UNIT_MASTER, API_BASE_URL, UNIT_ORDER } from '../../config/constants';
 import { getAssetUrl } from '../../utils/gameUtils';
 import { useConfig } from '../../contexts/ConfigContext';
 import { fetchJsonWithBigInt } from '../../hooks/useRankings';
@@ -332,7 +332,7 @@ const PlayerStructureView: React.FC = () => {
                             </div>
 
                             <div className="grid grid-cols-8 sm:grid-cols-9 lg:grid-cols-7 gap-1.5">
-                                {Object.values(CHARACTER_MASTER).slice(0, analysisMode === 'fourStar' ? 26 : 20).map(char => {
+                                {PLAYABLE_CHARACTERS.slice(0, analysisMode === 'fourStar' ? 26 : 20).map(char => {
                                     const isS = selectedEntries.find(e => e.type === 'char' && e.id === char.id);
                                     return <button key={char.id} onClick={() => toggleEntry('char', char.id)} className={`w-7 h-7 lg:w-8 lg:h-8 rounded-full border-2 transition-all relative overflow-hidden ${isS ? 'scale-110 z-10 shadow-md ring-1 ring-offset-1 dark:ring-offset-slate-900 border-current' : 'opacity-25 grayscale hover:opacity-100'}`} style={{ color: isS ? char.color : 'transparent', '--tw-ring-color': char.color } as React.CSSProperties}><img src={getAssetUrl(char.id, 'character')} className="w-full h-full object-cover" /></button>;
                                 })}

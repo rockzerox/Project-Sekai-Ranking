@@ -1,5 +1,5 @@
 
-import { UNIT_ORDER, UNIT_MASTER, CHARACTER_MASTER } from '../config/constants';
+import { UNIT_ORDER, UNIT_MASTER, PLAYABLE_CHARACTERS } from '../config/constants';
 
 export const getUnitOptions = (allLabel: string | null = '團體') => {
     const options = UNIT_ORDER.filter(id => id !== "99").map(id => ({ value: id, label: UNIT_MASTER[id].name }));
@@ -7,7 +7,7 @@ export const getUnitOptions = (allLabel: string | null = '團體') => {
 };
 
 export const getBannerOptions = (allLabel: string | null = 'Banner') => {
-    const options = Object.values(CHARACTER_MASTER).slice(0, 26).map(char => ({ 
+    const options = PLAYABLE_CHARACTERS.map(char => ({ 
         value: char.id, 
         label: char.name,
         style: { color: char.color }
@@ -16,7 +16,7 @@ export const getBannerOptions = (allLabel: string | null = 'Banner') => {
 };
 
 export const getFourStarOptions = (allLabel: string | null = '四星') => {
-    const options = Object.values(CHARACTER_MASTER).slice(0, 26).map(char => ({ 
+    const options = PLAYABLE_CHARACTERS.map(char => ({ 
         value: char.id, 
         label: char.name,
         style: { color: char.color }

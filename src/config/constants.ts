@@ -49,3 +49,4 @@ export const CHARACTERS: Record<string, CharInfo> = {
 };
 
 export const CHARACTER_MASTER = CHARACTERS;
+export const PLAYABLE_CHARACTERS = Object.values(CHARACTERS).filter(c => c.id !== "0");

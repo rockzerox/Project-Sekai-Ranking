@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { EventSummary } from '../../types';
-import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL } from '../../config/constants';
+import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, PLAYABLE_CHARACTERS, API_BASE_URL } from '../../config/constants';
 import { getAssetUrl, getChar } from '../../utils/gameUtils';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorMessage from '../../components/ui/ErrorMessage';
@@ -257,7 +257,7 @@ const EventDistributionView: React.FC = () => {
                     <div className="flex-1 flex flex-col gap-2">
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">{UI_TEXT.eventDistribution.labels.char}</span>
                         <div className="flex flex-wrap gap-1.5">
-                            {Object.values(CHARACTER_MASTER).map(char => {
+                            {PLAYABLE_CHARACTERS.map(char => {
                                 const isS = filter.type === 'character' && filter.value === char.id;
                                 return (
                                     <button 
@@ -456,7 +456,7 @@ const EventDistributionView: React.FC = () => {
                             {(() => {
                                 const targetUnitId = filter.type === 'unit' ? filter.value : CHARACTER_MASTER[filter.value]?.unit || "99";
                                 const unitInfo = UNIT_MASTER[targetUnitId];
-                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => c.unit === targetUnitId);
+                                const unitMembers = PLAYABLE_CHARACTERS.filter(c => c.unit === targetUnitId);
 
                                 return (
                                     <>

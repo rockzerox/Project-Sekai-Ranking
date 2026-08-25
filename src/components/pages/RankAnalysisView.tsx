@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { EventSummary, HisekaiApiResponse, HisekaiBorderApiResponse } from '../../types';
+import { EventSummary } from '../../types';
 import { API_BASE_URL, MS_PER_DAY } from '../../config/constants';
 import { calculatePreciseDuration } from '../../utils/timeUtils';
 import DashboardTable from '../../components/ui/DashboardTable';
@@ -50,28 +50,29 @@ const RankAnalysisView: React.FC = () => {
 
                 const statsMap = new Map<number, EventStat>();
 
-                // 1. 獲取正在進行中的活動即時數據
+                // 1. 獲取正在進行中的活動即時數據 (使用大一統 API)
                 try {
-                    const [topData, borderData]: [HisekaiApiResponse, HisekaiBorderApiResponse] = await Promise.all([
-                        fetchJsonWithBigInt(`${API_BASE_URL}/event/live/top100`),
-                        fetchJsonWithBigInt(`${API_BASE_URL}/event/live/border`)
-                    ]);
-                    if (topData && alive) {
-                        const start = new Date(topData.start_at);
-                        const agg = new Date(topData.aggregate_at);
+                    const liveData: any = await fetchJsonWithBigInt(`${API_BASE_URL}/event/live/rankings`);
+                    if (liveData && alive) {
+                        const start = new Date(liveData.start_at);
+                        const agg = new Date(liveData.aggregate_at);
                         const remainingMs = Math.max(0, agg.getTime() - now.getTime());
                         const isStillActive = remainingMs > 0;
                         const durationEnd = isStillActive ? now : agg;
                         const durationDays = Math.max(0.1, (durationEnd.getTime() - start.getTime()) / MS_PER_DAY);
-                        const top1 = topData.top_100_player_rankings?.find(r => r.rank === 1)?.score || 0;
-                        const top10 = topData.top_100_player_rankings?.find(r => r.rank === 10)?.score || 0;
-                        const top50 = topData.top_100_player_rankings?.find(r => r.rank === 50)?.score || 0;
-                        const top100 = topData.top_100_player_rankings?.find(r => r.rank === 100)?.score || 0;
+                        
+                        const topRankings = liveData.rankings || [];
+                        const top1 = topRankings.find((r: any) => r.rank === 1)?.score || 0;
+                        const top10 = topRankings.find((r: any) => r.rank === 10)?.score || 0;
+                        const top50 = topRankings.find((r: any) => r.rank === 50)?.score || 0;
+                        const top100 = topRankings.find((r: any) => r.rank === 100)?.score || 0;
+                        
                         const borderScores: Record<number, number> = {};
-                        borderData?.border_player_rankings?.forEach(item => { borderScores[item.rank] = item.score; });
+                        (liveData.borders || []).forEach((item: any) => { borderScores[item.rank] = item.score; });
+                        
                         const liveStat: EventStat = { 
-                            eventId: topData.id, 
-                            eventName: topData.name, 
+                            eventId: liveData.id, 
+                            eventName: liveData.name, 
                             duration: durationDays, 
                             startYear: start.getFullYear(),
                             remainingDays: remainingMs / MS_PER_DAY, 

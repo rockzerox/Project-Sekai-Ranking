@@ -351,11 +351,13 @@ const PlayerProfileView: React.FC = () => {
                                                                 {/* 手機版 WL 章節小徽章 */}
                                                                 {activeHonorTab === 'wlChapter' && (
                                                                     <div className="flex items-center gap-1 mt-0.5 md:hidden">
-                                                                        <img
-                                                                            src={getAssetUrl(String(record.chapterCharId), 'character')}
-                                                                            alt=""
-                                                                            className="w-3.5 h-3.5 rounded-full border border-slate-200 dark:border-slate-700"
-                                                                        />
+                                                                        {getAssetUrl(String(record.chapterCharId), 'character') && (
+                                                                            <img
+                                                                                src={getAssetUrl(String(record.chapterCharId), 'character')}
+                                                                                alt=""
+                                                                                className="w-3.5 h-3.5 rounded-full border border-slate-200 dark:border-slate-700"
+                                                                            />
+                                                                        )}
                                                                         <span className="font-mono text-[9px] font-black text-slate-500">
                                                                             Ch.{wlDetails[record.eventId]?.chorder ? wlDetails[record.eventId].chorder.indexOf(String(record.chapterCharId)) + 1 : ''}
                                                                         </span>
@@ -405,11 +407,13 @@ const PlayerProfileView: React.FC = () => {
                                                                                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black text-white w-fit shadow-sm border border-white/10"
                                                                                 style={{ backgroundColor: char.color }}
                                                                             >
-                                                                                <img
-                                                                                    src={getAssetUrl(charIdStr, 'character')}
-                                                                                    alt=""
-                                                                                    className="w-3.5 h-3.5 rounded-full border border-white/20"
-                                                                                />
+                                                                                {getAssetUrl(charIdStr, 'character') && (
+                                                                                    <img
+                                                                                        src={getAssetUrl(charIdStr, 'character')}
+                                                                                        alt=""
+                                                                                        className="w-3.5 h-3.5 rounded-full border border-white/20"
+                                                                                    />
+                                                                                )}
                                                                                 {chapterOrder !== undefined && (
                                                                                     <span className="font-mono tracking-tighter opacity-90">
                                                                                         Ch.{chapterOrder}

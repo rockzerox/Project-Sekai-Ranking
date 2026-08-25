@@ -196,6 +196,7 @@ export interface WorldLinkInfo {
     chorder: string[];
     chDavg: number;
     isfinal: boolean;
+    chapters?: WorldLinkChapterLive[];
 }
 
 // --- Analysis Types ---

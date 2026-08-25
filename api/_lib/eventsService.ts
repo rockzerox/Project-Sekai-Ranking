@@ -40,6 +40,7 @@ export const syncEvents = async () => {
   const upsertData = apiEvents.map((apiEvent: any) => {
     const id = String(apiEvent.id);
     const existingEvent = existingEventsMap.get(id);
+    const isWl = Array.isArray(apiEvent.chapters) && apiEvent.chapters.length > 0;
     
     return {
       id: Number(id),
@@ -50,7 +51,7 @@ export const syncEvents = async () => {
       // 靜態欄位保留舊值，修正為正確的資料庫欄位名稱
       unit_id: existingEvent?.unit_id ?? null,
       banner: existingEvent?.banner ?? null, // 修正：從 banner_id 改為 banner
-      event_type: existingEvent?.event_type ?? null, // 修正：確保 event_type 正確同步
+      event_type: isWl ? 'world_link' : (existingEvent?.event_type ?? null), // 自動識別 WL 活動
       story_type: existingEvent?.story_type ?? null
     };
   });

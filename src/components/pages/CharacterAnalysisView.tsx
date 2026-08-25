@@ -55,7 +55,7 @@ const CharacterAnalysisView: React.FC = () => {
     const charThemeColor = tempChar?.color || '#0891b2';
     const isWlMode = storyType === 'world_link';
 
-    const charArray = useMemo(() => Object.values(CHARACTER_MASTER), []);
+    const charArray = useMemo(() => Object.values(CHARACTER_MASTER).filter(c => c.id !== '0'), []);
     const getVisibleChars = (centerId: string) => {
         const len = charArray.length;
         const centerIdx = charArray.findIndex(c => c.id === centerId);
@@ -119,6 +119,7 @@ const CharacterAnalysisView: React.FC = () => {
                     (wlStats || []).forEach((stat: any) => {
                         const wlId = stat.eventId;
                         const cid = String(stat.chapterCharId);
+                        if (cid === '0') return; // 排除全體
                         const eventInfo = events.find(e => e.id === wlId);
                         const detail = wlInfo[wlId];
                         const duration = detail?.chDavg || 3;

@@ -1,13 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// 讀取 World Link 詳細資訊以獲取各章節天數 (chDavg)
-const wlDetailPath = path.resolve(__dirname, '../../src/data/WorldLinkDetail.json');
-const wlDetails = JSON.parse(fs.readFileSync(wlDetailPath, 'utf8'));
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ 缺少 SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY");
@@ -18,6 +12,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function backfillWorldLinkBorders() {
   console.log('🚀 開始回填 World Link 歷史章節紅線 (Backfill WL Borders)...');
+  const listRes = await fetch('https://api.hisekai.org/tw/event/list');
+  const allEvents = listRes.ok ? await listRes.json() as any[] : [];
+  const eventsMap = new Map(allEvents.map((e: any) => [e.id, e]));
 
   // 1. 找出所有活動類別為 World Link 的活動
   const { data: wlEvents, error: evErr } = await supabase
@@ -70,10 +67,19 @@ async function backfillWorldLinkBorders() {
       
       const getS = (r: number) => list.find(x => x.rank === r)?.score || 0;
 
+      const eventData = eventsMap.get(ev.id);
+      const ch = eventData?.chapters?.find((c: any) => c.character === charId);
+      let duration = 3;
+      if (ch?.start_at && (ch?.aggregate_at || ch?.closed_at)) {
+        const s = new Date(ch.start_at).getTime();
+        const e = new Date(ch.aggregate_at || ch.closed_at).getTime();
+        duration = parseFloat(Math.max(0.1, (e - s) / 86400000).toFixed(2));
+      }
+
       upsertData.push({
         event_id: ev.id,
         chapter_char_id: charId,
-        duration_days: wlDetails[ev.id]?.chDavg || 3,
+        duration_days: duration,
         top1: getS(1),
         top10: getS(10),
         top50: getS(50),

@@ -77,6 +77,10 @@ const PastEventDetailView: React.FC<PastEventDetailViewProps> = ({ event, onBack
     const currentEventDuration = useMemo(() => {
         if (isWorldLink(event.id) && activeChapter !== 'all') {
             const wlInfo = getWlDetail(event.id);
+            const specificCh = wlInfo?.chapters?.find(c => String(c.character) === activeChapter);
+            if (specificCh?.start_at && (specificCh?.aggregate_at || specificCh?.closed_at)) {
+                return calculatePreciseDuration(specificCh.start_at, specificCh.aggregate_at || specificCh.closed_at);
+            }
             return wlInfo?.chDavg || 3;
         }
         const evt = allEvents.find(e => e.id === event.id);

@@ -79,7 +79,7 @@ const WorldLinkTabs: React.FC<WorldLinkTabsProps> = ({
                                     Ch.{ct.chapterOrder}
                                 </span>
                             )}
-                            <span className="hidden sm:inline">{char?.name || ct.charId}</span>
+                            <span className={ct.charId === '0' ? '' : 'hidden sm:inline'}>{char?.name || ct.charId}</span>
                         </button>
 
                         {tooltip && (

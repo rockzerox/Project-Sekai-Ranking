@@ -41,6 +41,8 @@ export const syncEvents = async () => {
     const id = String(apiEvent.id);
     const existingEvent = existingEventsMap.get(id);
     const isWl = Array.isArray(apiEvent.chapters) && apiEvent.chapters.length > 0;
+    const currentExtra = (existingEvent?.extra_data && typeof existingEvent.extra_data === 'object') ? existingEvent.extra_data : {};
+    const updatedExtra = isWl ? { ...currentExtra, chapters: apiEvent.chapters } : currentExtra;
     
     return {
       id: Number(id),
@@ -52,7 +54,8 @@ export const syncEvents = async () => {
       unit_id: existingEvent?.unit_id ?? null,
       banner: existingEvent?.banner ?? null, // 修正：從 banner_id 改為 banner
       event_type: isWl ? 'world_link' : (existingEvent?.event_type ?? null), // 自動識別 WL 活動
-      story_type: existingEvent?.story_type ?? null
+      story_type: existingEvent?.story_type ?? null,
+      extra_data: Object.keys(updatedExtra).length > 0 ? updatedExtra : null
     };
   });
 

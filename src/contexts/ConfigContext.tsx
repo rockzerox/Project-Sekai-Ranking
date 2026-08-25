@@ -4,6 +4,7 @@ import { EventDetail, WorldLinkInfo } from '../types';
 import { UNIT_MASTER, API_BASE_URL } from '../config/constants';
 import { getChar } from '../utils/gameUtils';
 import { getWlRound } from '../utils/timeUtils';
+import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import eventDataRaw from '../data/eventDetail.json';
 
 const eventData = eventDataRaw as Record<string, EventDetail>;
@@ -47,8 +48,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, []);
 
     useEffect(() => {
-        fetch(`${API_BASE_URL}/event/list`)
-            .then(res => res.json())
+        fetchJsonWithBigInt(`${API_BASE_URL}/event/list`)
             .then(data => {
                 if (Array.isArray(data)) setEventList(data);
                 setIsEventsLoading(false);
@@ -62,10 +62,11 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const wlDetails = useMemo(() => {
         const details: Record<number, WorldLinkInfo> = {};
         eventList.forEach(event => {
-            if (!event.chapters || !Array.isArray(event.chapters) || event.chapters.length === 0) return;
+            const rawChapters = event.chapters ?? event.extra_data?.chapters;
+            if (!rawChapters || !Array.isArray(rawChapters) || rawChapters.length === 0) return;
 
             // 1. 依 chapter 順序排列
-            const sortedChapters = [...event.chapters].sort((a, b) => (a.chapter || 0) - (b.chapter || 0));
+            const sortedChapters = [...rawChapters].sort((a, b) => (a.chapter || 0) - (b.chapter || 0));
             const chorder = sortedChapters.map(c => String(c.character));
             const isfinal = sortedChapters.some(c => c.character === 0);
             const round = getWlRound(event.start_at);

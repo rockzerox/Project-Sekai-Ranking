@@ -28,6 +28,13 @@ async function syncEvents() {
     const id = String(apiEvent.id);
     const ex = existingEventsMap.get(id);
     const isWl = Array.isArray(apiEvent.chapters) && apiEvent.chapters.length > 0;
+    
+    // 合併寫入 extra_data.chapters (D10)
+    const currentExtra = (ex?.extra_data && typeof ex.extra_data === 'object') ? ex.extra_data : {};
+    const updatedExtra = isWl 
+      ? { ...currentExtra, chapters: apiEvent.chapters }
+      : currentExtra;
+
     return {
       id: Number(id),
       name: apiEvent.name ?? ex?.name ?? null,
@@ -39,6 +46,7 @@ async function syncEvents() {
       banner: ex?.banner ?? null,
       event_type: isWl ? 'world_link' : (ex?.event_type ?? null),
       story_type: ex?.story_type ?? null,
+      extra_data: Object.keys(updatedExtra).length > 0 ? updatedExtra : null,
       chapters: apiEvent.chapters ?? []
     };
   });

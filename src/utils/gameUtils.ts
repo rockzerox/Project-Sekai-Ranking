@@ -23,6 +23,7 @@ export const getAssetUrl = (
     if (type === 'item') return `${BASE_ITEM_URL}/${idOrName}`;
     if (type === 'event') return `${BASE_IMAGE_URL}/event_logo/${idOrName}.png`;
     if (type.startsWith('character')) {
+        if (idOrName === '0' || idOrName === '全體') return undefined;
         let filename = idOrName;
         if (!idOrName.includes('-')) {
             const char = getChar(idOrName);

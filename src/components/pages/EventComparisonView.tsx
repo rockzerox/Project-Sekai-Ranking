@@ -67,7 +67,9 @@ const EventComparisonView: React.FC = () => {
         wlEvents.forEach(e => {
             const info = getWlDetail(e.id);
             if (info && info.round.toString() === roundStr) {
-                info.chorder.forEach(charId => chars.add(charId));
+                info.chorder.forEach(charId => {
+                    if (charId !== '0') chars.add(charId);
+                });
             }
         });
         

@@ -3,6 +3,7 @@ import { CharInfo, UnitInfo } from '../types';
 
 export const API_BASE_URL = "/api";
 export const MS_PER_DAY = 86400000;
+export const WL_ROUND1_ANNIVERSARY_YEAR = 2024;
 
 export const UNITS: Record<string, UnitInfo> = {
     "1": { name: "Leo/need", color: "#4455DD", abbr: "LN", style: "bg-blue-600 text-white", urlKey: "LN" },
@@ -18,6 +19,7 @@ export const UNIT_MASTER = UNITS;
 export const UNIT_ORDER = ["1", "2", "3", "4", "5", "0", "99"];
 
 export const CHARACTERS: Record<string, CharInfo> = {
+    "0": { id: "0", name: "全體", color: "#33CCBB", unit: "99" },
     "1": { id: "1", name: "星乃一歌", color: "#33AAEE", unit: "1" },
     "2": { id: "2", name: "天馬咲希", color: "#FFDD44", unit: "1" },
     "3": { id: "3", name: "望月穗波", color: "#EE6666", unit: "1" },
@@ -47,3 +49,4 @@ export const CHARACTERS: Record<string, CharInfo> = {
 };
 
 export const CHARACTER_MASTER = CHARACTERS;
+export const PLAYABLE_CHARACTERS = Object.values(CHARACTERS).filter(c => c.id !== "0");

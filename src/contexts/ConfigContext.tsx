@@ -1,13 +1,13 @@
 
 import React, { createContext, useContext, ReactNode, useCallback, useMemo, useState, useEffect } from 'react';
 import { EventDetail, WorldLinkInfo } from '../types';
-import { UNIT_MASTER } from '../config/constants';
+import { UNIT_MASTER, API_BASE_URL } from '../config/constants';
 import { getChar } from '../utils/gameUtils';
+import { getWlRound } from '../utils/timeUtils';
+import { fetchJsonWithBigInt } from '../hooks/useRankings';
 import eventDataRaw from '../data/eventDetail.json';
-import wlDataRaw from '../data/WorldLinkDetail.json';
 
 const eventData = eventDataRaw as Record<string, EventDetail>;
-const wlData = wlDataRaw as Record<string, WorldLinkInfo>;
 
 export interface PrevRoundScore {
     top1: number;
@@ -34,6 +34,11 @@ interface ConfigContextType {
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
 
 export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [eventList, setEventList] = useState<any[]>([]);
+    const [isEventsLoading, setIsEventsLoading] = useState(true);
+    const [wlStats, setWlStats] = useState<any[]>([]);
+    const [isStatsLoading, setIsStatsLoading] = useState(true);
+
     const eventDetails = useMemo(() => {
         const details: Record<number, EventDetail> = {};
         for (const key in eventData) {
@@ -42,13 +47,58 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return details;
     }, []);
 
+    useEffect(() => {
+        fetchJsonWithBigInt(`${API_BASE_URL}/event/list`)
+            .then(data => {
+                if (Array.isArray(data)) setEventList(data);
+                setIsEventsLoading(false);
+            })
+            .catch(err => {
+                console.error("ConfigContext: Failed to fetch event list", err);
+                setIsEventsLoading(false);
+            });
+    }, []);
+
     const wlDetails = useMemo(() => {
         const details: Record<number, WorldLinkInfo> = {};
-        for (const key in wlData) {
-            details[Number(key)] = wlData[key];
-        }
+        eventList.forEach(event => {
+            const rawChapters = event.chapters ?? event.extra_data?.chapters;
+            if (!rawChapters || !Array.isArray(rawChapters) || rawChapters.length === 0) return;
+
+            // 1. 依 chapter 順序排列
+            const sortedChapters = [...rawChapters].sort((a, b) => (a.chapter || 0) - (b.chapter || 0));
+            const chorder = sortedChapters.map(c => String(c.character));
+            const isfinal = sortedChapters.some(c => c.character === 0);
+            const round = getWlRound(event.start_at);
+
+            // 2. 計算平均章節天數 chDavg
+            let chDavg = 3;
+            if (sortedChapters.length === 1) {
+                const ch = sortedChapters[0];
+                const s = new Date(ch.start_at).getTime();
+                const e = new Date(ch.aggregate_at || ch.closed_at).getTime();
+                chDavg = Math.max(1, Math.round((e - s) / (1000 * 60 * 60 * 24)));
+            } else if (sortedChapters.length > 1) {
+                const intervals: number[] = [];
+                for (let i = 0; i < sortedChapters.length - 1; i++) {
+                    const s1 = new Date(sortedChapters[i].start_at).getTime();
+                    const s2 = new Date(sortedChapters[i + 1].start_at).getTime();
+                    intervals.push((s2 - s1) / (1000 * 60 * 60 * 24));
+                }
+                const avg = intervals.reduce((acc, v) => acc + v, 0) / intervals.length;
+                chDavg = Math.max(1, Math.round(avg));
+            }
+
+            details[event.id] = {
+                round,
+                chorder,
+                chDavg,
+                isfinal,
+                chapters: sortedChapters
+            };
+        });
         return details;
-    }, []);
+    }, [eventList]);
 
     const getEventColor = useCallback((eventId: number): string | undefined => {
         const details = eventDetails[eventId];
@@ -76,21 +126,24 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             .sort((a, b) => a - b);
     }, [wlDetails]);
 
-    const [wlStats, setWlStats] = useState<any[]>([]);
-
     useEffect(() => {
         fetch('/api/stats/border-stats')
             .then(res => res.json())
             .then(data => {
                 const stats = data.wlStats || data.data?.wlStats || [];
                 setWlStats(stats);
+                setIsStatsLoading(false);
             })
-            .catch(err => console.error("Failed to fetch wlStats for ConfigContext", err));
+            .catch(err => {
+                console.error("Failed to fetch wlStats for ConfigContext", err);
+                setIsStatsLoading(false);
+            });
     }, []);
 
     const getPrevRoundWlChapterScore = useCallback((eventId: number, charId: string): PrevRoundScore | null => {
         const currentDetail = wlDetails[eventId];
-        if (!currentDetail || !charId || charId === 'all') return null;
+        // D6: character: 0 (全體) 無跨輪同角色，直接回傳 null
+        if (!currentDetail || !charId || charId === 'all' || charId === '0') return null;
         
         const round = currentDetail.round;
         let prevEventId = 0;
@@ -129,8 +182,8 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         getWlDetail,
         getWlIdsByRound,
         getPrevRoundWlChapterScore,
-        isLoading: false
-    }), [eventDetails, wlDetails, getEventColor, isWorldLink, getWlDetail, getWlIdsByRound, getPrevRoundWlChapterScore]);
+        isLoading: isEventsLoading || isStatsLoading
+    }), [eventDetails, wlDetails, getEventColor, isWorldLink, getWlDetail, getWlIdsByRound, getPrevRoundWlChapterScore, isEventsLoading, isStatsLoading]);
 
     return (
         <ConfigContext.Provider value={value}>

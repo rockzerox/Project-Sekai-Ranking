@@ -1,14 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import * as fs from 'fs';
-import * as path from 'path';
 import 'dotenv/config';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// 讀取 World Link 詳細資訊以獲取各章節天數 (chDavg)
-const wlDetailPath = path.resolve(__dirname, '../../src/data/WorldLinkDetail.json');
-const wlDetails = JSON.parse(fs.readFileSync(wlDetailPath, 'utf8'));
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ 缺少 SUPABASE_URL 或 SUPABASE_SERVICE_ROLE_KEY");
@@ -33,6 +27,14 @@ async function syncEvents() {
   const upsertData = apiEvents.map(apiEvent => {
     const id = String(apiEvent.id);
     const ex = existingEventsMap.get(id);
+    const isWl = Array.isArray(apiEvent.chapters) && apiEvent.chapters.length > 0;
+    
+    // 合併寫入 extra_data.chapters (D10)
+    const currentExtra = (ex?.extra_data && typeof ex.extra_data === 'object') ? ex.extra_data : {};
+    const updatedExtra = isWl 
+      ? { ...currentExtra, chapters: apiEvent.chapters }
+      : currentExtra;
+
     return {
       id: Number(id),
       name: apiEvent.name ?? ex?.name ?? null,
@@ -42,12 +44,15 @@ async function syncEvents() {
       ranking_announce_at: apiEvent.ranking_announce_at ?? ex?.ranking_announce_at ?? null,
       unit_id: ex?.unit_id ?? null,
       banner: ex?.banner ?? null,
-      event_type: ex?.event_type ?? null,
-      story_type: ex?.story_type ?? null
+      event_type: isWl ? 'world_link' : (ex?.event_type ?? null),
+      story_type: ex?.story_type ?? null,
+      extra_data: Object.keys(updatedExtra).length > 0 ? updatedExtra : null,
+      chapters: apiEvent.chapters ?? []
     };
   });
 
-  const { error } = await supabase.from('events').upsert(upsertData);
+  const dbPayload = upsertData.map(({ chapters, ...rest }) => rest);
+  const { error } = await supabase.from('events').upsert(dbPayload);
   if (error) throw new Error(`[Supabase] events upsert 失敗: ${error.message}`);
   
   console.log(`✅ 成功同步 ${upsertData.length} 筆活動資料。\n`);
@@ -204,9 +209,13 @@ async function ingestEventRankings(ev: any) {
     for (const charIdStr in chapterMap) {
       const charId = parseInt(charIdStr);
       const list = chapterMap[charId];
-      const getWLScore = (r: number) => list.find(x => x.rank === r)?.score || 0;
-
-      const duration = wlDetails[eventId]?.chDavg || 3;
+      const chInfo = ev.chapters?.find((c: any) => c.character === charId);
+      let duration = 3;
+      if (chInfo?.start_at && (chInfo?.aggregate_at || chInfo?.closed_at)) {
+        const chStart = new Date(chInfo.start_at).getTime();
+        const chEnd = new Date(chInfo.aggregate_at || chInfo.closed_at).getTime();
+        duration = parseFloat(Math.max(0.1, (chEnd - chStart) / (1000 * 60 * 60 * 24)).toFixed(2));
+      }
 
       wlUpsertData.push({
         event_id: eventId,

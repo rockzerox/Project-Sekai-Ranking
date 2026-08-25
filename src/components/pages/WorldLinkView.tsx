@@ -188,7 +188,7 @@ const WorldLinkView: React.FC = () => {
                     const orderIdx = chapterIds.indexOf(charId);
                     const charInfo = CHARACTERS[charId];
 
-                    if (charInfo && orderIdx !== -1) {
+                    if (charInfo && orderIdx !== -1 && charId !== '0') {
                         tempStats.push({
                             charName: charInfo.name,
                             charId: charInfo.id,

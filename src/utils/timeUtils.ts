@@ -1,6 +1,6 @@
 
-import { MS_PER_DAY } from '../config/constants';
-import { WorldLinkInfo } from '../types';
+import { MS_PER_DAY, WL_ROUND1_ANNIVERSARY_YEAR } from '../config/constants';
+import { WorldLinkChapterLive } from '../types';
 
 export const calculatePreciseDuration = (start: string, aggregate: string): number => {
     const s = new Date(start).getTime();
@@ -23,6 +23,25 @@ export const getEventStatus = (start: string, aggregate: string, closed: string,
     return 'past';
 };
 
+// ─── World Link Round Algorithm ──────────────────────────────────────────────
+
+/**
+ * 動態推導 World Link 輪次 (Round)
+ * 基準：以台服 3 週年 (2024-09-30) 為 Round 1 基準，免維護即時推導
+ * @param startAt 活動開始時間 (ISO8601 string)
+ * @param overrideRound 可選覆寫 (未來安全閥)
+ */
+export function getWlRound(startAt: string, overrideRound?: number): number {
+    if (overrideRound !== undefined && overrideRound > 0) return overrideRound;
+    const d = new Date(startAt);
+    const y = d.getUTCFullYear();
+    // 每年 9/30 00:00:00 UTC (月份索引 8 代表 9 月)
+    const annivUtc = Date.UTC(y, 8, 30, 0, 0, 0, 0);
+    const annivYear = d.getTime() >= annivUtc ? y : y - 1;
+    const round = annivYear - (WL_ROUND1_ANNIVERSARY_YEAR - 1); // annivYear - 2023
+    return Math.max(1, round);
+}
+
 // ─── World Link Chapter Timing ───────────────────────────────────────────────
 
 export type WlChapterStatus = 'not_started' | 'warming' | 'active' | 'calculating' | 'ended';
@@ -44,47 +63,15 @@ const CALC_MS = 10 * 60 * 1000;  // 10 minutes
  * Pure function — pass in the current timestamp as `now`.
  */
 export function getWlChapterTimings(
-    wlInfo: WorldLinkInfo | null,
-    eventStartAt: string,
-    now: number,
-    apiChapters?: any[]
+    chapters: WorldLinkChapterLive[] | { charId: string; startAt: string; aggregateAt: string; closedAt?: string; chapterOrder?: number }[] | undefined,
+    now: number
 ): WlChapterTiming[] {
-    // If API provides explicit chapter details with ordering (Live Event New API)
-    if (apiChapters && apiChapters.some(ch => ch.chapterOrder !== undefined)) {
-        // Sort by API chapterOrder
-        const sorted = [...apiChapters].sort((a, b) => (a.chapterOrder || 0) - (b.chapterOrder || 0));
-        return sorted.map(ch => {
-            const start = new Date(ch.startAt || eventStartAt).getTime();
-            const end = new Date(ch.aggregateAt || ch.closedAt || start + 86400000).getTime();
-            const announce = end + CALC_MS;
+    if (!chapters || chapters.length === 0) return [];
 
-            let status: WlChapterStatus;
-            if      (now < start)          status = 'not_started';
-            else if (now < start + WARM_MS) status = 'warming';
-            else if (now < end)             status = 'active';
-            else if (now < announce)        status = 'calculating';
-            else                            status = 'ended';
-
-            return {
-                charId: String(ch.gameCharacterId),
-                startAt: new Date(start).toISOString(),
-                aggregateAt: new Date(end).toISOString(),
-                rankingAnnounceAt: new Date(announce).toISOString(),
-                status,
-                chapterOrder: ch.chapterOrder,
-            };
-        });
-    }
-
-    // Fallback: Use static WorldLinkDetail.json
-    if (!wlInfo) return [];
-
-    const base = new Date(eventStartAt).getTime();
-    const chunkMs = wlInfo.chDavg * 86400000;
-
-    return wlInfo.chorder.map((charId, i) => {
-        const start    = base + i * chunkMs;
-        const end      = base + (i + 1) * chunkMs;
+    return chapters.map((ch: any) => {
+        const charId = String(ch.character ?? ch.charId ?? ch.gameCharacterId);
+        const start = new Date(ch.start_at || ch.startAt).getTime();
+        const end = new Date(ch.aggregate_at || ch.aggregateAt || ch.closed_at || ch.closedAt || start + 86400000).getTime();
         const announce = end + CALC_MS;
 
         let status: WlChapterStatus;
@@ -96,10 +83,11 @@ export function getWlChapterTimings(
 
         return {
             charId,
-            startAt:            new Date(start).toISOString(),
-            aggregateAt:        new Date(end).toISOString(),
-            rankingAnnounceAt:  new Date(announce).toISOString(),
+            startAt: new Date(start).toISOString(),
+            aggregateAt: new Date(end).toISOString(),
+            rankingAnnounceAt: new Date(announce).toISOString(),
             status,
+            chapterOrder: ch.chapter ?? ch.chapterOrder,
         };
     });
 }

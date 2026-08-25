@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { EventSummary } from '../../types';
-import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, API_BASE_URL } from '../../config/constants';
+import { UNIT_MASTER, UNIT_ORDER, CHARACTER_MASTER, PLAYABLE_CHARACTERS, API_BASE_URL } from '../../config/constants';
 import { getAssetUrl, getChar } from '../../utils/gameUtils';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorMessage from '../../components/ui/ErrorMessage';
@@ -257,7 +257,7 @@ const EventDistributionView: React.FC = () => {
                     <div className="flex-1 flex flex-col gap-2">
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">{UI_TEXT.eventDistribution.labels.char}</span>
                         <div className="flex flex-wrap gap-1.5">
-                            {Object.values(CHARACTER_MASTER).map(char => {
+                            {PLAYABLE_CHARACTERS.map(char => {
                                 const isS = filter.type === 'character' && filter.value === char.id;
                                 return (
                                     <button 
@@ -267,7 +267,9 @@ const EventDistributionView: React.FC = () => {
                                         className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition-all duration-300 relative overflow-hidden ${isS ? 'ring-2 ring-cyan-500 ring-offset-2 dark:ring-offset-slate-800 scale-110 z-10' : 'border-transparent opacity-80 hover:opacity-100 hover:scale-110'} ${filter.type==='unit' ? 'opacity-20 grayscale cursor-not-allowed' : 'cursor-pointer'}`} 
                                         style={{ borderColor: isS ? char.color : 'transparent' }}
                                     >
-                                        <img src={getAssetUrl(char.id, 'character')} alt={char.name} className="w-full h-full object-cover" />
+                                        {getAssetUrl(char.id, 'character') && (
+                                            <img src={getAssetUrl(char.id, 'character')} alt={char.name} className="w-full h-full object-cover" />
+                                        )}
                                     </button>
                                 );
                             })}
@@ -456,7 +458,7 @@ const EventDistributionView: React.FC = () => {
                             {(() => {
                                 const targetUnitId = filter.type === 'unit' ? filter.value : CHARACTER_MASTER[filter.value]?.unit || "99";
                                 const unitInfo = UNIT_MASTER[targetUnitId];
-                                const unitMembers = Object.values(CHARACTER_MASTER).filter(c => c.unit === targetUnitId);
+                                const unitMembers = PLAYABLE_CHARACTERS.filter(c => c.unit === targetUnitId);
 
                                 return (
                                     <>
@@ -468,7 +470,9 @@ const EventDistributionView: React.FC = () => {
                                                 const isM = filter.type==='character'&&filter.value===m.id;
                                                 return (
                                                     <div key={m.id} className={`relative rounded-full transition-all duration-300 ${isM ? 'ring-2 ring-cyan-500 ring-offset-2 z-10 scale-110 shadow-lg' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0 hover:scale-105'}`} style={{ borderColor: isM ? m.color : 'transparent' }}>
-                                                        <img src={getAssetUrl(m.id, 'character')} alt={m.name} className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 bg-slate-200 object-cover shadow-sm" />
+                                                        {getAssetUrl(m.id, 'character') && (
+                                                            <img src={getAssetUrl(m.id, 'character')} alt={m.name} className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 bg-slate-200 object-cover shadow-sm" />
+                                                        )}
                                                     </div>
                                                 );
                                             })}

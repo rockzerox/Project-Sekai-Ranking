@@ -211,7 +211,7 @@ const PastEventsView: React.FC<PastEventsViewProps> = ({ onSelectEvent }) => {
                 const bannerImg = (details.banner !== '-') ? getAssetUrl(details.banner, 'character') : null;
                 const eventLogoUrl = getAssetUrl(event.id.toString(), 'event');
 
-                const starCards = details["4starcard"]?.split(',').map(id => id.trim()) || [];
+                const starCards = details["4starcard"]?.split(',').map(id => id.trim()).filter(id => id && id !== '-') || [];
 
                 return (
                     <button key={event.id} disabled={!isClickable} onClick={() => isClickable && onSelectEvent(event.id, event.name)} className={`text-left bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4 transition-all duration-200 w-full relative overflow-hidden flex flex-col justify-between h-full ${isClickable ? 'hover:border-cyan-500/50 hover:bg-slate-50 dark:hover:bg-slate-800 group cursor-pointer hover:-translate-y-1 shadow-sm hover:shadow-md' : 'opacity-60 cursor-not-allowed grayscale-[0.5]'}`}>

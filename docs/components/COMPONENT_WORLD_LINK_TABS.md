@@ -1,7 +1,7 @@
 # 🧩 組件規格說明書 - World Link 標籤列 (World Link Tabs)
 
-**撰寫日期**: 2026-03-29
-**版本號**: 1.0.0
+> **Version**: v1.1.0
+> **Date**: 2026-08-25
 
 **文件代號**: `COMPONENT_WORLD_LINK_TABS`
 **對應視圖**: `src/components/shared/WorldLinkTabs.tsx`
@@ -20,7 +20,9 @@
     *   **準備中 (Warming)**: 排名數據結算前過渡期，無法點擊，懸停顯示「資料尚未就緒，請稍後」。
 *   **響應式設計 (Responsive Design)**:
     *   **桌機版**: 顯示角色頭像 (Avatar) 與角色名稱。
-    *   **手機版 (小螢幕)**: 自動隱藏文字（利用 `hidden sm:inline`），僅保留角色頭像，讓有限的螢幕寬度也能容納多至 6 個章節的按鈕。
+    *   **手機版 (小螢幕)**: 一般角色自動隱藏文字（利用 `hidden sm:inline`），僅保留角色頭像；特殊終章（`charId === "0"` 全體）因無頭像，文字標籤維持恆顯示，避免產生空白膠囊。
+*   **特殊終章支援 (`charId === "0"`)**:
+    *   代表色為 `#33CCBB`（Sekai Teal），`getAssetUrl` 回傳 `undefined` 自動隱藏 `<img>` 標籤，不產生 404 請求。
 *   **橫向滾動 (Horizontal Scroll)**: 外層容器帶有 `overflow-x-auto no-scrollbar`，確保在章節過多時也不會影響版面結構。
 
 ---
@@ -29,9 +31,10 @@
 
 ```typescript
 export interface WorldLinkChapterTab {
-    charId: string;           // 角色 ID ("1" ~ "26")
+    charId: string;           // 角色 ID ("1" ~ "26", 或特殊終章 "0")
     status?: WlChapterStatus; // optional: 未傳入代表自由切換 (例如過去活動)
     startAt?: string;         // optional: 未開始時的倒數計時提示用
+    chapterOrder?: number;    // 官方章節順序
 }
 
 interface WorldLinkTabsProps {

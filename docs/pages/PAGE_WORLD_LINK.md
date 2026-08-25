@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - World Link 分析 (World Link Analysis)
 
-**撰寫日期**: 2026-03-16
-**版本號**: 2.0.1
+> **Version**: v2.1.0
+> **Date**: 2026-08-25
 
 **文件代號**: `PAGE_WORLD_LINK`
 **對應視圖**: `currentView === 'worldLink'` (src/App.tsx)
@@ -14,10 +14,12 @@
 World Link 活動將一次活動拆分為多個章節 (Chapters)，每個章節對應不同角色且天數可能不同。本頁面旨在標準化這些數據以進行公平比較。
 
 ### 1.1 核心功能
-*   **輪次切換**: 支援切換「第一輪 (Round 1)」、「第二輪 (Round 2)」與「第三輪 (Round 3)」的 World Link 活動群組。
+*   **輪次切換**: 支援切換「第一輪 (Round 1)」、「第二輪 (Round 2)」等 World Link 活動群組（由 `getWlRound` 基於台服 3 週年起算動態推導，免手動設定）。
 *   **日均分校正 (Daily Average Correction)**:
-    *   由於 WL 各章節持續天數可能不同（例如第 140 期某些章節為 2 天，其餘多為 3 天），系統會讀取設定檔中的 `chDavg` 進行權重校正。
+    *   由於 WL 各章節持續天數可能不同（例如第 140 期每章為 2 天，第 163 期為 3 天），系統由各章節真實 `start_at` 與 `closed_at` 動態計算 `chDavg` 進行權重校正。
     *   提供「總分 (Total)」與「日均 (Daily)」兩種視角。
+*   **角色隔離與全體模型**:
+    *   特殊終章（`character: 0`，全體）不屬於個別角色熱度比較，在 `WorldLinkView` 的角色綜合排行中予以**安全過濾**，確保 26 位個別角色數據精確對齊。
 *   **雙模式圖表**:
     *   **活躍度模式 (Activity)**: 以橫向長條圖比較各角色的絕對分數。可選擇比較 Top 1, Top 10, Top 100 或特定邊線 (Border)。
     *   **全域顯示 (Global)**: 以 **T100** 或 **T500** 為基準線 (Base)，將各角色的 T200/T300...T10000 分數標準化為百分比，視覺化呈現「競爭熱度分佈」。
@@ -37,16 +39,14 @@ World Link 活動將一次活動拆分為多個章節 (Chapters)，每個章節�
 ### 2.1 資料結構與獲取
 位於 `src/components/pages/WorldLinkView.tsx`。
 
-*   **設定檔依賴**: 高度依賴 `ConfigContext` 中的 `wlDetails` 與 `getWlIdsByRound`。
-*   **資料獲取**:
-    *   **歷史戰績**: 優先從 **Supabase** (`userWorldBloomChapterRankings`) 查詢已歸檔的 WL 章節排名資料。
-    *   **API 補強**: 若 Supabase 無資料，則發起對 Hi Sekai API 的請求。
+*   **動態 Context 依賴**: 高度依賴 `ConfigContext` 中的 `wlDetails` 與 `getWlIdsByRound`（由 `/api/event/list` 動態解析與 `getWlRound` 推導，`WorldLinkDetail.json` 已淘汰）。
+*   **資料獲取**: 透過 `/api/stats/border-stats` 一次性獲取 `wlStats`，並依據選定的 Round 過濾目標活動。
 *   **聚合邏輯 (Aggregation)**:
-    1.  根據選定的 Round (1, 2, 3) 取得所有相關 Event IDs。
-    2.  並行請求每個 Event 的 `/top100` 與 `/border`。
-    3.  從 API 回傳的 `userWorldBloomChapterRankings` 與 `userWorldBloomChapterRankingBorders` 中，提取各角色的子榜單數據。
-    4.  將數據展平 (Flatten) 為 `AggregatedCharStat` 陣列，包含角色名稱、顏色、所屬期數、各名次分數、持續時間與章節順序。
-*   **進度回饋**: 由於需同時請求多個活動數據，介面會顯示讀取進度條 (Loading Progress)。
+    1.  根據選定的 Round 取得所有相關 Event IDs。
+    2.  遍歷 `wlStats`，透過 `ConfigContext` 動態取得各章節角色 ID、天數 (`chDavg`) 與章節順序 (`chapterOrder`)。
+    3.  過濾排除 `charId === '0'`（全體）。
+    4.  將數據展平為 `AggregatedCharStat` 陣列，包含角色名稱、顏色、所屬期數、各名次分數、持續時間與章節順序。
+*   **進度回饋**: 介面顯示讀取進度條 (Loading Progress)。
 
 ### 2.2 圖表渲染邏輯
 *   **HorizontalBarChart (Activity Mode)**:
@@ -129,5 +129,6 @@ View->>User: 渲染長條圖/分佈圖或四榜並列清單
 
 ## 6. 變更日誌 (Change Log)
 
+*   **v2.1.0 (2026-08-25)**: WL API Chapters 重構完成：淘汰靜態 `WorldLinkDetail.json`，改由原生動態 chapters 與週年推導演算法 `getWlRound` 驅動；增加特殊終章 `character: 0`（全體）過濾保護。
 *   **v2.0.1 (2026-04-05)**: 新增手機端 Compact Mode（`useMobile` 控制），修正手機視窗圖表密度過低問題。`HorizontalBarChart` 與 `GlobalScoreChart` 均已支援 `isMobile` prop 自動切換縮圖尺寸。
 *   **v2.0.0 (2026-03-16)**: 初版規格建立，雙模式圖表（Activity / Global）、輪次切換、日均分校正

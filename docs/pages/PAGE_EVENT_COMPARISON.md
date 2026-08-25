@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 活動比較分析 (Event Comparison)
 
-**撰寫日期**: 2026-03-16
-**版本號**: 2.0.0
+> **Version**: v2.1.0
+> **Date**: 2026-08-25
 
 **文件代號**: `PAGE_EVENT_COMPARISON`
 **對應視圖**: `currentView === 'comparison'` (src/App.tsx)
@@ -30,7 +30,7 @@
     *   **勝出判定**: 系統自動標示哪一期/哪位角色在特定區間更為「卷」(競爭激烈)。
 
 ### 1.2 互動機制
-*   **動態連動選單 (World Link 模式)**: 選擇「第 X 輪」後，「角色」下拉選單會自動過濾，僅顯示該輪次有出場的角色，避免無效選擇。
+*   **動態連動選單 (World Link 模式)**: 選擇「第 X 輪」後，「角色」下拉選單會透過 `getAvailableCharsForRound` 自動過濾出該輪次出場的角色，並嚴格濾除 `'0'`（全體），避免將非角色終章放入個別角色對比中。若對比終章查詢前一輪分數，`getPrevRoundWlChapterScore('0')` 安全回傳 `null`。
 *   **鼠標追蹤 (Crosshair)**: 滑鼠在圖表移動時，自動吸附至最近的排名點，並透過 `PortalTooltip` 顯示兩者在該名次的具體分數，解決 tooltip 被 SVG 邊界截斷的問題。
 *   **緊湊型過濾器 (Compact Filters)**: 一般模式下，使用 `EventFilterGroup` 的緊湊模式，將複雜的篩選條件收納於彈出選單中，保持畫面簡潔。
 

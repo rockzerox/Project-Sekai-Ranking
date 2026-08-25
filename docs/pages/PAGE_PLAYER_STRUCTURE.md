@@ -40,7 +40,7 @@
 位於 `src/components/pages/PlayerStructureView.tsx`。
 
 *   **單次查詢**: 
-    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank <= 100 AND chapter_char_id IS NULL`。
+    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank <= 100 AND chapter_char_id = -1`。
 *   **排除機制**: 自動排除 `World Link` 活動，因為其榜單結構不同，會汙染 `U(K)` 計算。
 *   **集合運算**:
     *   建立 100 個 `Set<string>`，分別對應 Rank 1 到 Rank 100。

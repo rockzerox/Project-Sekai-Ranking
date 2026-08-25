@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 現時活動 (Live Event)
 
-**撰寫日期**: 2026-06-26
-**版本號**: 1.4.0
+> **Version**: v1.5.0
+> **Date**: 2026-08-25
 
 **文件代號**: `PAGE_LIVE_EVENT`
 **對應視圖**: `currentView === 'live'` (src/components/pages/LiveEventView.tsx)
@@ -87,6 +87,15 @@ const giveUpThreshold = targetScore - maxGain;
 
 ---
 
+
+### 2.4 World Link 即時章節時程推算 (Dynamic Chapter Timings)
+當進行中的活動為 World Link 時，系統透過 `getWlChapterTimings` 純函式，以各章節真實 `start_at`, `aggregate_at`, `closed_at` 計算各章狀態與倒數：
+*   **`not_started`**: 當前時間早於章節開始時間。
+*   **`warming`**: 章節開始前 3 分鐘內（資料準備中）。
+*   **`active`**: 章節進行中。
+*   **`calculating`**: 章節結束至公佈前 10 分鐘（結算中）。
+*   **`ended`**: 章節已結束。
+Fallback 機制由 `ConfigContext` 提供的 `wlDetails[liveEventId].chapters` 直接驅動，不再依賴靜態檔。
 
 ## 3. UI/UX 排版設計 (UI Layout)
 

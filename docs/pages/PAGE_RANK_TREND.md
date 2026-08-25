@@ -36,7 +36,7 @@
 1.  **取得列表**: 初始化時先取得全活動列表 `allEvents`。
 2.  **範圍過濾**: 根據使用者選擇的模式 (All/Year/ID)，篩選出 `targetEvents`。
 3.  **單次查詢**: 
-    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank = selectedRank AND chapter_char_id IS NULL`。
+    *   使用 Supabase 客戶端發起單次查詢：`SELECT * FROM event_rankings WHERE event_id IN (...) AND rank = selectedRank AND chapter_char_id = -1`。
 4.  **錯誤處理**: 若某期活動無該名次數據（例如早期的 T10000），則該點數值為 0 或被過濾。
 
 ### 2.2 圖表繪製與統計 (Chart & Stats)

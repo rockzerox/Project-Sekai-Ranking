@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 玩家狀態查詢 (Player Profile)
 
-**撰寫日期**: 2026-06-27
-**版本號**: 2.1.0
+> **Version**: v2.2.0
+> **Date**: 2026-08-25
 
 **文件代號**: `PAGE_PLAYER_PROFILE`
 **對應視圖**: `currentView === 'playerProfile'` (src/App.tsx)
@@ -31,8 +31,9 @@
 *   **個人檔案**: `/user/{userId}/profile` (Hi Sekai API)。
 *   **歷史戰績**: `event_rankings` (Supabase)。
 *   **過濾與分類**:
-    *   **一般榜**: 透過 `chapter_char_id` 為空的邏輯（`.is('chapter_char_id', null)`）篩選出一般的 Top 100 活動總榜紀錄。
-    *   **WL章節榜**: 透過 `chapter_char_id` 不為空的邏輯（`.not('chapter_char_id', 'is', null)`）篩選出 World Link 各章節個人角色的排名紀錄。
+    *   **一般榜**: 透過 `chapter_char_id = -1`（或 null）篩選出一般的 Top 100 活動總榜紀錄。
+    *   **WL章節榜**: 透過 `chapter_char_id >= 0` 篩選出 World Link 各章節個人角色排名紀錄（**包含特殊終章 `chapter_char_id = 0` 全體**）。
+    *   **章節徽章防護**: WL 章節頭像以 `{getAssetUrl(charId, 'character') && <img ...>}` 條件渲染，終章 `0`（全體）無頭像時不產生 404 請求；章節號碼「Ch.N」透過 `chorder.indexOf(charId) + 1` 動態推算。
     *   **狀態**: 使用 `isScanning` 呈現掃描進度（由於改用 Supabase，掃描過程通常在毫秒級完成）。
 
 ### 2.2 視覺化呈現

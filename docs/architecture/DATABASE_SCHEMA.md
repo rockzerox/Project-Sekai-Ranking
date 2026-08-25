@@ -1,8 +1,8 @@
 # 資料庫規格說明書 (DATABASE SCHEMA)
 
 > **Document Name**: DATABASE_SCHEMA.md
-> **Version**: v3.0.0
-> **Date**: 2026-03-22
+> **Version**: v3.1.0
+> **Date**: 2026-08-25
 
 **文件代號**: `DATABASE_SCHEMA`
 **主要用途**: 定義 HiSekaiTW 專案使用之 Supabase 資料庫的表格結構、欄位型別、約束條件與關聯關係。
@@ -132,6 +132,10 @@ erDiagram
 | `banner` | string | Banner 角色 ID（可帶尾碼如 `1-1`）|
 | `four_star_cards` | string[] | 四星卡角色 ID 陣列（可帶尾碼）|
 | `tag` | string | 活動標籤 |
+| `extra_data` | jsonb \| NULL | 擴充屬性，WL 活動包含 `{ chapters: WorldLinkChapterLive[] }`，未來可包含 `{ wl_round: number }` |
+
+> [!NOTE]
+> **`events.extra_data.chapters`** 儲存 Hisekai API 原生之動態章節資訊（包含 `chapter`, `character`, `start_at`, `closed_at`, `aggregate_at`），由後端排程合併寫入，專供前台動態推導 World Link 章節順序與天數。
 
 ### 2.2 `event_rankings` (排行榜明細表)
 | 欄位名稱 | 型別 | 說明 |
@@ -189,8 +193,14 @@ erDiagram
 | 欄位名稱 | 型別 | 說明 |
 | :--- | :--- | :--- |
 | `event_id` | int | PK (composite)，FK → `events.id` |
-| `chapter_char_id` | int | PK (composite)，WL 角色章節 ID |
+| `chapter_char_id` | int | PK (composite)，WL 角色章節 ID（包含特殊終章 `0`）|
 | `duration_days` | float | 章節天數 |
 | `top1`~`top100` | int | 前百大之具體分數 |
 | `border_200`~`border_10000` | int | 各排位之具體分數 |
 | `computed_at` | timestamp | 最後重新計算時間 |
+
+### 2.7 `world_link_details` (已棄用 / 孤兒表 Deprecated)
+
+> [!WARNING]
+> 本表為早期 DB-first 實驗殘留之孤兒表，全專案代碼**零引用**，且包含過時的錯誤資料（如 #180 記錄為 6 角色）。目前 WL 完整資料流已統一由 `events.extra_data.chapters` 與前端動態推導取代（決策 D1/D9/D10），此表列入後續清理（DROP TABLE）候選。
+

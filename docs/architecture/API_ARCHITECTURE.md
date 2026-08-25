@@ -40,20 +40,46 @@
 
 ### 2.3. 資料處理流程
 所有 API 請求均遵循以下流程：
-1.  **觸發**：前端呼叫 `/api/...`。
+1.  **觸發**：前端呼叫 `/api/...`（全站統一使用 `fetchJsonWithBigInt`）。
 2.  **路由分發**：
     *   本地環境：由 `server.ts` 攔截。
     *   正式環境：由 Vercel 根據 `api/` 目錄分發至對應的 Serverless Function。
 3.  **容錯執行 (`withFallback`)**：
     *   呼叫 `supabaseAdmin` 進行資料庫查詢。
     *   必要時呼叫 `fetchHisekai` 進行 API 請求。
-4.  **回傳**：回傳統一包裝格式：
+4.  **回傳**：回傳統一包裝信封格式：
     ```json
     {
       "source": "supabase" | "hisekai" | "stale-cache",
       "data": { ... }
     }
     ```
+
+### 2.4. World Link 動態章節資料流 (World Link Chapters Dataflow)
+
+World Link 的各章節資料完全動態化，不再依賴靜態 `WorldLinkDetail.json`：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Hisekai as Hisekai API (/event/list)
+    participant Cron as Cron / eventsService
+    participant Supabase as Supabase (events 表)
+    participant API as Vercel /api/event/list
+    participant Frontend as Frontend (ConfigContext)
+
+    Note over Hisekai,Supabase: 後端排程同步階段 (Sync Phase)
+    Cron->>Hisekai: GET /event/list (含 chapters 陣列)
+    Cron->>Supabase: upsert events (合併 extra_data.chapters, 自動設 event_type='world_link')
+
+    Note over API,Frontend: 前台請求與解析階段 (Client Phase)
+    Frontend->>API: fetchJsonWithBigInt('/api/event/list')
+    API->>Supabase: select('*') from events
+    Supabase-->>API: events (含 extra_data.chapters)
+    API-->>Frontend: { source: 'database', data: events }
+    Note over Frontend: 1. 解開 {source, data} 信封<br/>2. 讀取 event.chapters ?? event.extra_data?.chapters<br/>3. 純函式 getWlRound(start_at) 推導輪次<br/>4. 動態計算 chorder, chDavg, isfinal 組裝 wlDetails
+```
+
 
 ## 3. API 端點列表
 

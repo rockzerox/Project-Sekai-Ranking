@@ -1,8 +1,8 @@
 # 📈 數據分析微服務 (Stats Service)
 
 > **Document Name**: SERVICE_STATS_SERVICE.md
-> **Version**: v2.0.0
-> **Date**: 2026-03-22
+> **Version**: v2.1.0
+> **Date**: 2026-08-25
 
 **文件代號**: `SERVICE_STATS_SERVICE`
 **檔案路徑**: `api/_lib/statsService.ts`
@@ -40,7 +40,7 @@
 
 ### 2.2 `getBorderStats()` — 榜線快取/降級雙軌機制
 
-*   **優先 (Fast Path)**: 直接讀取預建好的 `event_border_stats` 和 `wl_chapter_border_stats` 表，追求 10ms 內的回傳。
+*   **優先 (Fast Path)**: 直接讀取預建好的 `event_border_stats` 和 `wl_chapter_border_stats` 表（包含一般活動與 WL 所有角色章節，含特殊終章 `chapter_char_id = 0`），追求 10ms 內的回傳。
 *   **備援降級 (Fallback)**: 若快取表無資料，緊急從 `event_rankings` 實時聚合。
 
 ---

@@ -1,7 +1,7 @@
 # 📄 頁面規格說明書 - 歷代活動 (Past Events)
 
-**撰寫日期**: 2026-04-03
-**版本號**: 1.3.0
+> **Version**: v1.4.0
+> **Date**: 2026-08-25
 
 **文件代號**: `PAGE_PAST_EVENTS`
 **對應視圖**: `currentView === 'past'` (src/components/pages/PastEventsView.tsx & src/components/pages/PastEventDetailView.tsx)
@@ -27,9 +27,10 @@
 *   **狀態標示**: 自動標記活動狀態（已結束、進行中、結算中），但僅「已結束」的活動可點擊進入查看結算榜單。
 *   **活動詳情回顧**: 點擊特定活動後，進入與「現時活動」相同的榜單介面，但數據鎖定為該期最終結果。
 
-### 1.2 World Link 特殊處理
-*   在列表視圖中，World Link 活動會顯示特殊的標籤與 Banner 呈現方式（多角色頭像）。
-*   進入詳情後，會自動偵測並顯示 **「章節切換 (Chapter Tabs)」**，允許使用者查看總榜或特定角色的章節排名。
+### 1.2 World Link 特殊處理與角色防護
+*   在列表視圖中，World Link 活動會顯示特殊的標籤。四星卡若為 `"-"` 哨符（如 #180、#186）會自動安全過濾為空白，防止 `/Chibi/-.png` 破圖。
+*   Banner 與四星卡角色下拉選單統一使用 `PLAYABLE_CHARACTERS`（26 位個別角色），完全排除 `id: "0"`（全體）。
+*   進入詳情後，自動由 `ConfigContext` 動態章節資訊解析出 **「章節切換 (WorldLinkTabs)」**。特殊終章（如 #180）正確呈現為單一章節「Ch.1 全體」與代表色 `#33CCBB`，且天數依據章節起訖精確計算。
 
 ---
 
@@ -39,8 +40,8 @@
 
 | 資料類型 | API 端點 | 觸發時機 | 備註 |
 | :--- | :--- | :--- | :--- |
-| **活動列表** | `/event/list` | 頁面載入時 | 回傳包含 ID、名稱、時間的基本清單 |
-| **詳細設定** | `eventDetail.json` | App 初始化時 (ConfigContext) | 補足 API 缺少的資訊 (Banner, Unit, CardType 等) |
+| **活動列表** | `/event/list` | 頁面載入時 | 回傳包含 ID、名稱、時間及 `chapters` 的清單 |
+| **詳細設定** | `eventDetail.json` | App 初始化時 (ConfigContext) | 補足 API 缺少的資訊 (Banner, Unit, CardType 等)；WL 詳情已全面動態化 |
 | **大一統歷史榜單** | `/event/{id}/rankings` | 點擊特定活動卡片進入詳情後 | 一次性取得該期 Top 100 與所有邊線結算數據，包含章節解析 |
 
 ### 2.2 核心邏輯 (Core Logic)

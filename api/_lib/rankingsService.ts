@@ -36,23 +36,39 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
         rankings: topData.player_top_100_rankings || topData.top_100_player_rankings || [],
         borders: borderData.player_border_rankings || borderData.border_player_rankings || [],
         // WL 章節：新 API 格式 (含 start_at / closed_at / aggregate_at 時間戳)
-        chapters: (topData.world_link_top_100_rankings || []).map((ch: any) => ({
-          gameCharacterId: ch.character,
-          chapterOrder: ch.chapter,
-          chapterId: ch.id,
-          startAt: ch.start_at,
-          closedAt: ch.closed_at,
-          aggregateAt: ch.aggregate_at,
-          rankings: ch.player_rankings || [],
-        })),
-        chapterBorders: (borderData.world_link_border_rankings || []).map((ch: any) => ({
-          gameCharacterId: ch.character,
-          chapterId: ch.id,
-          startAt: ch.start_at,
-          closedAt: ch.closed_at,
-          aggregateAt: ch.aggregate_at,
-          borderRankings: ch.player_borders || [],
-        })),
+        chapters: (topData.world_link_top_100_rankings || []).map((ch: any) => {
+          const rankings = ch.player_top_100_rankings || ch.player_rankings || [];
+          const isStarted = ch.start_at && (Date.now() - new Date(ch.start_at).getTime() > 5 * 60 * 1000);
+          if (isStarted && rankings.length === 0) {
+            console.warn(`[rankingsService] WL Chapter ${ch.character ?? ch.id} 已開賽但 rankings 為空`);
+          }
+          return {
+            gameCharacterId: ch.character,
+            chapterOrder: ch.chapter,
+            chapterId: ch.id,
+            startAt: ch.start_at,
+            closedAt: ch.closed_at,
+            aggregateAt: ch.aggregate_at,
+            rankingAnnounceAt: ch.ranking_announce_at,
+            rankings,
+          };
+        }),
+        chapterBorders: (borderData.world_link_border_rankings || []).map((ch: any) => {
+          const borderRankings = ch.player_border_rankings || ch.player_borders || [];
+          const matchedTopCh = (topData.world_link_top_100_rankings || []).find((c: any) => (c.character ?? c.id) === (ch.character ?? ch.id));
+          const t100Count = (matchedTopCh?.player_top_100_rankings || matchedTopCh?.player_rankings || []).length;
+          if (t100Count >= 100 && borderRankings.length === 0) {
+            console.warn(`[rankingsService] WL Chapter ${ch.character ?? ch.id} T100 已滿百但 borderRankings 為空`);
+          }
+          return {
+            gameCharacterId: ch.character,
+            chapterId: ch.id,
+            startAt: ch.start_at,
+            closedAt: ch.closed_at,
+            aggregateAt: ch.aggregate_at,
+            borderRankings,
+          };
+        }),
         // 後向相容：保留舊欄位（一般活動 / 歷史 API 照舊）
         userWorldBloomChapterRankings: topData.userWorldBloomChapterRankings || [],
         userWorldBloomChapterRankingBorders: borderData.userWorldBloomChapterRankingBorders || []
@@ -72,13 +88,15 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
       const chapterRankingsMap: Record<number, any[]> = {};
 
       data.forEach((row: any) => {
+        const isObjectCard = row.raw_user_card && typeof row.raw_user_card === 'object' && !Array.isArray(row.raw_user_card);
         const mappedRow = {
           userId: row.user_id,
           name: row.players?.user_name || 'Unknown',
           rank: row.rank,
           score: row.score,
           last_played_at: row.last_played_at,
-          userCard: row.raw_user_card,
+          userCard: isObjectCard ? undefined : row.raw_user_card,
+          last_player_info: isObjectCard ? row.raw_user_card : undefined,
           chapter_char_id: row.chapter_char_id
         };
 
@@ -135,6 +153,7 @@ export const getPastRankings = async (id: string) => {
     const chapterRankingsMap: Record<number, any[]> = {};
 
     data.forEach((row: any) => {
+      // 備忘：此處僅提供純榜單資料，前端或消費者僅取 rank/score/user_id，不經卡片形狀轉換
       const mappedRow = {
         userId: row.user_id,
         name: row.players?.user_name || 'Unknown',
@@ -191,6 +210,7 @@ export const getBorderRankings = async (id: string, isLive: boolean) => {
       const chapterRankingsMap: Record<number, any[]> = {};
 
       data.forEach((row: any) => {
+        // 備忘：Border 端點僅讀 rank 與 score，不經卡片轉換
         const mappedRow = {
           userId: row.user_id,
           name: row.players?.user_name || 'Unknown',

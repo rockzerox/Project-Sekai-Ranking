@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
+import { assertIngestSafety } from './ingestGuards';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -57,17 +58,6 @@ async function syncEvents() {
   
   console.log(`✅ 成功同步 ${upsertData.length} 筆活動資料。\n`);
   return upsertData;
-}
-
-export function assertIngestSafety(allRankings: any[], ev: any, eventId: number): void {
-  const wlRows = allRankings.filter(r => r.chapter_char_id !== -1);
-  const isWlEvent = Array.isArray(ev?.chapters) && ev.chapters.length > 0;
-  if (allRankings.length === 0) {
-    throw new Error(`[cron] 活動 ${eventId} 解析出 0 筆排名，中止以避免清空既有資料`);
-  }
-  if (isWlEvent && wlRows.length === 0) {
-    throw new Error(`[cron] WL 活動 ${eventId} 總榜 ${allRankings.length} 筆但章節 0 筆，疑似章節解析失效，中止以避免刪除既有章節資料`);
-  }
 }
 
 async function ingestEventRankings(ev: any) {
@@ -295,7 +285,4 @@ async function main() {
   }
 }
 
-const isDirectRun = process.argv[1] && /cron-runner\.(ts|js)$/.test(process.argv[1]);
-if (isDirectRun) {
-  main();
-}
+main();

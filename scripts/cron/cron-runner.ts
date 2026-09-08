@@ -59,6 +59,17 @@ async function syncEvents() {
   return upsertData;
 }
 
+export function assertIngestSafety(allRankings: any[], ev: any, eventId: number): void {
+  const wlRows = allRankings.filter(r => r.chapter_char_id !== -1);
+  const isWlEvent = Array.isArray(ev?.chapters) && ev.chapters.length > 0;
+  if (allRankings.length === 0) {
+    throw new Error(`[cron] 活動 ${eventId} 解析出 0 筆排名，中止以避免清空既有資料`);
+  }
+  if (isWlEvent && wlRows.length === 0) {
+    throw new Error(`[cron] WL 活動 ${eventId} 總榜 ${allRankings.length} 筆但章節 0 筆，疑似章節解析失效，中止以避免刪除既有章節資料`);
+  }
+}
+
 async function ingestEventRankings(ev: any) {
   const eventId = ev.id;
   console.log(`⏳ 開始抓取活動 ${eventId} 的排行榜資料...`);
@@ -80,7 +91,7 @@ async function ingestEventRankings(ev: any) {
   const nowStr = new Date().toISOString();
 
   const addRanking = (r: any, chapter_char_id: number) => {
-    const userId = r.userId ? String(r.userId) : String(r.user?.id || '');
+    const userId = r.userId ? String(r.userId) : r.user?.id ? String(r.user.id) : String(r.last_player_info?.profile?.id || '');
     const userName = r.name || r.user?.display_name || 'Unknown';
     if (!userId) return;
 
@@ -101,14 +112,14 @@ async function ingestEventRankings(ev: any) {
     });
   };
 
-  // 總榜：山容新舊欄位名 (新: player_top_100_rankings, 舊: top_100_player_rankings)
+  // 總榜：兼容新舊欄位名 (新: player_top_100_rankings, 舊: top_100_player_rankings)
   const rawT100 = parsedT100.rankings || parsedT100.player_top_100_rankings || parsedT100.top_100_player_rankings || [];
   rawT100.forEach((r: any) => addRanking(r, -1));
 
   // WL 章節：新 API 格式 (world_link_top_100_rankings)
   if (parsedT100.world_link_top_100_rankings) {
     parsedT100.world_link_top_100_rankings.forEach((ch: any) => {
-      (ch.player_rankings || []).forEach((r: any) => addRanking(r, ch.character));
+      (ch.player_top_100_rankings || ch.player_rankings || []).forEach((r: any) => addRanking(r, ch.character));
     });
   }
 
@@ -119,14 +130,14 @@ async function ingestEventRankings(ev: any) {
     });
   }
 
-  // 總榜 border：山容新舊欄位名 (新: player_border_rankings, 舊: border_player_rankings)
+  // 總榜 border：兼容新舊欄位名 (新: player_border_rankings, 舊: border_player_rankings)
   const rawBorder = parsedBorder.borderRankings || parsedBorder.player_border_rankings || parsedBorder.border_player_rankings || [];
   rawBorder.forEach((r: any) => addRanking(r, -1));
 
   // WL 章節 border：新 API 格式 (world_link_border_rankings)
   if (parsedBorder.world_link_border_rankings) {
     parsedBorder.world_link_border_rankings.forEach((ch: any) => {
-      (ch.player_borders || []).forEach((r: any) => addRanking(r, ch.character));
+      (ch.player_border_rankings || ch.player_borders || []).forEach((r: any) => addRanking(r, ch.character));
     });
   }
 
@@ -137,6 +148,9 @@ async function ingestEventRankings(ev: any) {
       entries.forEach((r: any) => addRanking(r, ch.gameCharacterId));
     });
   }
+
+  // 雙層斷路器：防護解析失效時破壞性清空與寫入
+  assertIngestSafety(allRankings, ev, eventId);
 
   // 先寫入 Players 表，避免外鍵衝突 (event_rankings_user_id_fkey)
   console.log(`🧑‍🤝‍🧑 更新 ${allPlayersMap.size} 位玩家資訊到 players 表...`);
@@ -281,4 +295,7 @@ async function main() {
   }
 }
 
-main();
+const isDirectRun = process.argv[1] && /cron-runner\.(ts|js)$/.test(process.argv[1]);
+if (isDirectRun) {
+  main();
+}

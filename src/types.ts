@@ -163,10 +163,14 @@ export interface WorldLinkChapterLive {
   event: number;       // e.g. 163
   character: number;   // e.g. 12 (青柳冬彌)
   start_at: string;    // ISO8601
-  closed_at: string;   // ISO8601
+  closed_at?: string;  // ISO8601 (Live API 無此鍵，設為可選)
   aggregate_at: string;// ISO8601
-  player_rankings?: RankingEntry[];  // T100 用
-  player_borders?: RankingEntry[];   // Border 用
+  ranking_announce_at?: string; // ISO8601
+  chapter?: number;    // 章節序號
+  player_top_100_rankings?: RankingEntry[];
+  player_border_rankings?: RankingEntry[];
+  player_rankings?: RankingEntry[];  // T100 用 (舊格式/相容)
+  player_borders?: RankingEntry[];   // Border 用 (舊格式/相容)
 }
 
 export interface UnifiedRankingsResponse {

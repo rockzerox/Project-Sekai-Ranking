@@ -127,9 +127,27 @@ export const useRankings = (): UseRankingsReturn => {
                 setRankings(uniqueMain);
                 setCachedLiveRankings(uniqueMain);
                 
-                // Chapter 處理：優先使用新 API chapters 格式（含時間戳）
-                if (data.chapters && data.chapters.length > 0) {
+                // 1. 時間戳解耦：只要有新 API chapters 即獨立解析時間戳（確保倒數與反灰狀態正常）
+                if (Array.isArray(data.chapters) && data.chapters.length > 0) {
                     const timingsMap: Record<string, { startAt: string; aggregateAt: string; closedAt: string; chapterOrder?: number }> = {};
+                    data.chapters.forEach((ch: any) => {
+                        const charId = String(ch.gameCharacterId);
+                        timingsMap[charId] = {
+                            startAt: ch.startAt,
+                            aggregateAt: ch.aggregateAt,
+                            closedAt: ch.closedAt,
+                            chapterOrder: ch.chapterOrder,
+                        };
+                    });
+                    setWorldLinkChapterTimings(timingsMap);
+                }
+
+                // 2. Chapter 排名處理：檢查新格式是否確實包含排名資料，破除空陣列死鎖
+                const hasValidRankings = Array.isArray(data.chapters) && data.chapters.some(
+                    (ch: any) => Array.isArray(ch.rankings) && ch.rankings.length > 0
+                );
+
+                if (hasValidRankings) {
                     data.chapters.forEach((ch: any) => {
                         const charId = String(ch.gameCharacterId);
                         const top = ch.rankings || [];
@@ -140,14 +158,7 @@ export const useRankings = (): UseRankingsReturn => {
                         chapterMap[charId] = Array.from(
                             new Map(merged.map(r => [r.rank, r])).values()
                         ).sort((a, b) => a.rank - b.rank);
-                        timingsMap[charId] = {
-                            startAt: ch.startAt,
-                            aggregateAt: ch.aggregateAt,
-                            closedAt: ch.closedAt,
-                            chapterOrder: ch.chapterOrder,
-                        };
                     });
-                    setWorldLinkChapterTimings(timingsMap);
                 }
                 // Fallback：舊 API 格式 (userWorldBloomChapter*)
                 else if (data.userWorldBloomChapterRankings || data.userWorldBloomChapterRankingBorders) {

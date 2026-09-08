@@ -80,7 +80,7 @@ const giveUpThreshold = targetScore - maxGain;
 #### D. WL 歷史分數整合 (Phase 2 新增)
 *   邏輯位於 `src/contexts/ConfigContext.tsx` 的 `getPrevRoundWlChapterScore(eventId, charId)` 函式。
 *   **查找規則**：
-    *   若現為**第 2 輪以後**的章節：透過 `WorldLinkDetail.json` 查找上一輪 (round - 1) 中，包含相同角色 charId 的活動 ID，再從 `wlStats` 快取中取得其歷史邊線分數。
+    *   若現為**第 2 輪以後**的章節：透過 `ConfigContext` 依據 `wlDetails` 與 `getWlIdsByRound` 查找上一輪 (round - 1) 中包含相同角色 charId 的活動 ID，再從 `wlStats` 快取中取得其歷史邊線分數。
     *   若現為**第 1 輪**：目前無上一輪可參考，邏輯回傳 `null`（不顯示歷史線）。
 *   **傳遞鏈**：`ConfigContext.getPrevRoundWlChapterScore` → `ChartAnalysis`（接收 `activeChapterId` prop）→ `LineChart`（接收 `historicalLine` prop）。
 *   **UI 儀表板標籤**：在圖表標題列常駐顯示上輪 T1 / T10 / T100 分數文字標籤，顏色套用當前章節角色代表色。

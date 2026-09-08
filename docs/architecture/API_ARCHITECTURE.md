@@ -92,8 +92,8 @@ sequenceDiagram
 ### 3.2. 排名相關 (Rankings)
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |
 | :--- | :--- | :--- | :--- |
-| `/api/event/live/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得當前活動 Top 100 與所有特定榜線之合併資料（包含 World Link 角色各自的章節 `userWorldBloomChapterRankings` 邊線數據） |
-| `/api/event/:id/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得歷史活動 Top 100 與所有特定榜線之合併資料（也包含章節數據解析） |
+| `/api/event/live/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得當前活動 Top 100 與所有特定榜線之合併資料。支援 World Link 新舊 API 格式相容鏈（`player_top_100_rankings` / `player_border_rankings`），整合非對稱防呆告警並補齊章節時間戳（含 `ranking_announce_at`）傳遞。 |
+| `/api/event/:id/rankings` | GET | `getUnifiedRankings` | **(大一統 API)** 取得歷史活動 Top 100 與所有特定榜線之合併資料（包含章節數據解析與卡片型態相容分流） |
 
 ### 3.3. 玩家與資料 (Data)
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |

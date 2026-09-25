@@ -16,14 +16,38 @@ export const getLiveRankings = async () => {
 export const getUnifiedRankings = async (id: string, isLive: boolean) => {
   try {
     if (isLive) {
-      // Live: Fetch both from Hisekai and merge
+      // Live: Fetch both from Hisekai and merge with fault tolerance
       const [topRes, borderRes] = await Promise.all([
         fetch(`${HISEKAI_API_BASE}/event/live/top100`),
-        fetch(`${HISEKAI_API_BASE}/event/live/border`)
+        fetch(`${HISEKAI_API_BASE}/event/live/border`).catch(err => {
+          console.warn('[rankingsService] Live border network request failed:', err);
+          return null;
+        })
       ]);
       
+      if (!topRes.ok) {
+        throw new Error(`HTTP error fetching live top100: ${topRes.status}`);
+      }
+      
       const topData = await topRes.json();
-      const borderData = await borderRes.json();
+
+      let borderData: any = {
+        player_border_rankings: [],
+        border_player_rankings: [],
+        world_link_border_rankings: [],
+        userWorldBloomChapterRankingBorders: []
+      };
+
+      if (borderRes && borderRes.ok) {
+        try {
+          borderData = await borderRes.json();
+        } catch (jsonErr) {
+          console.warn('[rankingsService] Failed to parse live border JSON, falling back to empty borders:', jsonErr);
+        }
+      } else {
+        const status = borderRes ? borderRes.status : 'Network Error';
+        console.warn(`[rankingsService] Live border API unavailable (${status}), falling back to empty borders`);
+      }
       
       return JSON.stringify({
         id: topData.id,
@@ -34,7 +58,7 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
         ranking_announce_at: topData.ranking_announce_at,
         // 總榜：兼容新舊欄位名 (新: player_top_100_rankings, 舊: top_100_player_rankings)
         rankings: topData.player_top_100_rankings || topData.top_100_player_rankings || [],
-        borders: borderData.player_border_rankings || borderData.border_player_rankings || [],
+        borders: borderData?.player_border_rankings || borderData?.border_player_rankings || [],
         // WL 章節：新 API 格式 (含 start_at / closed_at / aggregate_at 時間戳)
         chapters: (topData.world_link_top_100_rankings || []).map((ch: any) => {
           const rankings = ch.player_top_100_rankings || ch.player_rankings || [];
@@ -53,7 +77,7 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
             rankings,
           };
         }),
-        chapterBorders: (borderData.world_link_border_rankings || []).map((ch: any) => {
+        chapterBorders: (borderData?.world_link_border_rankings || []).map((ch: any) => {
           const borderRankings = ch.player_border_rankings || ch.player_borders || [];
           const matchedTopCh = (topData.world_link_top_100_rankings || []).find((c: any) => (c.character ?? c.id) === (ch.character ?? ch.id));
           const t100Count = (matchedTopCh?.player_top_100_rankings || matchedTopCh?.player_rankings || []).length;
@@ -71,7 +95,7 @@ export const getUnifiedRankings = async (id: string, isLive: boolean) => {
         }),
         // 後向相容：保留舊欄位（一般活動 / 歷史 API 照舊）
         userWorldBloomChapterRankings: topData.userWorldBloomChapterRankings || [],
-        userWorldBloomChapterRankingBorders: borderData.userWorldBloomChapterRankingBorders || []
+        userWorldBloomChapterRankingBorders: borderData?.userWorldBloomChapterRankingBorders || []
       });
     } else {
       // Past: Fetch from Supabase with sparse list + top 100
@@ -193,9 +217,29 @@ export const getPastRankings = async (id: string) => {
 export const getBorderRankings = async (id: string, isLive: boolean) => {
   try {
     if (isLive) {
-      const response = await fetch(`${HISEKAI_API_BASE}/event/live/border`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      return await response.text();
+      try {
+        const response = await fetch(`${HISEKAI_API_BASE}/event/live/border`);
+        if (!response.ok) {
+          console.warn(`[rankingsService] getBorderRankings: Live border API unavailable (${response.status}), returning fallback empty JSON`);
+          return JSON.stringify({
+            id: "live",
+            border_player_rankings: [],
+            player_border_rankings: [],
+            world_link_border_rankings: [],
+            userWorldBloomChapterRankingBorders: []
+          });
+        }
+        return await response.text();
+      } catch (borderErr) {
+        console.warn('[rankingsService] getBorderRankings: Fetch failed, returning fallback empty JSON:', borderErr);
+        return JSON.stringify({
+          id: "live",
+          border_player_rankings: [],
+          player_border_rankings: [],
+          world_link_border_rankings: [],
+          userWorldBloomChapterRankingBorders: []
+        });
+      }
     } else {
       const { data, error } = await supabase
         .from('event_rankings')

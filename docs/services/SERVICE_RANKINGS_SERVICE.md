@@ -1,8 +1,8 @@
 # 🏅 榜單微服務規格書 (Rankings Service)
 
 > **Document Name**: SERVICE_RANKINGS_SERVICE.md
-> **Version**: v1.1.0
-> **Date**: 2026-09-08
+> **Version**: v1.2.0
+> **Date**: 2026-09-25
 
 **文件代號**: `SERVICE_RANKINGS_SERVICE`
 **檔案路徑**: `api/_lib/rankingsService.ts`
@@ -16,11 +16,14 @@
 ## 2. 技術實作 (Technical Implementation)
 *   **`getUnifiedRankings(id, isLive)`**: 
     *   **即時模式 (`isLive === true`)**: 使用 `Promise.all` 並發呼叫 Hisekai API 的 top100 與 border 端點。
+        *   **主幹與附屬解耦容錯 (v1.2.0)**：`topRes` 作為主幹資料進行 `res.ok` 驗證；`borderRes` 若非 200 或網路失敗，安全降級為全空邊線容器，印出警告但不中斷整體 API，確保活動交替期仍能正常交付總榜與 WL 章節榜單（共 700 筆資料）。
         *   **WL 新格式鍵名相容**：章節排名與邊線分別相容 `player_top_100_rankings || player_rankings` 及 `player_border_rankings || player_borders`，並補齊 `ranking_announce_at` 映射傳遞。
         *   **非對稱告警機制**：章節開賽超過 5 分鐘但榜單為空，或 T100 滿百但 Border 為空時，以 `ch.character ?? ch.id`（保持全體終章 `character: 0` 語意）發出 `console.warn`。
         *   將 `topData` 與 `borderData` 合併輸出，並保留舊欄位以向下相容。
     *   **歷史模式 (`isLive === false`)**: 自 Supabase DB 中讀取，藉由建立 `.in(rank, [特定名次])` 與 `.lte(rank, 100)` 的高效率複合索引式查詢將歷史跨區拉回，並自建 `chapterRankingsMap` 還原為適用 World Link 的樹狀資料結構。
         *   **卡片結構相容分流**：判斷 `raw_user_card` 若為物件型態則映射至 `last_player_info`，陣列型態則保留於 `userCard`，防止過去活動卡片資訊與頭像破圖。
+*   **`getBorderRankings(id, isLive)`**:
+    *   **即時降級契約 (v1.2.0)**：當 `isLive === true` 且上游 border API 失敗時，安全降級回傳包含空陣列的合法 JSON 字串，維持端點高可用。
 
 ## 3. 模組依賴 (Module Dependencies)
 *   內部依賴: `api/_lib/supabase.ts` (獲取 `supabaseAdmin`)

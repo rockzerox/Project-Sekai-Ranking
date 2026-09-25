@@ -459,6 +459,7 @@ const LiveEventView: React.FC = () => {
                                     <LeaderStickerPanel
                                         rankings={chartRankings}
                                         cardsMap={cards || undefined}
+                                        eventName={eventName}
                                     />
                                 )}
                             </CollapsibleSection>

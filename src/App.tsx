@@ -11,6 +11,7 @@ import RankAnalysisView from './components/pages/RankAnalysisView';
 import RankTrendView from './components/pages/RankTrendView';
 import PlayerAnalysisView from './components/pages/PlayerAnalysisView';
 import WorldLinkView from './components/pages/WorldLinkView';
+import FinaleStatisticsView from './components/pages/FinaleStatisticsView';
 import UnitAnalysisView from './components/pages/UnitAnalysisView';
 import CharacterAnalysisView from './components/pages/CharacterAnalysisView';
 import ResourceEstimatorView from './components/pages/ResourceEstimatorView';
@@ -84,6 +85,7 @@ const MainContent: React.FC = () => {
           case 'analysis': return <RankAnalysisView />;
           case 'trend': return <RankTrendView />;
           case 'worldLink': return <WorldLinkView />;
+          case 'finaleStats': return <FinaleStatisticsView />;
           case 'unitAnalysis': return <MaintenanceView titleKey="unitAnalysis" />;
           case 'characterAnalysis': return <MaintenanceView titleKey="characterAnalysis" />;
           case 'playerAnalysis': return <PlayerAnalysisView />;

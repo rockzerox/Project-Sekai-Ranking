@@ -184,7 +184,7 @@ export interface UnifiedRankingsResponse {
   userWorldBloomChapterRankingBorders?: WorldBloomChapterBorder[];
 }
 
-export type ViewType = 'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile' | 'mySekaiMining' | 'eventSongs';
+export type ViewType = 'home' | 'live' | 'past' | 'distribution' | 'comparison' | 'analysis' | 'trend' | 'worldLink' | 'finaleStats' | 'unitAnalysis' | 'characterAnalysis' | 'playerAnalysis' | 'playerStructure' | 'resourceEstimator' | 'playerProfile' | 'mySekaiMining' | 'eventSongs';
 export interface EventDetail {
     unit: string;
     type: 'marathon' | 'cheerful_carnival' | 'world_link';

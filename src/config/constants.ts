@@ -4,6 +4,7 @@ import { CharInfo, UnitInfo } from '../types';
 export const API_BASE_URL = "/api";
 export const MS_PER_DAY = 86400000;
 export const WL_ROUND1_ANNIVERSARY_YEAR = 2024;
+export const FINALE_EVENT_ID = 180;
 
 export const UNITS: Record<string, UnitInfo> = {
     "1": { name: "Leo/need", color: "#4455DD", abbr: "LN", style: "bg-blue-600 text-white", urlKey: "LN" },

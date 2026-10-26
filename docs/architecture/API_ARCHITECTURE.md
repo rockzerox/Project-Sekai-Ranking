@@ -99,6 +99,8 @@ sequenceDiagram
 | 端點路徑 | 方法 | Service 函式 | 功能描述 |
 | :--- | :--- | :--- | :--- |
 | `/api/user/:id/profile` | GET | `getPlayerProfile` | 取得玩家個人資料 |
+| `/api/user/:id/rankings` | GET | (Inline withFallback) | 取得特定玩家歷代 TOP 100 排名記錄（單人模式，快取 300 秒） |
+| `/api/user/finale/rankings?anchorEvent=180` | GET | (Inline withFallback) | **(多人終章模式)** 取得終章（第 180 期）TOP 100 玩家名冊與卡片數據，並分頁擷取其歷代活動與章節排名（三欄排序避免跨頁重複或遺漏，24 小時 CDN 快取） |
 | `/api/song/list` | GET | `getSongsData` | 取得歌曲資料庫 |
 
 ### 3.4. 統計相關 (Stats)
@@ -109,6 +111,10 @@ sequenceDiagram
 
 ## 4. 特殊策略與快取 (Caching & Strategy)
 *   **Live API 去快取**：為配合外部 Hisekai API 建議，`live` 相關端點 (如 `/api/event/live/rankings`) 已全面解除 Vercel 邊緣快取，以確保最即時的推播。
+*   **終章多人排名快取與三欄排序 (Finale Multi-player Caching & Ordering)**：
+    *   `/api/user/finale/rankings?anchorEvent=180` 採用 24 小時 CDN 快取 (`public, s-maxage=86400, stale-while-revalidate=3600`)。
+    *   為突破 Supabase 1,000 筆查詢上限，歷史數據採用分頁機制與三欄排序 `.order('event_id').order('rank').order('id')`，確保跨頁邊界的同名次玩家不產生重複或遺漏。
+    *   終章 ID 在 `api/user/[id]/rankings.ts` 內獨立定義，前端在 `src/config/constants.ts` 另有一份，兩者需同步修改；不一致時 API 回 400。
 *   **Metadata Enrichment**：部分 API (如 `top-players`) 為規避 1000 筆查詢上限，已改由後端直接使用分頁 (`range`) 將完整統計匯總為 `metadata`，供前端渲染真實圖表。
 *   **環境變數管理**：
     *   前端僅使用 `VITE_` 開頭的變數。

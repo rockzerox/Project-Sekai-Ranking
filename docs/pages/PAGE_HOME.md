@@ -1,7 +1,8 @@
 # 📄 頁面規格說明書 - 首頁 (Home)
 
 **撰寫日期**: 2026-03-11
-**版本號**: 1.1.0
+**更新日期**: 2026-10-26
+**版本號**: 1.2.0
 
 **文件代號**: `PAGE_HOME`
 **對應視圖**: `currentView === 'home'` (src/App.tsx)
@@ -14,12 +15,12 @@
 本頁面將龐雜的功能模組進行邏輯分類，並以視覺化的卡片形式呈現，協助使用者快速找到所需工具。
 
 ### 1.1 核心功能
-*   **功能儀表板 (Feature Dashboard)**: 將 14 個功能頁面分為 5 大類別展示。
+*   **功能儀表板 (Feature Dashboard)**: 將 16 個功能頁面分為 5 大類別展示。
 *   **快速導航**: 點擊任一卡片即可切換 `currentView` 至對應頁面。
 *   **分類引導**:
     1.  **查榜 SEKAI**: 查詢現時與歷史榜單。
     2.  **分析 SEKAI**: 比較與趨勢分析。
-    3.  **推角 SEKAI**: 針對角色/團體的深度挖掘。
+    3.  **推角 SEKAI**: 針對角色/團體的深度挖掘（含 World Link 分析、終章統計、團推分析、推角分析）。
     4.  **玩家 SEKAI**: 針對玩家行為與個體的分析。
     5.  **工具 SEKAI**: 實用計算工具與資料庫。
 
@@ -35,7 +36,7 @@
 位於 `src/components/pages/HomeView.tsx` 內的 `sections` 陣列。
 
 *   **資料結構**: 定義了每個區塊 (Section) 的標題、顏色以及包含的功能 (Features)。
-*   **功能定義**: 每個 Feature 包含 `id` (對應 `currentView`), `title`, `description`, `icon`, `charColor`。
+*   **功能定義**: 每個 Feature 包含 `id` (對應 `currentView`), `title`, `description`, `icon`, `charColor`, `charId?`。
 *   **文案來源**: 所有文字皆引用自 `UI_TEXT.home`，確保多語言擴充性。
 
 ### 2.2 導航邏輯
@@ -71,7 +72,7 @@
 
 *   `src/components/pages/HomeView.tsx`
 *   `src/components/icons/TrophyIcon.tsx`
-*   `src/config/config/constants.ts` (引用 `CHARACTERS` 顏色)
+*   `src/config/constants.ts` (引用 `CHARACTERS` 顏色)
 *   `src/config/uiText.ts`
 
 ## 5. 序列圖 (Sequence Diagram)

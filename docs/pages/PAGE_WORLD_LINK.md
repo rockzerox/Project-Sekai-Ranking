@@ -1,7 +1,7 @@
-# 📄 頁面規格說明書 - World Link 分析 (World Link Analysis)
+# 📄 頁面規格說明書 - World Link 分析 (World Link Chapter Analysis)
 
-> **Version**: v2.1.0
-> **Date**: 2026-08-25
+> **Version**: v2.1.1
+> **Date**: 2026-10-26
 
 **文件代號**: `PAGE_WORLD_LINK`
 **對應視圖**: `currentView === 'worldLink'` (src/App.tsx)
@@ -11,7 +11,7 @@
 
 ## 1. 功能概述 (Feature Overview)
 
-World Link 活動將一次活動拆分為多個章節 (Chapters)，每個章節對應不同角色且天數可能不同。本頁面旨在標準化這些數據以進行公平比較。
+World Link 活動將一次活動拆分為多個章節 (Chapters)，每個章節對應不同角色且天數可能不同。本頁面（頁面大標題為「World Link 綜合分析 (World Link Chapter Analysis)」，對應 `uiText.worldLink.title`）旨在標準化這些數據以進行公平比較。
 
 ### 1.1 核心功能
 *   **輪次切換**: 支援切換「第一輪 (Round 1)」、「第二輪 (Round 2)」等 World Link 活動群組（由 `getWlRound` 基於台服 3 週年起算動態推導，免手動設定）。
@@ -129,6 +129,7 @@ View->>User: 渲染長條圖/分佈圖或四榜並列清單
 
 ## 6. 變更日誌 (Change Log)
 
+*   **v2.1.1 (2026-10-26)**: 頁面大標題的英文由 Aggregated Analysis 改為 World Link Chapter Analysis。
 *   **v2.1.0 (2026-08-25)**: WL API Chapters 重構完成：淘汰靜態 `WorldLinkDetail.json`，改由原生動態 chapters 與週年推導演算法 `getWlRound` 驅動；增加特殊終章 `character: 0`（全體）過濾保護。
 *   **v2.0.1 (2026-04-05)**: 新增手機端 Compact Mode（`useMobile` 控制），修正手機視窗圖表密度過低問題。`HorizontalBarChart` 與 `GlobalScoreChart` 均已支援 `isMobile` prop 自動切換縮圖尺寸。
 *   **v2.0.0 (2026-03-16)**: 初版規格建立，雙模式圖表（Activity / Global）、輪次切換、日均分校正

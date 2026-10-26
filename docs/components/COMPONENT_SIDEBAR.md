@@ -1,7 +1,8 @@
 # 🧩 組件規格說明書 - 側邊導航欄 (Sidebar)
 
 **撰寫日期**: 2026-03-24
-**版本號**: 1.2.0
+**更新日期**: 2026-10-26
+**版本號**: 1.3.0
 
 **文件代號**: `COMPONENT_SIDEBAR`
 **檔案路徑**: `src/components/layout/Sidebar.tsx`
@@ -15,7 +16,9 @@
 
 ### 1.1 核心功能
 *   **視圖導航**: 提供所有功能頁面的連結，點擊後切換 `src/App.tsx` 的 `currentView`。
-*   **分組管理**: 依據功能性質將連結分組 (Categories)，支援折疊/展開各分組。
+*   **分組管理**: 依據功能性質將連結分為 5 大分組 (Categories)，支援折疊/展開各分組。
+*   **導覽項目特化**:
+    *   **推角 SEKAI**: 包含「World Link 分析 (`worldLink`)」、「終章統計 (`finaleStats`，白石杏色 `#00BBDD`)」、「團推分析 (`unitAnalysis`，停用中（MaintenanceView），東雲彰人色 `#FF7722`)」與「推角分析 (`characterAnalysis`，停用中（MaintenanceView），青柳冬彌色 `#0077DD`)」。
 *   **響應式行為 (RWD)**:
     *   **Desktop (≥ 768px)**: 固定顯示。可切換「展開 (Expanded)」與「精簡 (Collapsed)」模式。
     *   **Mobile (< 768px)**: 透過 `hidden` CSS 類名完全隱藏，導航功能由 `MobileTabBar` 取代。
@@ -30,7 +33,7 @@
 ## 2. 技術實作 (Technical Implementation)
 
 ### 2.1 導航結構 (Navigation Structure)
-*   **外部配置**: `NAV_GROUPS` 定義移至 `src/config/navConfig.tsx` 供全域共享。
+*   **外部配置**: `NAV_GROUPS` 定義於 `src/config/navConfig.tsx` 供全域共享。
 *   **資料內容**: 包含 5 個群組，每個群組定義了 `category` 名稱、代表色、以及子項目 `items`。
 *   **Item 結構**: 包含 `id`, `label`, `icon`, `charColor`。
 
@@ -73,7 +76,7 @@
 *   `src/config/navConfig.tsx` (資料結構與資料來源)
 *   `src/components/icons/TrophyIcon.tsx`
 *   `src/config/uiText.ts`
-*   `src/config/config/constants.ts` (引用 `CHARACTERS` 顏色)
+*   `src/config/constants.ts` (引用 `CHARACTERS` 顏色)
 
 ---
 

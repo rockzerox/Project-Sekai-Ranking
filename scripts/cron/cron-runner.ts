@@ -1,6 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 import { assertIngestSafety } from './ingestGuards';
+import eventDetailJson from '../../src/data/eventDetail.json';
+
+const eventDetails = eventDetailJson as Record<string, any>;
+
+const parseUnitId = (rawUnit: any, fallback: number | null): number | null => {
+  if (rawUnit !== undefined && rawUnit !== null && rawUnit !== '-' && rawUnit !== '') {
+    const num = Number(rawUnit);
+    return isNaN(num) ? fallback : num;
+  }
+  return fallback;
+};
+
+const parseFourStarCards = (rawCards: any, fallback: string[] | null): string[] | null => {
+  if (typeof rawCards === 'string' && rawCards.trim() !== '' && rawCards !== '-') {
+    return rawCards.split(',').map((s: string) => s.trim()).filter(Boolean);
+  }
+  if (rawCards === '-') return null;
+  return fallback;
+};
+
+const parseBanner = (rawBanner: any, fallback: string | null): string | null => {
+  if (rawBanner !== undefined && rawBanner !== null && rawBanner !== '') {
+    return String(rawBanner);
+  }
+  return fallback;
+};
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -28,6 +54,7 @@ async function syncEvents() {
   const upsertData = apiEvents.map(apiEvent => {
     const id = String(apiEvent.id);
     const ex = existingEventsMap.get(id);
+    const detail = eventDetails[id];
     const isWl = Array.isArray(apiEvent.chapters) && apiEvent.chapters.length > 0;
     
     // 合併寫入 extra_data.chapters (D10)
@@ -43,10 +70,14 @@ async function syncEvents() {
       aggregate_at: apiEvent.aggregate_at ?? ex?.aggregate_at ?? null,
       closed_at: apiEvent.closed_at ?? ex?.closed_at ?? null,
       ranking_announce_at: apiEvent.ranking_announce_at ?? ex?.ranking_announce_at ?? null,
-      unit_id: ex?.unit_id ?? null,
-      banner: ex?.banner ?? null,
-      event_type: isWl ? 'world_link' : (ex?.event_type ?? null),
-      story_type: ex?.story_type ?? null,
+      // 企劃屬性：優先自 eventDetail.json 注入，若未配置則平滑回退至 ex 現存值或 null
+      unit_id: parseUnitId(detail?.unit, ex?.unit_id ?? null),
+      banner: parseBanner(detail?.banner, ex?.banner ?? null),
+      four_star_cards: parseFourStarCards(detail?.['4starcard'], ex?.four_star_cards ?? null),
+      event_type: isWl ? 'world_link' : (detail?.type || (ex?.event_type ?? null)),
+      story_type: detail?.storyType || (ex?.story_type ?? null),
+      card_type: detail?.cardType || (ex?.card_type ?? null),
+      tag: detail?.tag || (ex?.tag ?? null),
       extra_data: Object.keys(updatedExtra).length > 0 ? updatedExtra : null,
       chapters: apiEvent.chapters ?? []
     };

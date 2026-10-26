@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../../_lib/supabase';
 import { withFallback } from '../../_lib/withFallback';
-import { FINALE_EVENT_ID } from '../../../src/config/constants';
+
+// 終章活動期數。前端對應常數在 src/config/constants.ts，兩邊需同步維護（WL3 時會重新設計）
+const FINALE_EVENT_ID = 180;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { id } = req.query;

@@ -42,8 +42,8 @@
 ### 2.1 資料架構與獲取流程
 位於 `src/components/pages/FinaleStatisticsView.tsx` 與 `api/user/[id]/rankings.ts`。
 
-*   **共用常數定義 (`FINALE_EVENT_ID`)**:
-    *   終章期數定義於 `src/config/constants.ts` 之 `FINALE_EVENT_ID = 180`，前後端共用唯一常數來源。
+*   **常數定義 (`FINALE_EVENT_ID`)**:
+    *   終章期數前端定義於 `src/config/constants.ts`，後端 API 各自定義於 `api/user/[id]/rankings.ts`（數值均為 180，兩端同步維護，WL3 時重新設計）。
 *   **後端多人排名 API (`/api/user/finale/rankings?anchorEvent=180`)**:
     *   擴充既有 `api/user/[id]/rankings.ts`，當 `id === 'finale'` 時切入多人錨點模式。
     *   嚴格驗證 `anchorEvent === String(FINALE_EVENT_ID)`，不合法即回傳 400 且不查 DB。

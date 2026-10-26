@@ -37,6 +37,7 @@ export const UI_TEXT = {
       analysis: "活動榜線排名",
       trend: "活動榜線趨勢",
       worldLink: "World Link 分析",
+      finaleStats: "終章統計",
       unitAnalysis: "團推分析",
       characterAnalysis: "推角分析",
       playerAnalysis: "活躍玩家分析",
@@ -62,6 +63,7 @@ export const UI_TEXT = {
       analysis: { title: "活動榜線排名", desc: "查詢歷代活動在特定排名的最高分紀錄排行。" },
       trend: { title: "活動榜線趨勢", desc: "以折線圖觀察歷代活動特定排名分數隨期數變化的趨勢。" },
       worldLink: { title: "World Link 分析", desc: "World Link 特殊活動類型的綜合分析，包含各角色章節排名。" },
+      finaleStats: { title: "終章統計", desc: "World Link 終章 TOP 100 的角色框分布，與取得者的歷代排名紀錄。" },
       unitAnalysis: { title: "團推分析", desc: "以團體角度整合統計數據，分析歷代活動的熱度與參與度。" },
       characterAnalysis: { title: "推角分析", desc: "以角色視角整合統計數據，分析 Banner 活動的熱度分佈。" },
       playerAnalysis: { title: "活躍玩家分析", desc: "分析歷代活動中的活躍玩家，查看上榜次數最多的玩家排行。" },
@@ -371,10 +373,14 @@ export const UI_TEXT = {
     noData: "該角色未曾擔任過此類 Banner"
   },
   worldLink: {
-    title: "World Link 綜合分析 (Aggregated Analysis)",
+    title: "World Link 綜合分析 (World Link Chapter Analysis)",
     description: "彙整所有 World Link 期數，比較各角色分數排行",
     chartTitle: "圖表分析",
     modes: { activity: "活躍度", global: "全域顯示" }
+  },
+  finaleStats: {
+    title: "World Link 終章統計 (World Link Finale Statistics)",
+    description: "終章 TOP 100 玩家的角色框分布，以及取得者在 WL 章節、Banner 與四星角色活動的排名紀錄",
   },
   maintenance: {
     title: "功能重新設計中",
